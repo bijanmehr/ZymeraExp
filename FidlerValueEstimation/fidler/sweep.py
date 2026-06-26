@@ -24,7 +24,7 @@ import jax
 import numpy as np
 
 from .config import DataCfg
-from . import datagen, dataset, metrics
+from . import datagen, dataset, identity, metrics
 from .models_eqx import ConfigurableGCRN
 from . import train_eqx
 
@@ -73,17 +73,52 @@ def _gen_group(N, H, seed, cfg):
     return {"X_node": Xn, "X_adj": Xa, "X_pos": Xp, "y": y}
 
 
+# --------------------------------------------------------------------------------------
+# agent-identity augmentation (keyed off cfg['id_mode']; default 'none' is a no-op)
+# --------------------------------------------------------------------------------------
+def _id_in_size(cfg):
+    """Model in_size after the agent-identity augmentation: 6 (+id_dim random | +1 index)."""
+    id_mode = cfg.get("id_mode", "none")
+    if id_mode == "random":
+        return 6 + int(cfg.get("id_dim", 4))
+    if id_mode == "index":
+        return 6 + 1
+    return 6
+
+
+def _augment_id(data, cfg, seed):
+    """Append agent-ID features to a padded batch dict's X_node (in place on a copy).
+
+    Uses cfg['id_mode'] / cfg['id_dim'] and the given `seed` (so the random tags are
+    deterministic and reproducible). 'none' leaves the data untouched.
+    """
+    id_mode = cfg.get("id_mode", "none")
+    if id_mode == "none":
+        return data
+    data = dict(data)
+    data["X_node"], _ = identity.augment_with_id(
+        data["X_node"], data["node_mask"],
+        id_mode=id_mode, id_dim=int(cfg.get("id_dim", 4)), seed=int(seed))
+    return data
+
+
 def _build_pool(N_list, H, seed, cfg, N_max=None):
-    """Generate + window + pad a list of N's into one padded multi-N batch dict."""
+    """Generate + window + pad a list of N's into one padded multi-N batch dict.
+
+    The agent-identity augmentation (cfg['id_mode']) is applied AFTER padding so the ID
+    features land on the final node axis and padded agents are zeroed. The augmentation
+    seed is derived from `seed` so each pool is reproducible.
+    """
     if N_max is None:
         N_max = max(N_list)
     groups = [_gen_group(N, H, seed + i, cfg) for i, N in enumerate(N_list)]
-    return dataset.pad_batch(groups, N_max)
+    data = dataset.pad_batch(groups, N_max)
+    return _augment_id(data, cfg, seed=seed + 123)
 
 
 def _build_model(cfg, key):
     return ConfigurableGCRN(
-        in_size=6,
+        in_size=_id_in_size(cfg),
         hidden=int(cfg.get("hidden", 128)),
         n_rounds=int(cfg.get("n_rounds", 2)),
         op=cfg.get("op", "mean"),
@@ -169,10 +204,10 @@ def _cv_at_N(cfg, base_seed):
                 tr_groups.append(_gen_group(N, H, base_seed + 100 * (f + 1) + i, cfg))
         tr_groups.append(_window_episode_subset(ds, keep_ep, H))
         N_max = max(train_N)
-        tr_data = dataset.pad_batch(tr_groups, N_max)
+        tr_data = _augment_id(dataset.pad_batch(tr_groups, N_max), cfg, seed=base_seed + 200 * (f + 1))
 
         held_group = _window_episode_subset(ds, held, H)
-        held_data = dataset.pad_batch([held_group], N_max)
+        held_data = _augment_id(dataset.pad_batch([held_group], N_max), cfg, seed=base_seed + 201 * (f + 1))
 
         model = _build_model(cfg, jax.random.PRNGKey(base_seed + 31 + f))
         model, _ = _train(model, tr_data, cfg, seed=base_seed + 41 + f)
@@ -204,6 +239,7 @@ def _extrapolate(model, cfg, base_seed):
     out = {}
     for j, N in enumerate(extrap_N):
         data = dataset.pad_batch([_gen_group(N, H, base_seed + 5000 + j, cfg)], N)
+        data = _augment_id(data, cfg, seed=base_seed + 6000 + j)
         overall, _, _ = _score(model, data)
         out[str(N)] = float(overall)
     return out
