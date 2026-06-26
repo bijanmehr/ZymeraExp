@@ -24,7 +24,7 @@ import jax
 import numpy as np
 
 from .config import DataCfg
-from . import datagen, dataset, identity, margin, metrics
+from . import datagen, dataset, identity, margin, metrics, signal
 from .models_eqx import ConfigurableGCRN
 from . import train_eqx
 
@@ -87,8 +87,15 @@ def _id_in_size(cfg):
 
 
 def _model_in_size(cfg):
-    """Final model in_size: the id-augmented width (+1 more when margin_mode=='on')."""
-    return _id_in_size(cfg) + (1 if cfg.get("margin_mode", "off") == "on" else 0)
+    """Final model in_size: id-augmented width, +1 per active node-feature overlay.
+
+    Each of the connectivity-margin (`margin_mode=='on'`) and signal-strength
+    (`signal_mode=='on'`) overlays appends exactly ONE per-agent node feature, and they
+    compose independently with the agent-identity width.
+    """
+    return (_id_in_size(cfg)
+            + (1 if cfg.get("margin_mode", "off") == "on" else 0)
+            + (1 if _signal_on(cfg) else 0))
 
 
 def _augment_id(data, cfg, seed):
@@ -131,9 +138,45 @@ def _augment_margin(data, cfg):
     return data
 
 
+# --------------------------------------------------------------------------------------
+# signal-strength augmentation (keyed off cfg['signal_mode']; default 'off' is a no-op)
+# --------------------------------------------------------------------------------------
+def _signal_on(cfg):
+    """True iff cfg requests the signal-strength overlay (signal_mode == 'on')."""
+    return cfg.get("signal_mode", "off") == "on"
+
+
+def _augment_signal(data, cfg):
+    """Apply the signal-strength overlay to a padded batch (after ID + margin).
+
+    No-op unless cfg['signal_mode']=='on'. When on, it does TWO things, in order:
+      1. Replaces the BINARY X_adj with the FLOAT path-loss-weighted adjacency
+         (`signal.signal_weighted_adj`), so the message-passing ops in
+         `messages.aggregate` become soft-weighted automatically (the soft adjacency that
+         aligns with the soft Laplacian governing lambda2). The weighting is computed from
+         the still-binary X_adj + positions, so it must run BEFORE the adj is overwritten.
+      2. Appends the per-agent mean-neighbor-signal-strength NODE feature (on the final
+         node axis, after any ID + margin features), zero for isolated / padded agents.
+    """
+    if not _signal_on(cfg):
+        return data
+    data = dict(data)
+    comm_r = float(cfg.get("comm_r", 5))
+    binary_adj = data["X_adj"]                           # still bool here (margin left it alone)
+    # node feature first (from the binary adj), then overwrite the adj with soft weights.
+    data["X_node"], _ = signal.augment_with_signal(
+        data["X_node"], binary_adj, data["X_pos"], comm_r=comm_r)
+    data["X_adj"] = signal.signal_weighted_adj(binary_adj, data["X_pos"], comm_r=comm_r)
+    return data
+
+
 def _augment(data, cfg, seed):
-    """Full node-feature augmentation pipeline for a padded batch: ID then margin."""
-    return _augment_margin(_augment_id(data, cfg, seed), cfg)
+    """Full node-feature augmentation pipeline for a padded batch: ID, margin, then signal.
+
+    Signal runs LAST so its node feature lands after ID + margin, and so its adjacency
+    re-weighting reads the binary adjacency the earlier steps left untouched.
+    """
+    return _augment_signal(_augment_margin(_augment_id(data, cfg, seed), cfg), cfg)
 
 
 def _build_pool(N_list, H, seed, cfg, N_max=None):
@@ -151,9 +194,11 @@ def _build_pool(N_list, H, seed, cfg, N_max=None):
 
 
 def _build_model(cfg, key):
-    # margin_mode='on' forces the message round to the connectivity-margin content
-    # (per-edge dist/comm_r inside the messages); else use the configured content.
-    content = "margin" if _margin_on(cfg) else cfg.get("content", "value")
+    # margin_mode='on' OR signal_mode='on' forces the message round to the "margin"
+    # content (per-edge dist/comm_r inside the messages -- a monotone transform of the
+    # signal strength, so it carries the same per-edge link quality); else use the
+    # configured content. margin's own setting takes precedence (identical result here).
+    content = "margin" if (_margin_on(cfg) or _signal_on(cfg)) else cfg.get("content", "value")
     return ConfigurableGCRN(
         in_size=_model_in_size(cfg),
         hidden=int(cfg.get("hidden", 128)),
