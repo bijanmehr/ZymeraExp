@@ -83,3 +83,81 @@ def test_train_val_split_deterministic_with_seed():
     assert np.array_equal(tr1, tr2) and np.array_equal(va1, va2)
     tr3, _ = dataset.train_val_split(50, val_frac=0.2, seed=8)
     assert not np.array_equal(tr1, tr3)
+
+
+# --------------------------------------------------------------------------------------
+# multi-N padding + position windows
+# --------------------------------------------------------------------------------------
+def _fake_pos(E=3, T1=7, N=4):
+    rng = np.random.default_rng(1)
+    return rng.standard_normal((E, T1, N, 2)).astype(np.float32)
+
+
+def test_make_pos_windows_shape_and_order():
+    E, T1, N, H = 3, 7, 4, 3
+    pos = _fake_pos(E, T1, N)
+    Xp = dataset.make_pos_windows(pos, H)
+    S = E * (T1 - H + 1)
+    assert Xp.shape == (S, H, N, 2)
+    assert Xp.dtype == np.float32
+    # same window order as make_windows: first window of ep0 == pos[0,0:H]
+    assert np.allclose(Xp[0], pos[0, 0:H])
+    n_per_ep = T1 - H + 1
+    assert np.allclose(Xp[n_per_ep], pos[1, 0:H])
+
+
+def test_pad_to_node_axis():
+    arr = np.ones((5, 3, 4, 6), np.float32)        # (S,H,N=4,6)
+    out = dataset.pad_to(arr, 10, axis=2)
+    assert out.shape == (5, 3, 10, 6)
+    assert np.all(out[:, :, :4] == 1.0)
+    assert np.all(out[:, :, 4:] == 0.0)
+
+
+def test_pad_to_two_axes_for_adjacency():
+    adj = np.ones((5, 3, 4, 4), np.float32)        # (S,H,N,N)
+    out = dataset.pad_to(dataset.pad_to(adj, 10, axis=2), 10, axis=3)
+    assert out.shape == (5, 3, 10, 10)
+    assert np.all(out[:, :, :4, :4] == 1.0)
+    assert np.all(out[:, :, 4:, :] == 0.0)
+    assert np.all(out[:, :, :, 4:] == 0.0)
+
+
+def _group(S, H, N, fill):
+    return {
+        "X_node": np.full((S, H, N, 6), fill, np.float32),
+        "X_adj": (np.ones((S, H, N, N)) > 0.5),
+        "X_pos": np.full((S, H, N, 2), fill, np.float32),
+        "y": np.full((S,), fill, np.float32),
+    }
+
+
+def test_pad_batch_pools_two_different_N():
+    g1 = _group(4, 3, 4, 1.0)       # N=4
+    g2 = _group(6, 3, 8, 2.0)       # N=8
+    Nmax = 8
+    out = dataset.pad_batch([g1, g2], Nmax)
+    S = 4 + 6
+    assert out["X_node"].shape == (S, 3, Nmax, 6)
+    assert out["X_adj"].shape == (S, 3, Nmax, Nmax)
+    assert out["X_pos"].shape == (S, 3, Nmax, 2)
+    assert out["y"].shape == (S,)
+    assert out["node_mask"].shape == (S, Nmax)
+    # mask: real-node counts == each group's N
+    assert np.all(out["node_mask"][:4].sum(-1) == 4)
+    assert np.all(out["node_mask"][4:].sum(-1) == 8)
+    assert out["node_mask"].dtype == bool
+
+
+def test_pad_batch_zeros_padded_region_and_keeps_real():
+    g1 = _group(2, 2, 4, 1.0)
+    g2 = _group(3, 2, 8, 2.0)
+    out = dataset.pad_batch([g1, g2], 8)
+    # group1 real nodes (first 4) keep value 1, padded nodes (4:8) are zero
+    assert np.all(out["X_node"][:2, :, :4] == 1.0)
+    assert np.all(out["X_node"][:2, :, 4:] == 0.0)
+    # padded adjacency has no edges for padded nodes
+    assert np.all(out["X_adj"][:2, :, 4:, :] == False)
+    assert np.all(out["X_adj"][:2, :, :, 4:] == False)
+    # group2 fully real -> all True mask
+    assert np.all(out["node_mask"][2:])

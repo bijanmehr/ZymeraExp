@@ -1,0 +1,277 @@
+"""Sweep runner for the configurable message-design study.
+
+`run_config(cfg, base_seed=0)` builds multi-N datasets (datagen across `cfg['train_N']`),
+windows + pads them at `H = cfg['H']`, trains a `ConfigurableGCRN` with cfg's message /
+size / regularization knobs, then evaluates and returns a metrics dict:
+
+    accuracy                  overall (all real-node predictions, in-distribution eval)
+    connected_accuracy        connected-window real nodes only
+    connected_flag_accuracy   cflag-head classification accuracy (real nodes)
+    cv20_mean / cv20_std      5-fold CV mean +/- std at N = cv_N (default 20)
+    extrap                    {N: zero-shot accuracy} for N in cfg['extrap_N'] (default 24, 30)
+
+`run_sweep(configs, out_jsonl, base_seed=0)` runs each config and APPENDS one JSON line
+per config to `out_jsonl` as it finishes (partial results survive a crash), returns the list.
+
+All evaluation is on FRESHLY generated held-out episodes (separate seed offset from the
+training pool) and is masked: padded nodes never enter any metric.
+"""
+import json
+import os
+import time
+
+import jax
+import numpy as np
+
+from .config import DataCfg
+from . import datagen, dataset, metrics
+from .models_eqx import ConfigurableGCRN
+from . import train_eqx
+
+CONNECTED_TAU = train_eqx.CONNECTED_TAU
+
+# datagen knob keys (with defaults) pulled from a cfg.
+_DATA_DEFAULTS = dict(grid=16, comm_r=5, n_obstacles=0, spawn_radius=2,
+                      n_episodes=8, n_steps=100)
+
+
+def _data_kwargs(cfg):
+    return {k: cfg.get(k, v) for k, v in _DATA_DEFAULTS.items()}
+
+
+def _select_grid(cfg, N):
+    """Per-N grid: use cfg['grid_for_n'](N) if provided (to hold density ~fixed),
+    else the static cfg['grid'] default."""
+    g4n = cfg.get("grid_for_n")
+    if callable(g4n):
+        return int(g4n(N))
+    return int(cfg.get("grid", _DATA_DEFAULTS["grid"]))
+
+
+def _generate_ds(cfg, N, seed):
+    """Build the per-N DataCfg and dispatch to the guardrail or random generator.
+
+    `cfg['data']` selects the data regime: 'guardrail' (default) draws ALWAYS-CONNECTED
+    dispersed rollouts via `generate_dataset_guardrail`; 'random' keeps the legacy
+    `generate_dataset` (random-policy) behavior. The grid is chosen per-N (see
+    `_select_grid`) so a `grid_for_n` mapping can hold node density roughly fixed.
+    """
+    dk = dict(_data_kwargs(cfg))
+    dk["grid"] = _select_grid(cfg, N)
+    data_cfg = DataCfg(n_agents=N, seed=seed, **dk)
+    if cfg.get("data", "guardrail") == "random":
+        return datagen.generate_dataset(data_cfg)
+    return datagen.generate_dataset_guardrail(data_cfg)
+
+
+def _gen_group(N, H, seed, cfg):
+    """Roll out N-agent episodes and window them -> a single-N window-set dict."""
+    ds = _generate_ds(cfg, N, seed)
+    Xn, y = dataset.make_windows(ds["features"], ds["lambda2"], H)
+    Xa = dataset.make_adj_windows(ds["adjacency"], H)
+    Xp = dataset.make_pos_windows(ds["positions"], H)
+    return {"X_node": Xn, "X_adj": Xa, "X_pos": Xp, "y": y}
+
+
+def _build_pool(N_list, H, seed, cfg, N_max=None):
+    """Generate + window + pad a list of N's into one padded multi-N batch dict."""
+    if N_max is None:
+        N_max = max(N_list)
+    groups = [_gen_group(N, H, seed + i, cfg) for i, N in enumerate(N_list)]
+    return dataset.pad_batch(groups, N_max)
+
+
+def _build_model(cfg, key):
+    return ConfigurableGCRN(
+        in_size=6,
+        hidden=int(cfg.get("hidden", 128)),
+        n_rounds=int(cfg.get("n_rounds", 2)),
+        op=cfg.get("op", "mean"),
+        content=cfg.get("content", "value"),
+        heads=int(cfg.get("heads", 4)),
+        dropedge=float(cfg.get("dropedge", 0.0)),
+        comm_r=float(cfg.get("comm_r", 5)),
+        key=key,
+    )
+
+
+def _train(model, data, cfg, seed):
+    return train_eqx.train_configurable(
+        model, data,
+        steps=int(cfg.get("steps", 12000)),
+        lr=float(cfg.get("lr", 3e-4)),
+        weight_decay=float(cfg.get("weight_decay", 1e-4)),
+        batch=int(cfg.get("batch", 128)),
+        val_frac=float(cfg.get("val_frac", 0.2)),
+        agree_w=float(cfg.get("agree_w", 0.0)),
+        patience=int(cfg.get("patience", 15)),
+        seed=seed,
+    )
+
+
+# --------------------------------------------------------------------------------------
+# scoring (masked)
+# --------------------------------------------------------------------------------------
+def _score(model, data):
+    """Overall accuracy, connected-only accuracy, connected-flag accuracy on `data` (masked)."""
+    lam, cprob = train_eqx.predict_configurable(model, data)        # (S,Nmax)
+    y = np.asarray(data["y"], np.float32)
+    mask = np.asarray(data["node_mask"], bool)
+    true = np.broadcast_to(y[:, None], lam.shape)
+
+    overall = metrics.accuracy(lam[mask], true[mask])
+
+    conn = (y > CONNECTED_TAU)[:, None] & mask
+    conn_acc = metrics.accuracy(lam[conn], true[conn]) if conn.any() else 0.0
+
+    true_flag = np.broadcast_to((y > CONNECTED_TAU)[:, None], cprob.shape)
+    pred_flag = cprob > 0.5
+    flag_acc = metrics.connected_accuracy(pred_flag[mask], true_flag[mask])
+    return float(overall), float(conn_acc), float(flag_acc)
+
+
+def _cv_at_N(cfg, base_seed):
+    """5-fold CV at N = cv_N: rotate held-out folds of N-episodes -> (mean, std) accuracy.
+
+    Faithful to ARCHITECTURES sec 5: for each fold, train on the full multi-N pool minus
+    that fold's N-episodes and evaluate on the held-out fold. Returns (None, None) if
+    disabled (`cv_N` falsy or `cv_folds` < 2).
+    """
+    cv_N = cfg.get("cv_N", 20)
+    folds = int(cfg.get("cv_folds", 5))
+    if not cv_N or folds < 2:
+        return None, None
+
+    H = int(cfg["H"])
+    train_N = list(cfg["train_N"])
+    # generate the cv_N episodes once; split episodes into `folds` groups.
+    n_ep = int(cfg.get("n_episodes", _DATA_DEFAULTS["n_episodes"]))
+    cv_seed = base_seed + 7000
+    ds = _generate_ds(cfg, cv_N, cv_seed)
+    ep_idx = np.arange(n_ep)
+    rng = np.random.default_rng(base_seed + 17)
+    rng.shuffle(ep_idx)
+    fold_splits = np.array_split(ep_idx, min(folds, n_ep))
+
+    # base pool from the other train sizes (excluding cv_N to avoid leakage with the folds)
+    other_N = [N for N in train_N if N != cv_N]
+
+    accs = []
+    for f, held in enumerate(fold_splits):
+        held = np.asarray(held)
+        if held.size == 0:
+            continue
+        keep_ep = np.setdiff1d(ep_idx, held)
+        # train group = cv_N episodes minus the held fold
+        tr_groups = []
+        if other_N:
+            for i, N in enumerate(other_N):
+                tr_groups.append(_gen_group(N, H, base_seed + 100 * (f + 1) + i, cfg))
+        tr_groups.append(_window_episode_subset(ds, keep_ep, H))
+        N_max = max(train_N)
+        tr_data = dataset.pad_batch(tr_groups, N_max)
+
+        held_group = _window_episode_subset(ds, held, H)
+        held_data = dataset.pad_batch([held_group], N_max)
+
+        model = _build_model(cfg, jax.random.PRNGKey(base_seed + 31 + f))
+        model, _ = _train(model, tr_data, cfg, seed=base_seed + 41 + f)
+        overall, _, _ = _score(model, held_data)
+        accs.append(overall)
+
+    if not accs:
+        return None, None
+    return float(np.mean(accs)), float(np.std(accs))
+
+
+def _window_episode_subset(ds, ep_indices, H):
+    """Window only the given episodes of a generated dataset -> single-N window-set dict."""
+    ep_indices = np.asarray(ep_indices)
+    feats = ds["features"][ep_indices]
+    adj = ds["adjacency"][ep_indices]
+    lam = ds["lambda2"][ep_indices]
+    pos = ds["positions"][ep_indices]
+    Xn, y = dataset.make_windows(feats, lam, H)
+    Xa = dataset.make_adj_windows(adj, H)
+    Xp = dataset.make_pos_windows(pos, H)
+    return {"X_node": Xn, "X_adj": Xa, "X_pos": Xp, "y": y}
+
+
+def _extrapolate(model, cfg, base_seed):
+    """Zero-shot accuracy at each N in cfg['extrap_N'] (default {24,30}); no retrain."""
+    extrap_N = cfg.get("extrap_N", [24, 30])
+    H = int(cfg["H"])
+    out = {}
+    for j, N in enumerate(extrap_N):
+        data = dataset.pad_batch([_gen_group(N, H, base_seed + 5000 + j, cfg)], N)
+        overall, _, _ = _score(model, data)
+        out[str(N)] = float(overall)
+    return out
+
+
+# --------------------------------------------------------------------------------------
+# public API
+# --------------------------------------------------------------------------------------
+def _json_safe_cfg(cfg):
+    """Echo-able copy of a cfg: callables (e.g. `grid_for_n`) -> a string marker, so the
+    result dict survives `json.dumps` in `run_sweep`."""
+    out = {}
+    for k, v in cfg.items():
+        out[k] = f"<callable:{getattr(v, '__name__', 'fn')}>" if callable(v) else v
+    return out
+
+
+def run_config(cfg, *, base_seed=0):
+    """Train + evaluate one configuration. Returns a metrics dict (includes echoed config)."""
+    t0 = time.time()
+    H = int(cfg["H"])
+    train_N = list(cfg["train_N"])
+    eval_N = list(cfg.get("eval_N", train_N))
+
+    # --- train on the multi-N pool ---
+    pool = _build_pool(train_N, H, base_seed + 1, cfg)
+    model = _build_model(cfg, jax.random.PRNGKey(base_seed))
+    model, info = _train(model, pool, cfg, seed=base_seed)
+
+    # --- in-distribution eval on a FRESH held-out set across eval_N ---
+    eval_data = _build_pool(eval_N, H, base_seed + 9000, cfg, N_max=max(train_N + eval_N))
+    accuracy, conn_acc, flag_acc = _score(model, eval_data)
+
+    # --- 5-fold CV at N = cv_N (default 20) ---
+    cv_mean, cv_std = _cv_at_N(cfg, base_seed)
+
+    # --- zero-shot extrapolation ---
+    extrap = _extrapolate(model, cfg, base_seed)
+
+    return {
+        "config": _json_safe_cfg(cfg),
+        "accuracy": accuracy,
+        "connected_accuracy": conn_acc,
+        "connected_flag_accuracy": flag_acc,
+        "cv20_mean": cv_mean,
+        "cv20_std": cv_std,
+        "extrap": extrap,
+        "val_acc": info["val_acc"],
+        "val_err": info["val_err"],
+        "steps_run": info["steps_run"],
+        "wall_s": round(time.time() - t0, 2),
+    }
+
+
+def run_sweep(configs, out_jsonl, base_seed=0):
+    """Run each config; append one JSON line per config to `out_jsonl` as it finishes.
+
+    Returns the list of per-config metric dicts. A failing config is recorded with an
+    "error" key (so one bad config does not lose the rest of the sweep).
+    """
+    os.makedirs(os.path.dirname(out_jsonl) or ".", exist_ok=True)
+    results = []
+    for i, cfg in enumerate(configs):
+        try:
+            res = run_config(cfg, base_seed=base_seed + i)
+        except Exception as e:  # keep partial results; record the failure
+            res = {"config": _json_safe_cfg(cfg), "error": repr(e)}
+        results.append(res)
+        with open(out_jsonl, "a") as fh:
+            fh.write(json.dumps(res) + "\n")
+    return results

@@ -44,6 +44,60 @@ def make_adj_windows(adjacency, H):
     return _slide(adjacency, H).astype(bool)
 
 
+def make_pos_windows(positions, H):
+    """positions (E,T+1,N,2) -> X_pos (S,H,N,2) f32, SAME order as make_windows."""
+    positions = np.asarray(positions, np.float32)
+    return _slide(positions, H).astype(np.float32)
+
+
+def pad_to(arr, N_max, axis):
+    """Zero-pad `arr` along `axis` from its current size up to `N_max` (>= current)."""
+    arr = np.asarray(arr)
+    cur = arr.shape[axis]
+    if cur > N_max:
+        raise ValueError(f"axis {axis} size {cur} exceeds N_max {N_max}")
+    if cur == N_max:
+        return arr
+    pad = [(0, 0)] * arr.ndim
+    pad[axis] = (0, N_max - cur)
+    return np.pad(arr, pad, mode="constant", constant_values=0)
+
+
+def pad_batch(groups, N_max):
+    """Pool a list of single-N window-sets into one padded multi-N batch.
+
+    Each `group` is a dict with:
+        X_node (S_g,H,N_g,6), X_adj (S_g,H,N_g,N_g), X_pos (S_g,H,N_g,2), y (S_g,)
+    (all with the SAME H and N_g <= N_max). Returns a single dict with everything
+    padded to N_max on the node axes and concatenated over groups, plus a boolean
+    `node_mask (S,N_max)` that is True only for the real (first N_g) nodes of each row.
+    """
+    Xn, Xa, Xp, ys, masks = [], [], [], [], []
+    for g in groups:
+        x_node = np.asarray(g["X_node"], np.float32)
+        x_adj = np.asarray(g["X_adj"], bool)
+        x_pos = np.asarray(g["X_pos"], np.float32)
+        y = np.asarray(g["y"], np.float32)
+        S_g, H, N_g = x_node.shape[0], x_node.shape[1], x_node.shape[2]
+
+        Xn.append(pad_to(x_node, N_max, axis=2))                       # (S,H,Nmax,6)
+        Xa.append(pad_to(pad_to(x_adj, N_max, axis=2), N_max, axis=3)) # (S,H,Nmax,Nmax)
+        Xp.append(pad_to(x_pos, N_max, axis=2))                        # (S,H,Nmax,2)
+        ys.append(y)
+
+        m = np.zeros((S_g, N_max), dtype=bool)
+        m[:, :N_g] = True
+        masks.append(m)
+
+    return {
+        "X_node": np.concatenate(Xn, axis=0).astype(np.float32),
+        "X_adj": np.concatenate(Xa, axis=0).astype(bool),
+        "X_pos": np.concatenate(Xp, axis=0).astype(np.float32),
+        "y": np.concatenate(ys, axis=0).astype(np.float32),
+        "node_mask": np.concatenate(masks, axis=0).astype(bool),
+    }
+
+
 def train_val_split(n, val_frac=0.2, seed=0):
     """Random permutation split of range(n) -> (train_idx, val_idx) int arrays."""
     rng = np.random.default_rng(seed)
