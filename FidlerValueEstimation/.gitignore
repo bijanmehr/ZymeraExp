@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+results/
+data/
+*.npz
+.pytest_cache/
+.DS_Store

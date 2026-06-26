@@ -1,0 +1,51 @@
+{
+  "experiment": "slice1_reference",
+  "timestamp": "2026-06-26T18:06:38.994876+00:00",
+  "purpose": "Slice-1 pipeline validation: accuracy-vs-H for the two reference estimators (analytic decentralized power-iteration + degree-regression floor).",
+  "config": {
+    "n_agents_list": [
+      4,
+      8
+    ],
+    "H_list": [
+      1,
+      2,
+      3,
+      5
+    ],
+    "n_episodes": 4,
+    "n_steps": 50,
+    "grid": 16,
+    "comm_r": 5,
+    "power_iteration": {
+      "eps": 0.1,
+      "rounds_per_H": 20
+    },
+    "degree_regression": {
+      "poly_degree": 2,
+      "ridge": 0.0001
+    },
+    "policy": "zymera.random_policy",
+    "label": "true_lambda2 = eigvalsh(L)[1] on potential adjacency"
+  },
+  "results": {
+    "H_list": [
+      1,
+      2,
+      3,
+      5
+    ],
+    "power_iteration": [
+      0.9995473219690606,
+      0.9999996821084601,
+      0.9999995895998788,
+      0.9999997778922569
+    ],
+    "degree_regression": [
+      0.3554295319507824,
+      0.3554295319507824,
+      0.3554295319507824,
+      0.3554295319507824
+    ]
+  }
+}
