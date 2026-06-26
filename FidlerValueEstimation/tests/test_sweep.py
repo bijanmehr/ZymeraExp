@@ -72,3 +72,45 @@ def test_run_config_with_each_id_mode(id_mode):
     for k in ("accuracy", "connected_accuracy", "connected_flag_accuracy"):
         assert 0.0 <= out[k] <= 1.0
     assert isinstance(out["extrap"], dict)
+
+
+# --------------------------------------------------------------------------------------
+# connectivity-margin knob
+# --------------------------------------------------------------------------------------
+def test_model_in_size_margin_off_default():
+    """margin_mode defaults to 'off' -> in_size unchanged from the id-only width."""
+    assert sweep._model_in_size(_tiny_cfg()) == 6
+    assert sweep._model_in_size(_tiny_cfg(margin_mode="off")) == 6
+    assert sweep._model_in_size(_tiny_cfg(id_mode="random", id_dim=4)) == 10
+
+
+def test_model_in_size_margin_on_adds_one():
+    """margin_mode='on' adds exactly one to the model in_size, on top of any id width."""
+    assert sweep._model_in_size(_tiny_cfg(margin_mode="on")) == 7
+    assert sweep._model_in_size(_tiny_cfg(margin_mode="on", id_mode="index")) == 8
+    assert sweep._model_in_size(_tiny_cfg(margin_mode="on", id_mode="random", id_dim=4)) == 11
+
+
+def test_margin_mode_on_forces_margin_content():
+    """When margin_mode='on', the built model's message content is forced to 'margin'."""
+    import jax
+    m_off = sweep._build_model(_tiny_cfg(content="value", margin_mode="off"),
+                               jax.random.PRNGKey(0))
+    m_on = sweep._build_model(_tiny_cfg(content="value", margin_mode="on"),
+                              jax.random.PRNGKey(0))
+    assert m_off.mp.content == "value"
+    assert m_on.mp.content == "margin"
+    # and the encoder in_size reflects the +1 margin feature
+    assert m_on.encoder.in_features == 7
+    assert m_off.encoder.in_features == 6
+
+
+def test_run_config_margin_on_vs_off_both_return_metrics():
+    """run_config works with margin_mode on and off (tiny config); both full metrics."""
+    out_off = sweep.run_config(_tiny_cfg(margin_mode="off"), base_seed=0)
+    out_on = sweep.run_config(_tiny_cfg(margin_mode="on"), base_seed=0)
+    for out in (out_off, out_on):
+        assert METRIC_KEYS <= set(out.keys())
+        for k in ("accuracy", "connected_accuracy", "connected_flag_accuracy"):
+            assert 0.0 <= out[k] <= 1.0
+        assert isinstance(out["extrap"], dict)

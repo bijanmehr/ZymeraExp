@@ -8,6 +8,7 @@ Two orthogonal axes:
       - `value`   : `z_j`                         (no params)
       - `learned` : `MLP(z_j)`                    (node-only message MLP)
       - `geom`    : `MLP([z_j, edge_feat_ij])`    (edge-dependent; edge_feat = [dx,dy,dist]/comm_r)
+      - `margin`  : `MLP([z_j, dist_ij/comm_r])`  (edge-fragility margin; ~1 = about to break)
   * **op** — how node `i` combines its incoming messages:
       - `mean`               : (A_hat @ m)/deg                      (size-invariant)
       - `gcn`                : D^-1/2 A_hat D^-1/2 @ m               (size-invariant)
@@ -57,8 +58,16 @@ class MessageParams(eqx.Module):
         self.content = content
         self.op = op
         self.comm_r = float(comm_r)
-        # content message MLP: geom takes [z_j, dx, dy, dist] (hidden+3), else hidden.
-        in_msg = hidden + 3 if content == "geom" else hidden
+        # content message MLP input width:
+        #   geom   -> [z_j, dx, dy, dist]/comm_r          (hidden+3)
+        #   margin -> [z_j, dist/comm_r]                   (hidden+1, the fragility margin)
+        #   else   -> z_j                                  (hidden)
+        if content == "geom":
+            in_msg = hidden + 3
+        elif content == "margin":
+            in_msg = hidden + 1
+        else:
+            in_msg = hidden
         self.content_mlp = eqx.nn.MLP(in_msg, hidden, width_size=hidden, depth=1, key=kc)
         self.q_proj = eqx.nn.Linear(hidden, hidden, key=kq)
         self.k_proj = eqx.nn.Linear(hidden, hidden, key=kk)
@@ -90,6 +99,9 @@ def _edge_messages(z, positions, params):
     * value   : E[i,j] = z_j                              (broadcast over i)
     * learned : E[i,j] = MLP(z_j)                         (broadcast over i)
     * geom    : E[i,j] = MLP([z_j, edge_feat_ij])         (depends on both i and j)
+    * margin  : E[i,j] = MLP([z_j, dist_ij/comm_r])       (the single fragility margin;
+                ~1 means the edge is about to break -- recovers the soft-weighted-Laplacian
+                signal the binary adjacency discards)
     """
     N = z.shape[0]
     content = params.content
@@ -103,6 +115,14 @@ def _edge_messages(z, positions, params):
         ef = _edge_feats(positions, params.comm_r)       # (N,N,3)
         zj = jnp.broadcast_to(z[None, :, :], (N, N, params.hidden))   # z_j over i
         inp = jnp.concatenate([zj, ef], axis=-1)         # (N,N,hidden+3)
+        flat = inp.reshape(N * N, -1)
+        out = jax.vmap(params.content_mlp)(flat).reshape(N, N, params.hidden)
+        return out
+    if content == "margin":
+        # take ONLY the dist/comm_r column of the edge feats (the [dx,dy,dist] tensor's last).
+        margin = _edge_feats(positions, params.comm_r)[:, :, 2:3]     # (N,N,1) = dist/comm_r
+        zj = jnp.broadcast_to(z[None, :, :], (N, N, params.hidden))   # z_j over i
+        inp = jnp.concatenate([zj, margin], axis=-1)     # (N,N,hidden+1)
         flat = inp.reshape(N * N, -1)
         out = jax.vmap(params.content_mlp)(flat).reshape(N, N, params.hidden)
         return out

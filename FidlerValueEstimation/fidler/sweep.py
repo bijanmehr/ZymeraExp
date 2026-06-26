@@ -24,7 +24,7 @@ import jax
 import numpy as np
 
 from .config import DataCfg
-from . import datagen, dataset, identity, metrics
+from . import datagen, dataset, identity, margin, metrics
 from .models_eqx import ConfigurableGCRN
 from . import train_eqx
 
@@ -86,6 +86,11 @@ def _id_in_size(cfg):
     return 6
 
 
+def _model_in_size(cfg):
+    """Final model in_size: the id-augmented width (+1 more when margin_mode=='on')."""
+    return _id_in_size(cfg) + (1 if cfg.get("margin_mode", "off") == "on" else 0)
+
+
 def _augment_id(data, cfg, seed):
     """Append agent-ID features to a padded batch dict's X_node (in place on a copy).
 
@@ -102,6 +107,35 @@ def _augment_id(data, cfg, seed):
     return data
 
 
+# --------------------------------------------------------------------------------------
+# connectivity-margin augmentation (keyed off cfg['margin_mode']; default 'off' is a no-op)
+# --------------------------------------------------------------------------------------
+def _margin_on(cfg):
+    """True iff cfg requests the connectivity-margin overlay (margin_mode == 'on')."""
+    return cfg.get("margin_mode", "off") == "on"
+
+
+def _augment_margin(data, cfg):
+    """Append the connectivity-margin node feature to a padded batch dict (after any ID).
+
+    No-op unless cfg['margin_mode']=='on'. Computes the per-agent max-neighbor-distance /
+    comm_r from the batch's adjacency + position windows (last step), zero for isolated /
+    padded agents. Applied AFTER `_augment_id` so it lands on the final node axis.
+    """
+    if not _margin_on(cfg):
+        return data
+    data = dict(data)
+    data["X_node"], _ = margin.augment_with_margin(
+        data["X_node"], data["X_adj"], data["X_pos"],
+        comm_r=float(cfg.get("comm_r", 5)))
+    return data
+
+
+def _augment(data, cfg, seed):
+    """Full node-feature augmentation pipeline for a padded batch: ID then margin."""
+    return _augment_margin(_augment_id(data, cfg, seed), cfg)
+
+
 def _build_pool(N_list, H, seed, cfg, N_max=None):
     """Generate + window + pad a list of N's into one padded multi-N batch dict.
 
@@ -113,16 +147,19 @@ def _build_pool(N_list, H, seed, cfg, N_max=None):
         N_max = max(N_list)
     groups = [_gen_group(N, H, seed + i, cfg) for i, N in enumerate(N_list)]
     data = dataset.pad_batch(groups, N_max)
-    return _augment_id(data, cfg, seed=seed + 123)
+    return _augment(data, cfg, seed=seed + 123)
 
 
 def _build_model(cfg, key):
+    # margin_mode='on' forces the message round to the connectivity-margin content
+    # (per-edge dist/comm_r inside the messages); else use the configured content.
+    content = "margin" if _margin_on(cfg) else cfg.get("content", "value")
     return ConfigurableGCRN(
-        in_size=_id_in_size(cfg),
+        in_size=_model_in_size(cfg),
         hidden=int(cfg.get("hidden", 128)),
         n_rounds=int(cfg.get("n_rounds", 2)),
         op=cfg.get("op", "mean"),
-        content=cfg.get("content", "value"),
+        content=content,
         heads=int(cfg.get("heads", 4)),
         dropedge=float(cfg.get("dropedge", 0.0)),
         comm_r=float(cfg.get("comm_r", 5)),
@@ -204,10 +241,10 @@ def _cv_at_N(cfg, base_seed):
                 tr_groups.append(_gen_group(N, H, base_seed + 100 * (f + 1) + i, cfg))
         tr_groups.append(_window_episode_subset(ds, keep_ep, H))
         N_max = max(train_N)
-        tr_data = _augment_id(dataset.pad_batch(tr_groups, N_max), cfg, seed=base_seed + 200 * (f + 1))
+        tr_data = _augment(dataset.pad_batch(tr_groups, N_max), cfg, seed=base_seed + 200 * (f + 1))
 
         held_group = _window_episode_subset(ds, held, H)
-        held_data = _augment_id(dataset.pad_batch([held_group], N_max), cfg, seed=base_seed + 201 * (f + 1))
+        held_data = _augment(dataset.pad_batch([held_group], N_max), cfg, seed=base_seed + 201 * (f + 1))
 
         model = _build_model(cfg, jax.random.PRNGKey(base_seed + 31 + f))
         model, _ = _train(model, tr_data, cfg, seed=base_seed + 41 + f)
@@ -239,7 +276,7 @@ def _extrapolate(model, cfg, base_seed):
     out = {}
     for j, N in enumerate(extrap_N):
         data = dataset.pad_batch([_gen_group(N, H, base_seed + 5000 + j, cfg)], N)
-        data = _augment_id(data, cfg, seed=base_seed + 6000 + j)
+        data = _augment(data, cfg, seed=base_seed + 6000 + j)
         overall, _, _ = _score(model, data)
         out[str(N)] = float(overall)
     return out

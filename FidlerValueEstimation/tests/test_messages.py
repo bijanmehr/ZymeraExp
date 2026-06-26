@@ -14,7 +14,7 @@ import pytest
 from fidler import messages
 
 OPS = ["mean", "gcn", "max", "sum", "attention", "multihead_attention", "gated", "laplacian"]
-CONTENTS = ["value", "learned", "geom"]
+CONTENTS = ["value", "learned", "geom", "margin"]
 HIDDEN = 8
 HEADS = 4
 COMM_R = 5.0
@@ -132,3 +132,72 @@ def test_sum_scales_with_n_but_mean_stable():
     assert np.allclose(np.asarray(m12), 1.0, atol=1e-5)
     # sum grows with the neighbor count (3 vs 11 neighbors after self-loop strip)
     assert np.asarray(s12).mean() > 2.0 * np.asarray(s4).mean()
+
+
+# --------------------------------------------------------------------------------------
+# margin content: per-edge message E[i,j] = MLP([z_j, dist_ij/comm_r])
+# --------------------------------------------------------------------------------------
+def _edge_messages_margin(params):
+    """Re-export the private edge-message tensor builder for margin assertions."""
+    return params
+
+
+def test_margin_content_mlp_input_width_is_hidden_plus_one():
+    """content='margin' sizes content_mlp to take [z_j, dist/comm_r] = hidden+1."""
+    p = _params("mean", "margin", jax.random.PRNGKey(0))
+    # first Linear layer of the MLP: in_features must be hidden + 1
+    first = p.content_mlp.layers[0]
+    assert first.in_features == HIDDEN + 1
+    # the geom MLP (for contrast) takes hidden + 3
+    pg = _params("mean", "geom", jax.random.PRNGKey(0))
+    assert pg.content_mlp.layers[0].in_features == HIDDEN + 3
+
+
+def test_margin_returns_node_hidden():
+    N = 5
+    z, a, pos = _graph(N, jax.random.PRNGKey(8))
+    p = _params("mean", "margin", jax.random.PRNGKey(0))
+    out = messages.aggregate(z, a, pos, op="mean", content="margin", params=p,
+                             key=jax.random.PRNGKey(2), dropedge=0.0)
+    assert out.shape == (N, HIDDEN)
+    assert np.all(np.isfinite(np.asarray(out)))
+
+
+def test_margin_differs_from_value():
+    """margin messages (edge-dependent) differ from plain value messages."""
+    N = 6
+    z, a, pos = _graph(N, jax.random.PRNGKey(9))
+    p_val = _params("mean", "value", jax.random.PRNGKey(0))
+    p_mar = _params("mean", "margin", jax.random.PRNGKey(0))
+    out_val = messages.aggregate(z, a, pos, op="mean", content="value", params=p_val,
+                                 key=jax.random.PRNGKey(0), dropedge=0.0)
+    out_mar = messages.aggregate(z, a, pos, op="mean", content="margin", params=p_mar,
+                                 key=jax.random.PRNGKey(0), dropedge=0.0)
+    assert not np.allclose(np.asarray(out_val), np.asarray(out_mar))
+
+
+def test_margin_edge_messages_match_hand_computed_on_3node_line():
+    """On a 3-node line, E[i,j] must equal content_mlp([z_j, dist_ij/comm_r]) exactly.
+
+    Positions on a line: 0, comm_r/2, comm_r. So dist/comm_r is 0 (self), 0.5, 1.0.
+    """
+    comm_r = COMM_R
+    # 3 nodes on a line at x = 0, comm_r/2, comm_r
+    pos = jnp.array([[0.0, 0.0], [comm_r / 2.0, 0.0], [comm_r, 0.0]])
+    z = jax.random.normal(jax.random.PRNGKey(33), (3, HIDDEN))
+    p = messages.MessageParams(hidden=HIDDEN, heads=HEADS, content="margin", op="mean",
+                               key=jax.random.PRNGKey(0), comm_r=comm_r)
+    E = messages._edge_messages(z, pos, p)        # (3,3,hidden) message j->i
+    assert E.shape == (3, 3, HIDDEN)
+
+    # hand-compute the expected message for each (i,j): mlp([z_j, dist_ij/comm_r])
+    for i in range(3):
+        for j in range(3):
+            dist = float(jnp.linalg.norm(pos[i] - pos[j]))
+            expected = np.asarray(p.content_mlp(jnp.concatenate(
+                [z[j], jnp.array([dist / comm_r])])))
+            np.testing.assert_allclose(np.asarray(E[i, j]), expected, rtol=1e-5, atol=1e-6)
+
+    # the j=0->i=2 entry carries margin ~1.0 (about to disconnect); j=2->i=0 likewise.
+    d20 = float(jnp.linalg.norm(pos[2] - pos[0])) / comm_r
+    assert abs(d20 - 1.0) < 1e-6
