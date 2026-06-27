@@ -195,6 +195,65 @@ def relay_move(pos: jax.Array, valid_targets: jax.Array, action_valid: jax.Array
     return jax.vmap(score_agent)(jnp.arange(n))                      # (N,)
 
 
+def relay_hold_move(pos: jax.Array, valid_targets: jax.Array, action_valid: jax.Array,
+                    comm_r: int, sharp: float, hold_target: float = 0.5,
+                    forbid_collision: bool = False) -> jax.Array:
+    """(N,) int32 — the "hold" relay L1 controller: a STATIC BEACON. Each relay
+    agent simply STAYS where it is — a low-energy "don't wander, keep the bridge
+    from where you stand" tool — UNLESS staying would leave it isolated, in which
+    case it takes the SINGLE env-valid move that best restores a neighbour (minimal
+    movement to re-anchor). STAY is the safe default and is always valid.
+
+    This is the complement of :func:`relay_move` (the ``lambda2_anchor`` tool, which
+    ACTIVELY climbs local connectivity every step): ``relay_hold_move`` moves ONLY
+    when its anchoring drops below the floor, so a well-connected relay never wanders
+    off its post (agent_architecture.md: relay = "stop & hold the connection";
+    Relay-tool axis = hold-connection *heuristic*).
+
+    Decision (per relay i, from purely LOCAL information):
+      * soft_deg_i(STAY) = i's soft incident-edge mass at its CURRENT cell
+        (:func:`_local_conn_score`, the same proxy ``relay_move`` / the edge-margin
+        signal use, so "anchored enough" agrees across the agent).
+      * if soft_deg_i(STAY) >= ``hold_target`` -> STAY (it is comfortably anchored).
+      * else (about to isolate) -> among the env-VALID moves, take the one that
+        MAXIMIZES soft_deg_i at the resulting layout (others held), i.e. the minimal
+        step that best re-establishes a neighbour. STAY is included in the argmax, so
+        if no move improves anchoring the agent still STAYs (never an invalid move).
+
+    ``hold_target`` is the soft-degree floor that defines "isolated" (default 0.5 — a
+    single in-range neighbour at the comm edge already carries ~0.5 soft mass at the
+    default sharpness, so the relay holds as long as it has roughly one live link).
+    When ``forbid_collision`` is True the hard collision-mask
+    (:func:`occupied_cell_mask`) removes actions whose target sits on another agent's
+    CURRENT cell (their score is set to -inf before the argmax); STAY always stays
+    selectable. Result is always a valid move, so the env never reverts it. Pure JAX
+    (vmap/scan/jit-safe) — same signature/contract as :func:`relay_move`.
+    """
+    n, A = action_valid.shape
+    stay = int(ActionId.STAY)
+    blocked = occupied_cell_mask(pos, valid_targets) if forbid_collision else None
+    # current soft degree at the agent's present cell (the STAY anchoring).
+    deg_now = _local_conn_score(pos, comm_r, sharp)                  # (N,)
+
+    def score_agent(i):
+        # for each action a: move ONLY i to its committed cell, read i's soft degree.
+        def for_action(a):
+            tgt = valid_targets[i, a]                                # (2,)
+            pos_next = pos.at[i].set(tgt)                            # only i moves
+            return _local_conn_score(pos_next, comm_r, sharp)[i]     # scalar
+        s = jax.vmap(for_action)(jnp.arange(A))                      # (A,)
+        s = jnp.where(action_valid[i], s, -jnp.inf)                  # forbid invalid
+        if blocked is not None:
+            s = jnp.where(blocked[i], -jnp.inf, s)                   # forbid collisions
+        best = jnp.argmax(s).astype(jnp.int32)                      # best valid re-anchor
+        # HOLD unless isolated: stay put while comfortably anchored, only move to
+        # re-establish a neighbour when the current cell falls below the floor.
+        isolated = deg_now[i] < hold_target
+        return jnp.where(isolated, best, jnp.int32(stay))           # (,) int32
+
+    return jax.vmap(score_agent)(jnp.arange(n))                      # (N,)
+
+
 def positions_after(pos: jax.Array, actions: jax.Array,
                     valid_targets: jax.Array) -> jax.Array:
     """(N,2) int32 — committed positions if every agent took ``actions`` (N,).

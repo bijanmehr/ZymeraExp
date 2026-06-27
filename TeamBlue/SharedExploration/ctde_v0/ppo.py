@@ -89,9 +89,11 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
 
     ``role_idx`` None -> every agent runs the explorer (greedy-toward-goal) move
     (v0 behaviour, default-unchanged). Otherwise role 0 (explorer) keeps the greedy
-    goal move and role 1 (relay) takes the local-connectivity-anchor move
-    (:func:`controller.relay_move`); both go through valid-moves-only controllers,
-    selected per agent by role.
+    goal move and role 1 (relay) takes its configured relay tool
+    (``cfg.action_head.relay_tool``): "lambda2_anchor" (default) ->
+    :func:`controller.relay_move` (active local-λ̂₂ climb); "hold" ->
+    :func:`controller.relay_hold_move` (static beacon — STAY unless about to isolate).
+    Both go through valid-moves-only controllers, selected per agent by role.
 
     When ``cfg.collision_mask == 'on'`` both controllers also ``forbid_collision``
     (the hard collision-mask: never step onto a cell another agent occupies NOW);
@@ -108,9 +110,17 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     expl_move = ctrl.greedy_move(pos, goal, valid_targets, action_valid,
                                  forbid_collision=forbid)             # (N,)
     if role_idx is not None:
-        relay = ctrl.relay_move(pos, valid_targets, action_valid,
-                                cfg.world.comm_r, cfg.connectivity.lambda2_sharp,
-                                forbid_collision=forbid)              # (N,)
+        # relay tool axis (I2): pick the relay controller from the config. Static
+        # string -> the unused branch is not even traced; "lambda2_anchor" reproduces
+        # the v0/I1 relay move byte-for-byte.
+        if cfg.action_head.relay_tool == "hold":
+            relay = ctrl.relay_hold_move(pos, valid_targets, action_valid,
+                                         cfg.world.comm_r, cfg.connectivity.lambda2_sharp,
+                                         forbid_collision=forbid)     # (N,) static beacon
+        else:
+            relay = ctrl.relay_move(pos, valid_targets, action_valid,
+                                    cfg.world.comm_r, cfg.connectivity.lambda2_sharp,
+                                    forbid_collision=forbid)          # (N,) λ̂₂-anchor
         move = jnp.where(role_idx == ROLE_RELAY, relay, expl_move)    # (N,) per-role
     else:
         move = expl_move
@@ -455,7 +465,8 @@ def init_state(env, cfg: CTDEConfig, key) -> TrainState:
     cg = env.obs.central_channels
     actor = Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
                   dropout=cfg.regularization.dropout, key=ka,
-                  explorer_tool=cfg.action_head.explorer_tool)
+                  explorer_tool=cfg.action_head.explorer_tool,
+                  compass=cfg.action_head.compass)
     critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
                     cfg.regularization.dropout, key=kc)
     opt = make_optimizer(cfg)

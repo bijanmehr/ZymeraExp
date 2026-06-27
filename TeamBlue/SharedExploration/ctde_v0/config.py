@@ -97,12 +97,38 @@ class ActionHead:
           when ``role_picker == 'off'`` every (explorer) agent uses the tool and
           when it is on relays are unaffected. Scale-invariant: K fixed, the sector
           features are normalized fractions, so a model trained @16²/4 transfers.
+    * ``relay_tool`` — which RELAY controller the relay role calls (the I2 relay-tool
+                       axis / agent_architecture.md "Relay tool"). Only the relay role
+                       uses it; explorers are unaffected, and with ``role_picker ==
+                       'off'`` every agent is an explorer so this knob is inert:
+        - "lambda2_anchor" (default): the existing ``controller.relay_move`` — each
+          relay actively takes the env-valid move that MAXIMIZES its local soft-degree
+          (λ̂₂-anchor), i.e. it climbs connectivity every step. v0/I1 behaviour,
+          byte-unchanged.
+        - "hold": ``controller.relay_hold_move`` — a low-energy STATIC BEACON. The
+          relay STAYS put (keeps the bridge from where it stands) UNLESS staying would
+          leave it isolated (soft-degree below a floor), in which case it takes the
+          single valid move that best re-establishes a neighbour. "Don't wander, just
+          hold the connection" vs the anchor's active connectivity-climbing.
+    * ``compass`` — append a small SCALE-INVARIANT directional feature to the per-agent
+                       belief z BEFORE the heads (the I2 compass feature /
+                       agent_architecture.md "compass"):
+        - "off" (default): z unchanged -> byte-identical to the pre-compass actor. The
+          compass module is STILL built (stable param surface) but never used.
+        - "on": ``nets.Compass`` ADDS a gated projection of two soft K-sector
+          DIRECTIONS — the GATHER direction (toward the centroid of in-range
+          teammates, the ``neighbors`` channel) and the EXPLORE direction (toward the
+          nearest uncovered cell, ``1 - known``) — to z, giving every head an explicit
+          navigation cue beyond the CNN's local view. Directions only (no distances /
+          absolute coords) -> scale-invariant: a model trained @16²/4 transfers.
     """
     kind: str = "goal_pointer"
     K: int = 9
     stride: int = 3
     controller: str = "greedy"
-    explorer_tool: str = "goal_head"    # {"goal_head", "frontier_attn"}
+    explorer_tool: str = "goal_head"        # {"goal_head", "frontier_attn"}
+    relay_tool: str = "lambda2_anchor"      # {"lambda2_anchor", "hold"}
+    compass: str = "off"                     # {"off", "on"}
 
 
 @dataclass(frozen=True)

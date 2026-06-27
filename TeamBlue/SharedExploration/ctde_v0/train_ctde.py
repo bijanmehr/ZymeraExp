@@ -64,6 +64,17 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
                    help="how the explorer picks its goal sector (I2 / L4 'disperse'): "
                         "goal_head=belief-only (v0); frontier_attn=learned attention "
                         "biasing the goal toward the most uncovered compass sector")
+    p.add_argument("--relay-tool", choices=["lambda2_anchor", "hold"],
+                   default="lambda2_anchor",
+                   help="which relay controller the relay role calls (I2 relay-tool "
+                        "axis): lambda2_anchor=active local-λ̂₂ climb (v0); "
+                        "hold=static beacon (STAY unless about to isolate). Only the "
+                        "relay role uses it (inert under --role-picker off)")
+    p.add_argument("--compass", choices=["off", "on"], default="off",
+                   help="append a scale-invariant directional feature to the belief z "
+                        "before the heads (I2 compass): off=z unchanged (v0); "
+                        "on=add gather (toward in-range teammates) + explore (toward "
+                        "nearest uncovered cell) soft-sector directions")
     # mechanism / aux
     p.add_argument("--mechanism",
                    choices=["action_mask", "soft_lambda", "lagrangian",
@@ -139,7 +150,9 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
                           agg=args.agg, norm=args.norm),
         action_head=dataclasses.replace(CTDEConfig().action_head, K=args.goal_k,
                                         stride=args.stride,
-                                        explorer_tool=args.explorer_tool),
+                                        explorer_tool=args.explorer_tool,
+                                        relay_tool=args.relay_tool,
+                                        compass=args.compass),
         mission_safety=MissionSafety(mechanism=args.mechanism,
                                      conn_signal=args.conn_signal,
                                      degree_target=args.degree_target,

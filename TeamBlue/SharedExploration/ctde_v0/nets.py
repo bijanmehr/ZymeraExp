@@ -43,9 +43,12 @@ from . import controller as _ctrl
 # where a cell is known/covered, 0.0 where UNKNOWN, so 1 - known = the frontier
 # of uncovered cells) and ``own_pos`` (the one-hot of the agent's own cell, from
 # which the agent's grid position is recovered as a centroid — no absolute
-# coordinate is ever fed in, only the displacement geometry it induces).
+# coordinate is ever fed in, only the displacement geometry it induces). The
+# compass module additionally reads ``neighbors`` (one-hots of the agent's in-range
+# teammates — its centroid gives the team "gather" direction).
 _CH_KNOWN = 0
 _CH_OWN_POS = 1
+_CH_NEIGHBORS = 3
 
 
 # =============================================================================
@@ -340,45 +343,218 @@ class FrontierAttn(eqx.Module):
 
 
 # =============================================================================
+# [4] Compass directional feature (explicit navigation signal for the heads)
+# =============================================================================
+#
+# The CNN local-perception sees only a translation-equivariant patch (after GAP no
+# absolute bearing survives); the compass gives every agent an EXPLICIT, scale-free
+# sense of "which way is my team" (the GATHER direction) and "which way is fresh
+# ground" (the EXPLORE direction), so the role / goal heads can navigate with a
+# directional cue beyond the local view. Both directions are DIRECTIONS ONLY — soft
+# K-sector distributions over the ``controller._COMPASS`` headings (no distances, no
+# absolute coordinates) — so a model trained at one grid size transfers to another
+# (Compass axis of agent_architecture.md / I2). When ``compass == 'off'`` the module
+# is still BUILT (a stable param surface) but never used, so the belief z and every
+# head are byte-identical to the pre-compass actor.
+
+
+def _agent_unit_dirs(own_i: jax.Array) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """From an agent's own-position one-hot ``own_i`` (H,W) recover, per cell, the
+    UNIT displacement from the agent toward that cell — the scale-free geometry the
+    soft-sector features key on. Returns ``(ur, uc, dist)`` each (H,W):
+
+      (cr, cc) = centroid of own_i           (the agent's cell; exact for a one-hot)
+      (dr, dc) = (row - cr, col - cc)         (per-cell displacement from the agent)
+      dist     = ||(dr, dc)||                 (Euclidean radius, in cells)
+      (ur, uc) = (dr, dc) / max(dist, eps)    (UNIT direction — only the ANGLE matters)
+
+    No absolute coordinate is exported — only the relative, translation-free
+    displacement geometry. Pure JAX (vmap/jit-safe)."""
+    H, W = own_i.shape
+    rows = jnp.arange(H, dtype=jnp.float32)[:, None]              # (H,1)
+    cols = jnp.arange(W, dtype=jnp.float32)[None, :]             # (1,W)
+    mass = jnp.maximum(own_i.sum(), 1.0)
+    cr = (own_i * rows).sum() / mass                              # () agent row
+    cc = (own_i * cols).sum() / mass                              # () agent col
+    dr = jnp.broadcast_to(rows - cr, (H, W))                     # (H,W) row displacement
+    dc = jnp.broadcast_to(cols - cc, (H, W))                     # (H,W) col displacement
+    dist = jnp.sqrt(dr ** 2 + dc ** 2)                           # (H,W) radius
+    inv = 1.0 / jnp.maximum(dist, 1e-6)
+    return dr * inv, dc * inv, dist                              # (H,W) ur, uc, dist
+
+
+def _soft_sector_dir(mass_plane: jax.Array, ur: jax.Array, uc: jax.Array,
+                     dist: jax.Array, dirs: jax.Array, sharp: float,
+                     decay: float = 0.0) -> jax.Array:
+    """(K,) soft K-sector one-hot of the DIRECTION toward the mass in ``mass_plane``.
+
+    Each cell with mass votes for the compass sector its unit displacement
+    ``(ur,uc)`` aligns with (cosine vs each ``dirs`` heading); the votes are pooled
+    into a softmax over the K sectors, giving a normalized "which compass heading
+    points at this stuff" distribution that is SCALE-INVARIANT (cosine of unit
+    directions + a normalized softmax — no grid-size magnitude survives):
+
+      score_k(cell) = closeness            for the "here" sector (dir 0)
+                      cos(u(cell), dir_k)  for the directional sectors (k >= 1)
+      w(cell)       = mass(cell) · exp(-decay · dist(cell))   (optional nearer-weighting)
+      sect_k        = Σ_cell w·softmax_k(sharp·score_k) / Σ_cell w
+
+    With ``decay > 0`` nearer mass dominates (the EXPLORE direction points at the
+    NEAREST fresh ground, not the global frontier centroid); ``decay == 0`` is a plain
+    mass centroid direction (the GATHER direction toward in-range teammates). If the
+    plane is empty (no mass) the result falls entirely on the "here" sector (index 0),
+    i.e. "no direction" — a safe scale-free default. Pure JAX (vmap/jit-safe)."""
+    is_here = (jnp.abs(dirs[:, 0]) + jnp.abs(dirs[:, 1])) < 1e-6  # (K,) True for dir 0
+    cos = dirs[:, 0][:, None, None] * ur[None] + dirs[:, 1][:, None, None] * uc[None]  # (K,H,W)
+    closeness = jnp.exp(-dist)[None]                              # (1,H,W) 1 at the agent
+    score = jnp.where(is_here[:, None, None], closeness, cos)     # (K,H,W)
+    member = jax.nn.softmax(sharp * score, axis=0)               # (K,H,W) soft sector assign
+    weight = mass_plane * jnp.exp(-decay * dist)                  # (H,W) (nearer-weighted) mass
+    sect = (member * weight[None]).sum(axis=(1, 2))              # (K,) pooled sector mass
+    total = sect.sum()                                           # () total weighted mass
+    # empty plane -> put all mass on the "here" sector (no direction); else normalize.
+    fallback = is_here.astype(jnp.float32)                       # (K,) one-hot on dir 0
+    return jnp.where(total > 1e-6, sect / jnp.maximum(total, 1e-6), fallback)  # (K,)
+
+
+def compass_features(obs_i: jax.Array, K: int, sharp: float = 4.0,
+                     explore_decay: float = 0.5) -> jax.Array:
+    """(2, K) float32 directional compass features for ONE agent's obs (C,H,W):
+
+      row 0 — GATHER direction: a soft K-sector one-hot pointing toward the centroid
+              of the agent's IN-RANGE TEAMMATES (the ``neighbors`` channel one-hots);
+              "which way is my team".
+      row 1 — EXPLORE direction: a soft K-sector one-hot pointing toward the NEAREST
+              UNCOVERED cell in view (frontier = ``1 - known``, distance-decayed so the
+              nearest fresh ground dominates); "which way is fresh ground".
+
+    Both rows are normalized soft sector distributions over ``controller._COMPASS``
+    (Σ_k = 1, index 0 = "here"/no-direction) — DIRECTIONS ONLY. SCALE-INVARIANT by
+    construction: every quantity is a cosine of unit displacements or a normalized
+    softmax, so no absolute coordinate or grid-size magnitude survives and the SAME
+    relative layout yields the same features at any H, W or team size. When the agent
+    has no in-range teammate (gather) or no frontier in view (explore) that row falls
+    to the "here" sector. Pure JAX (vmap/jit-safe)."""
+    own = obs_i[_CH_OWN_POS]                                      # (H,W) own one-hot
+    neigh = obs_i[_CH_NEIGHBORS]                                  # (H,W) teammate one-hots
+    frontier = 1.0 - obs_i[_CH_KNOWN]                            # (H,W) 1 = uncovered
+    ur, uc, dist = _agent_unit_dirs(own)                         # (H,W) unit dirs + radius
+    dirs = _compass_unit_dirs(K)                                  # (K,2) unit compass headings
+    gather = _soft_sector_dir(neigh, ur, uc, dist, dirs, sharp, decay=0.0)        # (K,)
+    explore = _soft_sector_dir(frontier, ur, uc, dist, dirs, sharp, decay=explore_decay)  # (K,)
+    return jnp.stack([gather, explore], axis=0)                  # (2,K) directions
+
+
+class Compass(eqx.Module):
+    """The compass directional-feature module — an explicit, scale-free navigation
+    signal added to the per-agent belief ``z`` before the heads.
+
+    It reads each agent's own obs to build two soft K-sector DIRECTION distributions
+    (``compass_features``: GATHER = toward in-range teammates, EXPLORE = toward the
+    nearest uncovered cell), flattens them to ``2K`` scalars, and PROJECTS+GATES them
+    into the belief width to ADD to ``z``:
+
+        z' = z + beta · proj( [gather(K) , explore(K)] )
+
+    The contribution is gated by a learned scalar ``beta = softplus(log_beta) >= 0``
+    (so the network dials the navigation pull per the reward, starting near a
+    configured value). Projecting-and-adding (rather than concatenating + widening the
+    heads) keeps the head input width — and therefore the WHOLE param surface of the
+    goal / role / λ̂₂ / value heads — IDENTICAL whether the compass is on or off; the
+    module is ALWAYS built (mirrors ``FrontierAttn`` / the role head) and only its USE
+    is gated, so with ``compass == 'off'`` the belief z is byte-identical to the
+    pre-compass actor. SIZE-INVARIANT: K is fixed and the features are normalized
+    directions, so a model trained @16²/4 transfers up the scale ladder. Pure JAX
+    (vmap/jit-safe)."""
+    proj: eqx.nn.Linear                # (2K -> W) project the directional features
+    log_beta: jax.Array               # learned gate: beta = softplus(log_beta) >= 0
+    K: int = eqx.field(static=True)
+    width: int = eqx.field(static=True)
+    sharp: float = eqx.field(static=True)
+    explore_decay: float = eqx.field(static=True)
+
+    def __init__(self, width: int, K: int, *, sharp: float = 4.0,
+                 explore_decay: float = 0.5, beta_init: float = 1.0, key):
+        self.proj = eqx.nn.Linear(2 * K, width, key=key)
+        # invert softplus so beta starts ≈ beta_init: softplus(x)=beta_init.
+        b0 = float(max(beta_init, 1e-4))
+        self.log_beta = jnp.asarray(jnp.log(jnp.expm1(b0)), dtype=jnp.float32)
+        self.K = int(K)
+        self.width = int(width)
+        self.sharp = float(sharp)
+        self.explore_decay = float(explore_decay)
+
+    def __call__(self, obs, z) -> jax.Array:
+        """(N, W) the compass term to ADD to the belief ``z`` (N,W). ``obs`` (N,C,H,W).
+        Builds each agent's (2,K) directions, flattens to (2K,), projects to W and
+        gates by ``beta = softplus(log_beta)``. ``beta == 0`` is exactly z unchanged."""
+        feats = jax.vmap(lambda o: compass_features(o, self.K, self.sharp,
+                                                    self.explore_decay))(obs)  # (N,2,K)
+        flat = feats.reshape(feats.shape[0], -1)                 # (N,2K)
+        proj = jax.vmap(self.proj)(flat)                         # (N,W)
+        beta = jax.nn.softplus(self.log_beta)                    # () >= 0
+        return beta * proj                                       # (N,W) gated term
+
+
+# =============================================================================
 # Actor: backbone + goal / λ̂₂ / value heads (decentralized)
 # =============================================================================
 
 
 class Actor(eqx.Module):
     """Decentralized per-agent actor: LPAC backbone -> belief z_i -> four heads
-    (+ the frontier-attention explorer tool).
+    (+ the frontier-attention explorer tool + the compass directional feature).
 
       * ``goal_head``     (W -> K)  L3 goal-pointer logits over candidate waypoints.
       * ``role_head``     (W -> R)  L3 role-picker logits over {explorer, relay}
         (R = ``n_roles``; the Increment-1 labor-division head off the belief).
       * ``frontier_attn`` (the L4 "disperse" skill) biases the goal logits toward
         the most frontier-rich compass sector (``FrontierAttn``).
+      * ``compass``       (the directional feature) ADDS a scale-free gather/explore
+        navigation term to the belief z BEFORE the heads (``Compass``).
       * ``aux_head``      (W -> 1)  decentralized local-Fiedler λ̂₂ estimate (raw).
       * ``value_head``    (W -> 1)  per-agent baseline (diagnostic / IPPO fallback).
 
     ``__call__(obs, adj_off, *, key)`` -> ``(goal_logits (N,K), role_logits (N,R),
-    value (N,), lambda2_hat (N,), z (N,W))``. The role head AND ``frontier_attn`` are
-    ALWAYS built (cheap, stable param surface) so the parameter tree is invariant to
-    the ``role_picker`` / ``explorer_tool`` knobs; each is only *used* when its knob
-    is on. With ``explorer_tool == 'goal_head'`` (default) the frontier term is never
+    value (N,), lambda2_hat (N,), z (N,W))``. The role head, ``frontier_attn`` AND
+    ``compass`` are ALWAYS built (cheap, stable param surface) so the parameter tree
+    is invariant to the ``role_picker`` / ``explorer_tool`` / ``compass`` knobs; each
+    is only *used* when its knob is on. With ``compass == 'off'`` (default) the
+    compass term is never added, so the belief z — and therefore EVERY head's output —
+    is byte-identical to the pre-compass actor; with ``'on'`` the belief becomes
+    ``z + compass(obs, z)`` before all heads (giving them an explicit directional
+    cue). With ``explorer_tool == 'goal_head'`` (default) the frontier term is never
     added, so ``goal_logits`` is byte-identical to the pre-tool behaviour; with
     ``'frontier_attn'`` the goal logits become ``goal_head(z) + frontier_attn(obs,z)``.
     The role head is likewise sampled only when ``role_picker == 'expl_relay'``.
-    The belief ``z`` is returned so the trainer can compute the degree regularizer.
+    The (post-compass) belief ``z`` is returned so the trainer can compute the degree
+    regularizer.
+
+    Init note: the ``compass`` key is derived via ``jax.random.fold_in`` (NOT by
+    widening the ``split``) so the backbone / goal / role / frontier / aux / value
+    keys are byte-IDENTICAL to the pre-compass actor — an actor built with
+    ``compass='off'`` is bit-for-bit the same network as before this module existed.
     """
     backbone: Backbone
     goal_head: eqx.nn.Linear
     role_head: eqx.nn.Linear
     frontier_attn: FrontierAttn
+    compass: Compass
     aux_head: eqx.nn.Linear
     value_head: eqx.nn.Linear
     K: int = eqx.field(static=True)
     n_roles: int = eqx.field(static=True)
     explorer_tool: str = eqx.field(static=True)
+    compass_on: bool = eqx.field(static=True)
 
     def __init__(self, in_ch: int, K: int, *, backbone_cfg, dropout: float, key,
-                 n_roles: int = 2, explorer_tool: str = "goal_head"):
+                 n_roles: int = 2, explorer_tool: str = "goal_head",
+                 compass: str = "off"):
         kb, kg, kr, kf, ka, kv = jax.random.split(key, 6)
+        # Derive the compass key by folding a fixed constant into the ORIGINAL key,
+        # so the six keys above are unchanged -> compass='off' is byte-identical to
+        # the pre-compass actor (split(key,7) would have perturbed all six).
+        kcomp = jax.random.fold_in(key, 0xC0)
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
@@ -387,14 +563,23 @@ class Actor(eqx.Module):
         self.goal_head = eqx.nn.Linear(W, K, key=kg)
         self.role_head = eqx.nn.Linear(W, n_roles, key=kr)
         self.frontier_attn = FrontierAttn(W, key=kf)
+        self.compass = Compass(W, K, key=kcomp)
         self.aux_head = eqx.nn.Linear(W, 1, key=ka)
         self.value_head = eqx.nn.Linear(W, 1, key=kv)
         self.K = int(K)
         self.n_roles = int(n_roles)
         self.explorer_tool = str(explorer_tool)
+        self.compass_on = (str(compass) == "on")
 
     def __call__(self, obs, adj_off, *, key=None, inference: bool = False):
         z = self.backbone(obs, adj_off, key=key, inference=inference)   # (N,W)
+        # Compass directional feature: ADD the gather/explore navigation term to the
+        # belief BEFORE any head, so every head (goal / role / λ̂₂ / value) reads the
+        # directional cue. `compass_on` is STATIC, so when off this branch never runs
+        # and z — hence every head output below — is byte-identical to the pre-compass
+        # actor (the `compass` params just sit unused, built for a stable param surface).
+        if self.compass_on:
+            z = z + self.compass(obs, z)                                # (N,W) z'
         goal_logits = jax.vmap(self.goal_head)(z)                       # (N,K)
         # L4 "disperse" tool: add the frontier-attention bias ONLY when selected.
         # `explorer_tool` is a STATIC string, so at "goal_head" this branch never

@@ -49,8 +49,10 @@ def test_config_roundtrip():
     d = cfg.to_dict()
     assert d["backbone"]["agg"] == "max"
     assert d["action_head"]["kind"] == "goal_pointer"
-    # I2: the explorer_tool axis round-trips and defaults to the v0 goal_head.
+    # I2: the explorer_tool / relay_tool / compass axes round-trip and default to v0.
     assert d["action_head"]["explorer_tool"] == "goal_head"
+    assert d["action_head"]["relay_tool"] == "lambda2_anchor"
+    assert d["action_head"]["compass"] == "off"
     assert d["mission_safety"]["mechanism"] == "action_mask"
     # I1c: the new conn_signal axis round-trips and defaults to the I1b behaviour.
     assert d["mission_safety"]["conn_signal"] == "global_lambda2"
@@ -252,6 +254,284 @@ def test_explorer_tool_config_roundtrip():
     d = cfg.to_dict()
     assert d["action_head"]["explorer_tool"] == "frontier_attn"
     assert from_dict(d).to_dict() == d
+
+
+# ---- relay tool axis (I2: lambda2_anchor | hold) ----------------------------
+
+def _deltas_targets(pos):
+    """(valid_targets (N,A,2), action_valid (N,A) all-True) built EXACTLY the way the
+    env builds them (pos + ACTION_DELTAS), so the synthetic layout is self-consistent
+    with what the relay controllers read off ``dynamics.targets`` / ``action_mask``."""
+    from zymera.env import ACTION_DELTAS
+    deltas = jnp.asarray(ACTION_DELTAS, dtype=jnp.int32)              # (A,2)
+    valid_targets = pos[:, None, :] + deltas[None, :, :]             # (N,A,2)
+    action_valid = jnp.ones((pos.shape[0], deltas.shape[0]), dtype=bool)
+    return valid_targets, action_valid
+
+
+def test_relay_hold_well_connected_stays():
+    """I2 relay 'hold': a well-connected relay (soft-degree >> the hold floor) STAYs —
+    the static beacon does not wander while it is comfortably anchored. Tight mutually
+    adjacent triangle at comm_r=5/sharp=2 -> every agent's soft-degree is 2.0."""
+    sharp, comm_r = 2.0, 5
+    pos = jnp.array([[5, 5], [5, 6], [6, 5]], dtype=jnp.int32)        # all adjacent
+    vt, av = _deltas_targets(pos)
+    deg = ctrl._local_conn_score(pos, comm_r, sharp)
+    assert bool((deg >= 0.5).all()), deg                              # above the hold floor
+    move = ctrl.relay_hold_move(pos, vt, av, comm_r, sharp)           # (N,)
+    assert bool((move == int(ctrl.ActionId.STAY)).all()), move        # everyone holds
+
+
+def test_relay_hold_about_to_isolate_reconnects():
+    """I2 relay 'hold': a relay whose only neighbour has drifted just past the hold
+    floor (soft-degree < floor) takes the SINGLE valid move that best restores a
+    neighbour (toward it), lifting its soft-degree back up — and STAY stays env-valid.
+
+    Layout (comm_r=5, sharp=2, floor 0.5): a0(0,0)'s nearest neighbour is a1(0,6), a
+    cell PAST comm range, so a0's soft-degree (~0.12) is below the floor; the east step
+    toward a1 raises it to ~0.5 (the boundary). a2(0,7) sits tight beside a1 (dist 1) so
+    a2 is comfortably anchored (soft-degree >= the floor) and HOLDS — the static beacon
+    moves ONLY the about-to-isolate agent, not the well-connected one."""
+    sharp, comm_r = 2.0, 5
+    pos = jnp.array([[0, 0], [0, 6], [0, 7]], dtype=jnp.int32)
+    vt, av = _deltas_targets(pos)
+    deg_now = ctrl._local_conn_score(pos, comm_r, sharp)
+    assert float(deg_now[0]) < 0.5, deg_now                          # a0 below the floor
+    assert float(deg_now[2]) >= 0.5, deg_now                         # a2 anchored (a1 adjacent)
+    move = ctrl.relay_hold_move(pos, vt, av, comm_r, sharp)          # (N,)
+    east = 2                                                         # _COMPASS / ACTION order
+    assert int(move[0]) != int(ctrl.ActionId.STAY)                  # a0 moves to reconnect
+    assert int(move[0]) == east, move                               # ...toward its neighbour
+    # the chosen move strictly INCREASES a0's soft-degree (it restored a link).
+    after = ctrl._local_conn_score(pos.at[0].set(vt[0, move[0]]), comm_r, sharp)
+    assert float(after[0]) > float(deg_now[0]), (deg_now[0], after[0])
+    # the comfortably-anchored agent a2 HOLDS (hold moves only the isolating agent).
+    assert int(move[2]) == int(ctrl.ActionId.STAY), move
+
+
+def test_relay_hold_emits_only_valid_moves():
+    """I2 relay 'hold': on a live env layout every emitted relay move is env-valid (the
+    STAY-always-valid guarantee), exactly like the lambda2_anchor relay."""
+    cfg = _tiny_cfg()
+    env = env_utils.build_env(cfg)
+    _, state = env.reset(jax.random.PRNGKey(4))
+    pos = state.body.position
+    valid_targets = env.dynamics.targets(state)
+    action_valid = env.action_mask(state)
+    move = ctrl.relay_hold_move(pos, valid_targets, action_valid,
+                                cfg.world.comm_r, cfg.connectivity.lambda2_sharp)
+    ok = jnp.take_along_axis(action_valid, move[:, None], axis=1)[:, 0]
+    assert bool(ok.all()), move
+
+
+def test_relay_tool_hold_train_step():
+    """I2: a PPO iter with --relay-tool hold (+ --role-picker expl_relay) on 10×10/2
+    runs without error and the controller still emits 100% valid moves."""
+    cfg = _tiny_cfg(
+        world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+        action_head=ActionHead(relay_tool="hold"),
+        role_picker="expl_relay",
+    )
+    assert cfg.action_head.relay_tool == "hold"
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    _, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0                     # only valid moves
+
+
+def test_relay_tool_lambda2_anchor_byte_unchanged():
+    """I2 REGRESSION: relay_tool='lambda2_anchor' (the DEFAULT) reproduces the v0/I1
+    relay routing EXACTLY. An expl_relay rollout under the default and under an explicit
+    'lambda2_anchor' produce bit-identical moves / reward / true λ₂."""
+    import dataclasses
+    cfg_def = _tiny_cfg(world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+                        role_picker="expl_relay")
+    assert cfg_def.action_head.relay_tool == "lambda2_anchor"        # the default
+    cfg_exp = dataclasses.replace(
+        cfg_def, action_head=ActionHead(relay_tool="lambda2_anchor"))
+    env = env_utils.build_env(cfg_def)
+    stencil = ppo.make_stencil(cfg_def)
+    st = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    key = jax.random.PRNGKey(6)
+    t_def = ppo.collect(env, st.actor, st.critic, cfg_def, stencil, key, jnp.float32(0.0))
+    t_exp = ppo.collect(env, st.actor, st.critic, cfg_exp, stencil, key, jnp.float32(0.0))
+    for k in ("move", "rew_agent", "true_l2"):
+        assert bool(jnp.array_equal(t_def[k], t_exp[k])), k
+
+
+def test_relay_tool_config_roundtrip():
+    """I2: a non-default relay_tool round-trips through the config tree."""
+    cfg = _tiny_cfg(action_head=ActionHead(relay_tool="hold"))
+    d = cfg.to_dict()
+    assert d["action_head"]["relay_tool"] == "hold"
+    assert from_dict(d).to_dict() == d
+
+
+# ---- compass directional feature (I2: off | on) -----------------------------
+
+def _obs_team_east_frontier_west(C, H, W, ar, ac):
+    """A hand-built obs (C,H,W): the agent at (ar,ac), an in-range TEAMMATE three cells
+    to the EAST (``neighbors`` channel), and ALL ground known EXCEPT a patch to the far
+    WEST (frontier). So the GATHER direction (toward teammates) is EAST and the EXPLORE
+    direction (toward the nearest uncovered cell) is WEST — two distinct headings."""
+    obs = jnp.zeros((C, H, W), dtype=jnp.float32)
+    obs = obs.at[nets._CH_OWN_POS, ar, ac].set(1.0)        # own_pos one-hot
+    obs = obs.at[nets._CH_NEIGHBORS, ar, ac + 3].set(1.0)  # teammate to the EAST
+    obs = obs.at[nets._CH_KNOWN].set(1.0)                  # everything known...
+    obs = obs.at[nets._CH_KNOWN, :, :ac - 1].set(0.0)      # ...except far west -> frontier
+    return obs
+
+
+def test_compass_features_point_correctly():
+    """Unit: with teammates EAST and frontier WEST, the gather direction peaks on the
+    EAST sector and the explore direction on the WEST sector. Both are normalized soft
+    sector distributions (each Σ_k ≈ 1) over the K compass headings."""
+    cfg = _tiny_cfg()
+    K = cfg.action_head.K
+    obs = _obs_team_east_frontier_west(5, 13, 13, ar=6, ac=6)
+    feats = nets.compass_features(obs, K)                  # (2, K) gather, explore
+    assert feats.shape == (2, K)
+    gather, explore = feats[0], feats[1]
+    assert abs(float(gather.sum()) - 1.0) < 1e-4 and abs(float(explore.sum()) - 1.0) < 1e-4
+    east, west = 2, 4                                      # _COMPASS order: 2=E, 4=W
+    assert int(jnp.argmax(gather)) == east, gather         # gather -> teammates (EAST)
+    assert int(jnp.argmax(explore)) == west, explore       # explore -> frontier (WEST)
+    assert float(gather[east]) > float(gather[west])
+    assert float(explore[west]) > float(explore[east])
+
+
+def test_compass_empty_streams_fall_to_here():
+    """Unit: with NO in-range teammate the gather direction falls entirely on the 'here'
+    sector (index 0, no direction); with NO frontier in view the explore direction does
+    too — a safe scale-free default, never a spurious compass heading."""
+    cfg = _tiny_cfg()
+    K = cfg.action_head.K
+    here = 0
+    # all ground known (no frontier) and no neighbours marked.
+    obs = jnp.zeros((5, 11, 11), dtype=jnp.float32)
+    obs = obs.at[nets._CH_OWN_POS, 5, 5].set(1.0)
+    obs = obs.at[nets._CH_KNOWN].set(1.0)                  # everything known -> no frontier
+    feats = nets.compass_features(obs, K)
+    assert int(jnp.argmax(feats[0])) == here and float(feats[0, here]) > 0.99  # gather here
+    assert int(jnp.argmax(feats[1])) == here and float(feats[1, here]) > 0.99  # explore here
+
+
+def test_compass_features_scale_invariant():
+    """Scale-invariance: the SAME relative layout (teammate east, frontier west, agent
+    centered) yields near-identical compass directions at 13×13 and 25×25 — the features
+    are cosines of unit directions + normalized softmaxes, independent of grid size."""
+    cfg = _tiny_cfg()
+    K = cfg.action_head.K
+    f_small = nets.compass_features(_obs_team_east_frontier_west(5, 13, 13, 6, 6), K)
+    f_big = nets.compass_features(_obs_team_east_frontier_west(5, 25, 25, 12, 12), K)
+    assert bool(jnp.allclose(f_small, f_big, atol=0.15)), (f_small, f_big)
+    # both rank the SAME sector top for each direction regardless of size.
+    assert int(jnp.argmax(f_small[0])) == int(jnp.argmax(f_big[0])) == 2   # gather EAST
+    assert int(jnp.argmax(f_small[1])) == int(jnp.argmax(f_big[1])) == 4   # explore WEST
+
+
+def test_compass_off_byte_unchanged():
+    """Regression: compass='off' (DEFAULT) leaves the belief z — and therefore EVERY
+    head output — byte-identical to the pre-compass actor (the compass term is never
+    added; the static branch is skipped, z == backbone(obs))."""
+    cfg = _tiny_cfg()
+    assert cfg.action_head.compass == "off"                # the default
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2), compass="off")
+    goal_logits, role_logits, value, l2_hat, z = actor(obs, adj, inference=True)
+    z_raw = actor.backbone(obs, adj, inference=True)       # belief with NO compass term
+    assert bool(jnp.array_equal(z, z_raw)), "z changed when compass off"
+    # every head equals its raw-belief readout (no compass anywhere).
+    assert bool(jnp.array_equal(goal_logits, jax.vmap(actor.goal_head)(z_raw)))
+    assert bool(jnp.array_equal(role_logits, jax.vmap(actor.role_head)(z_raw)))
+
+
+def test_compass_off_init_byte_identical_to_on():
+    """Regression: the compass module is ALWAYS built, AND a compass='off' actor shares
+    EVERY non-compass parameter bit-for-bit with a compass='on' actor of the same key
+    (the compass key is fold_in-derived, so the backbone / goal / role / frontier / aux
+    / value keys are unchanged — an off actor is the pre-compass network exactly)."""
+    cfg = _tiny_cfg()
+    a_off = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                  key=jax.random.PRNGKey(0), compass="off")
+    a_on = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                 key=jax.random.PRNGKey(0), compass="on")
+    import equinox as eqx
+    def leaves(m):
+        return jax.tree_util.tree_leaves(eqx.filter(m, eqx.is_array))
+    for name in ("backbone", "goal_head", "role_head", "frontier_attn",
+                 "aux_head", "value_head"):
+        lo, ln = leaves(getattr(a_off, name)), leaves(getattr(a_on, name))
+        assert lo and all(bool(jnp.array_equal(x, y)) for x, y in zip(lo, ln)), name
+    # the compass param surface itself is present and identical between the two.
+    s_off = [p.shape for p in leaves(a_off.compass)]
+    s_on = [p.shape for p in leaves(a_on.compass)]
+    assert s_off == s_on and len(s_off) > 0
+
+
+def test_compass_on_shifts_belief_and_train_step():
+    """I2: compass='on' actually shifts the belief z (so the heads see the directional
+    cue), and a PPO iter with --compass on runs without error at 100% valid moves with
+    the compass params taking a gradient step."""
+    cfg = _tiny_cfg(
+        world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+        action_head=ActionHead(compass="on"),
+    )
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2), compass="on")
+    _, _, _, _, z = actor(obs, adj, inference=True)
+    z_raw = actor.backbone(obs, adj, inference=True)
+    assert not bool(jnp.array_equal(z, z_raw)), "compass=on did not shift z"
+    # a full PPO iter runs and the compass submodule actually moves.
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    tstate = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    new_state, logs = ppo.train_step(env, tstate, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0
+    import equinox as eqx
+    p0 = jax.tree_util.tree_leaves(eqx.filter(tstate.actor.compass, eqx.is_array))
+    p1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor.compass, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(p0, p1)), "compass unchanged"
+
+
+def test_compass_config_roundtrip():
+    """I2: a non-default compass round-trips through the config tree."""
+    cfg = _tiny_cfg(action_head=ActionHead(compass="on"))
+    d = cfg.to_dict()
+    assert d["action_head"]["compass"] == "on"
+    assert from_dict(d).to_dict() == d
+
+
+def test_defaults_byte_unchanged_full_actor():
+    """I2 REGRESSION (defaults): the DEFAULT action_head (relay_tool=lambda2_anchor,
+    compass=off, explorer_tool=goal_head) leaves the actor forward byte-identical to the
+    raw goal-head/role/value/aux readout off the belief — no I2 tool touches the default
+    network anywhere."""
+    cfg = _tiny_cfg()
+    ah = cfg.action_head
+    assert (ah.relay_tool, ah.compass, ah.explorer_tool) == (
+        "lambda2_anchor", "off", "goal_head")
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(3))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2))   # all-default tools
+    goal_logits, role_logits, value, l2_hat, z = actor(obs, adj, inference=True)
+    z_raw = actor.backbone(obs, adj, inference=True)
+    assert bool(jnp.array_equal(z, z_raw))                  # compass off -> z untouched
+    assert bool(jnp.array_equal(goal_logits, jax.vmap(actor.goal_head)(z_raw)))  # no frontier
+    assert bool(jnp.array_equal(value, jax.vmap(actor.value_head)(z_raw)[:, 0]))
+    assert bool(jnp.array_equal(l2_hat, jax.vmap(actor.aux_head)(z_raw)[:, 0]))
 
 
 # ---- controller: only valid moves ------------------------------------------
@@ -736,6 +1016,20 @@ if __name__ == "__main__":
     test_explorer_tool_param_surface_stable()
     test_explorer_tool_frontier_attn_train_step()
     test_explorer_tool_config_roundtrip()
+    test_relay_hold_well_connected_stays()
+    test_relay_hold_about_to_isolate_reconnects()
+    test_relay_hold_emits_only_valid_moves()
+    test_relay_tool_hold_train_step()
+    test_relay_tool_lambda2_anchor_byte_unchanged()
+    test_relay_tool_config_roundtrip()
+    test_compass_features_point_correctly()
+    test_compass_empty_streams_fall_to_here()
+    test_compass_features_scale_invariant()
+    test_compass_off_byte_unchanged()
+    test_compass_off_init_byte_identical_to_on()
+    test_compass_on_shifts_belief_and_train_step()
+    test_compass_config_roundtrip()
+    test_defaults_byte_unchanged_full_actor()
     test_controller_emits_only_valid_moves()
     test_collision_mask_never_blocks_stay_and_stays_valid()
     test_collision_mask_forbids_occupied_cells()
