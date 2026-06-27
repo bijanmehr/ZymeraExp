@@ -81,11 +81,28 @@ class ActionHead:
     * ``controller`` — "greedy": Chebyshev-descent toward the goal, emitting ONLY
                        env-valid moves (STAY fallback). The sim still sees 1-step
                        moves; the 100-step budget is unchanged.
+    * ``explorer_tool`` — how the EXPLORER picks its goal sector (the L4 "disperse"
+                       skill / I2 explorer-tool axis):
+        - "goal_head" (default): the goal-pointer logits come from the belief z
+          ALONE (``nets.Actor.goal_head``) — v0 behaviour, byte-unchanged.
+        - "frontier_attn": a learned frontier-attention module
+          (``nets.FrontierAttn``) ADDS a per-sector bias to the goal logits,
+          pulling the goal toward the compass sector with the most UNCOVERED ground
+          (the agent's own ``known`` channel = frontier). It gives the explorer an
+          EXPLICIT frontier-seeking mechanism instead of relying on the reward to
+          discover dispersal from a clustered spawn. The module is ALWAYS built (a
+          stable param surface) but only contributes under this value; PPO still
+          samples the goal (the bias never argmaxes). Only the EXPLORER role uses it
+          — relays run the λ̂₂-anchor controller and discard the goal regardless, so
+          when ``role_picker == 'off'`` every (explorer) agent uses the tool and
+          when it is on relays are unaffected. Scale-invariant: K fixed, the sector
+          features are normalized fractions, so a model trained @16²/4 transfers.
     """
     kind: str = "goal_pointer"
     K: int = 9
     stride: int = 3
     controller: str = "greedy"
+    explorer_tool: str = "goal_head"    # {"goal_head", "frontier_attn"}
 
 
 @dataclass(frozen=True)

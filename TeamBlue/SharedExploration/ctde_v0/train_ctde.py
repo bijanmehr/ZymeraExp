@@ -59,6 +59,11 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
     # action head
     p.add_argument("--goal-k", type=int, default=9)
     p.add_argument("--stride", type=int, default=3)
+    p.add_argument("--explorer-tool", choices=["goal_head", "frontier_attn"],
+                   default="goal_head",
+                   help="how the explorer picks its goal sector (I2 / L4 'disperse'): "
+                        "goal_head=belief-only (v0); frontier_attn=learned attention "
+                        "biasing the goal toward the most uncovered compass sector")
     # mechanism / aux
     p.add_argument("--mechanism",
                    choices=["action_mask", "soft_lambda", "lagrangian",
@@ -133,7 +138,8 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm),
         action_head=dataclasses.replace(CTDEConfig().action_head, K=args.goal_k,
-                                        stride=args.stride),
+                                        stride=args.stride,
+                                        explorer_tool=args.explorer_tool),
         mission_safety=MissionSafety(mechanism=args.mechanism,
                                      conn_signal=args.conn_signal,
                                      degree_target=args.degree_target,

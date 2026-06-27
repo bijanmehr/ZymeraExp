@@ -454,7 +454,8 @@ def init_state(env, cfg: CTDEConfig, key) -> TrainState:
     in_ch = env.obs.obs_channels
     cg = env.obs.central_channels
     actor = Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
-                  dropout=cfg.regularization.dropout, key=ka)
+                  dropout=cfg.regularization.dropout, key=ka,
+                  explorer_tool=cfg.action_head.explorer_tool)
     critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
                     cfg.regularization.dropout, key=kc)
     opt = make_optimizer(cfg)

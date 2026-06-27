@@ -21,9 +21,9 @@ import jax  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
 
 from ctde_v0 import controller as ctrl  # noqa: E402
-from ctde_v0 import env_utils, ppo  # noqa: E402
+from ctde_v0 import env_utils, nets, ppo  # noqa: E402
 from ctde_v0.config import (  # noqa: E402
-    Backbone, CTDEConfig, MissionSafety, Trainer, World, from_dict,
+    ActionHead, Backbone, CTDEConfig, MissionSafety, Trainer, World, from_dict,
 )
 from ctde_v0.nets import Actor, Critic  # noqa: E402
 
@@ -49,6 +49,8 @@ def test_config_roundtrip():
     d = cfg.to_dict()
     assert d["backbone"]["agg"] == "max"
     assert d["action_head"]["kind"] == "goal_pointer"
+    # I2: the explorer_tool axis round-trips and defaults to the v0 goal_head.
+    assert d["action_head"]["explorer_tool"] == "goal_head"
     assert d["mission_safety"]["mechanism"] == "action_mask"
     # I1c: the new conn_signal axis round-trips and defaults to the I1b behaviour.
     assert d["mission_safety"]["conn_signal"] == "global_lambda2"
@@ -112,6 +114,144 @@ def test_aggregators_all_run():
                       backbone_cfg=bb, dropout=0.0, key=jax.random.PRNGKey(3))
         _, _, _, _, z = actor(obs, adj, inference=True)
         assert jnp.isfinite(z).all(), agg
+
+
+# ---- frontier-attention explorer tool (I2 / L4 "disperse") ------------------
+
+def _obs_with_frontier_east(C, H, W, ar, ac):
+    """A hand-built obs (C,H,W) with the agent at (ar,ac) and ALL ground known
+    EXCEPT the columns strictly east of the agent — so the only frontier (uncovered)
+    ground lies to the EAST (compass sector 2)."""
+    obs = jnp.zeros((C, H, W), dtype=jnp.float32)
+    obs = obs.at[nets._CH_OWN_POS, ar, ac].set(1.0)        # own_pos one-hot
+    obs = obs.at[nets._CH_KNOWN].set(1.0)                  # everything known...
+    obs = obs.at[nets._CH_KNOWN, :, ac + 1:].set(0.0)      # ...except east -> frontier
+    return obs
+
+
+def test_sector_frontier_features_concentrate():
+    """Unit: with uncovered cells concentrated in ONE compass sector (EAST), the
+    per-sector frontier feature puts clearly higher mass on that sector (and ≈0 on
+    the opposite West sector). Features are normalized fractions in [0,1]."""
+    cfg = _tiny_cfg()
+    K = cfg.action_head.K
+    obs = _obs_with_frontier_east(5, 11, 11, ar=5, ac=5)
+    feats = nets.sector_frontier_features(obs, K)
+    assert feats.shape == (K, 2)
+    assert bool((feats >= 0.0).all()) and bool((feats <= 1.0).all())   # fractions
+    east, west = 2, 4                                      # _COMPASS order: 2=E, 4=W
+    # the EAST sector is the most frontier-rich of all K sectors (fraction feature).
+    assert int(jnp.argmax(feats[:, 0])) == east, feats[:, 0]
+    assert float(feats[east, 0]) > float(feats[west, 0]) + 0.3, feats[:, 0]
+    # density feature agrees: more frontier mass toward east than west.
+    assert float(feats[east, 1]) > float(feats[west, 1]), feats[:, 1]
+
+
+def test_frontier_attn_shifts_goal_probability():
+    """Unit: the frontier-attention term shifts goal probability toward the
+    frontier-rich sector. Compare goal-softmax with the frontier tool ON vs the
+    goal-head ALONE (same belief/params): the EAST sector's probability strictly
+    increases once the frontier bias is added."""
+    cfg = _tiny_cfg(backbone=Backbone(width=16))
+    K = cfg.action_head.K
+    obs1 = _obs_with_frontier_east(5, 11, 11, ar=5, ac=5)
+    obs = obs1[None]                                       # (1,C,H,W) one agent
+    adj = jnp.zeros((1, 1), dtype=bool)                    # lone agent (no neighbours)
+    # a frontier_attn actor; read its goal_head-only vs goal_head+frontier logits.
+    actor = Actor(5, K, backbone_cfg=cfg.backbone, dropout=0.0,
+                  key=jax.random.PRNGKey(0), explorer_tool="frontier_attn")
+    z = actor.backbone(obs, adj, inference=True)           # (1,W)
+    base = jax.vmap(actor.goal_head)(z)                    # (1,K) goal head alone
+    term = actor.frontier_attn(obs, z, K)                  # (1,K) frontier bias
+    east = 2
+    # the additive frontier term is non-negative and (by construction) MAXIMAL at the
+    # frontier-rich EAST sector — frontier-positive even at random init.
+    assert bool((term[0] >= -1e-6).all()), term[0]
+    assert int(jnp.argmax(term[0])) == east, term[0]
+    p_base = jax.nn.softmax(base, axis=-1)[0]
+    p_bias = jax.nn.softmax(base + term, axis=-1)[0]
+    # ...so its sampled probability strictly increases vs the goal-head-only policy.
+    assert float(p_bias[east]) > float(p_base[east]), (p_base[east], p_bias[east])
+
+
+def test_frontier_features_scale_invariant():
+    """Scale-invariance: the SAME relative frontier layout (east half uncovered,
+    agent centered) yields near-identical per-sector features at 11×11 and 21×21 —
+    the features are fractions/unit-directions, independent of grid size."""
+    cfg = _tiny_cfg()
+    K = cfg.action_head.K
+    f_small = nets.sector_frontier_features(_obs_with_frontier_east(5, 11, 11, 5, 5), K)
+    f_big = nets.sector_frontier_features(_obs_with_frontier_east(5, 21, 21, 10, 10), K)
+    # the FRACTION feature (col 0) is a pure fraction -> ~grid-size invariant (the soft
+    # sector boundaries shift a touch with cell count, but values track closely).
+    assert bool(jnp.allclose(f_small[:, 0], f_big[:, 0], atol=0.12)), (
+        f_small[:, 0], f_big[:, 0])
+    # both rank EAST top regardless of size (the directional signal transfers).
+    assert int(jnp.argmax(f_small[:, 0])) == int(jnp.argmax(f_big[:, 0])) == 2
+
+
+def test_explorer_tool_goal_head_byte_unchanged():
+    """Regression: explorer_tool='goal_head' (DEFAULT) leaves the goal policy byte-
+    identical — the actor's goal logits equal goal_head(z) EXACTLY (the frontier
+    module never contributes; the static branch is skipped)."""
+    cfg = _tiny_cfg()
+    assert cfg.action_head.explorer_tool == "goal_head"    # the default
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2), explorer_tool="goal_head")
+    goal_logits, *_rest, z = actor(obs, adj, inference=True)
+    goal_only = jax.vmap(actor.goal_head)(z)               # goal head with NO tool
+    assert bool(jnp.array_equal(goal_logits, goal_only)), "goal_head path changed"
+
+
+def test_explorer_tool_param_surface_stable():
+    """The frontier_attn submodule is ALWAYS built (stable param tree) regardless of
+    the explorer_tool knob — only its USE is gated. Both actors expose frontier_attn
+    leaves of identical shapes (mirrors role_head being always-built)."""
+    cfg = _tiny_cfg()
+    a_gh = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                 key=jax.random.PRNGKey(0), explorer_tool="goal_head")
+    a_fa = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                 key=jax.random.PRNGKey(0), explorer_tool="frontier_attn")
+    import equinox as eqx
+    s_gh = [p.shape for p in jax.tree_util.tree_leaves(
+        eqx.filter(a_gh.frontier_attn, eqx.is_array))]
+    s_fa = [p.shape for p in jax.tree_util.tree_leaves(
+        eqx.filter(a_fa.frontier_attn, eqx.is_array))]
+    assert s_gh == s_fa and len(s_gh) > 0                  # same non-empty param surface
+
+
+def test_explorer_tool_frontier_attn_train_step():
+    """Train: a PPO iter with --explorer-tool frontier_attn (+ role_picker expl_relay)
+    on 10×10/2 runs without error and the controller still emits 100% valid moves."""
+    cfg = _tiny_cfg(
+        world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+        action_head=ActionHead(explorer_tool="frontier_attn"),
+        role_picker="expl_relay",
+    )
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    new_state, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0           # only valid moves emitted
+    # the actor (incl. the frontier module) actually took a gradient step.
+    import equinox as eqx
+    p0 = jax.tree_util.tree_leaves(eqx.filter(state.actor, eqx.is_array))
+    p1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(p0, p1)), "actor unchanged"
+
+
+def test_explorer_tool_config_roundtrip():
+    """I2: a non-default explorer_tool round-trips through the config tree."""
+    import dataclasses
+    cfg = _tiny_cfg(action_head=ActionHead(explorer_tool="frontier_attn"))
+    d = cfg.to_dict()
+    assert d["action_head"]["explorer_tool"] == "frontier_attn"
+    assert from_dict(d).to_dict() == d
 
 
 # ---- controller: only valid moves ------------------------------------------
@@ -589,6 +729,13 @@ if __name__ == "__main__":
     test_env_shapes()
     test_actor_backbone_forward()
     test_aggregators_all_run()
+    test_sector_frontier_features_concentrate()
+    test_frontier_attn_shifts_goal_probability()
+    test_frontier_features_scale_invariant()
+    test_explorer_tool_goal_head_byte_unchanged()
+    test_explorer_tool_param_surface_stable()
+    test_explorer_tool_frontier_attn_train_step()
+    test_explorer_tool_config_roundtrip()
     test_controller_emits_only_valid_moves()
     test_collision_mask_never_blocks_stay_and_stays_valid()
     test_collision_mask_forbids_occupied_cells()
