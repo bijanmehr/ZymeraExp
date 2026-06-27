@@ -88,6 +88,24 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
     p.add_argument("--anti-overlap", choices=["off", "on"], default="off",
                    help="on=subtract same_step_overlap from the composed reward")
     p.add_argument("--anti-overlap-weight", type=float, default=1.0)
+    # connectivity-FLOOR barrier ("Hyper-Singularity"): a capped per-agent wall at the
+    # disconnection edge, COMPOSES with --conn-signal / --mechanism (not a replacement).
+    p.add_argument("--barrier-weight", type=float, default=0.0,
+                   help="k; 0 (default)=barrier OFF / reward byte-unchanged")
+    p.add_argument("--barrier-a", type=float, default=None,
+                   help="barrier launch point a (0 below it); default=comm_r*0.6")
+    p.add_argument("--barrier-M", type=float, default=None,
+                   help="barrier wall / break range M; default=comm_r")
+    p.add_argument("--barrier-p", type=float, default=2.0,
+                   help="barrier explosion power on (M - x)")
+    p.add_argument("--barrier-cap", type=float, default=50.0,
+                   help="barrier finite 'almost infinity' ceiling")
+    # reward weights (coverage vs connectivity balance — the scale-huddle suspect:
+    # defaults weight connectivity 2x coverage, which a huddle collects for free)
+    p.add_argument("--w-coverage", type=float, default=1.0,
+                   help="reward weight on the coverage term (default 1.0)")
+    p.add_argument("--w-connectivity", type=float, default=2.0,
+                   help="reward weight on the connectivity term (default 2.0)")
     # trainer
     p.add_argument("--iters", type=int, default=50)
     p.add_argument("--rollouts", type=int, default=8, help="episodes per iteration")
@@ -121,7 +139,10 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
                                      degree_target=args.degree_target,
                                      lambda_lr=args.lambda_lr,
                                      constraint_threshold=args.constraint_threshold),
-        reward=Reward(),
+        reward=Reward(w_coverage=args.w_coverage, w_connectivity=args.w_connectivity,
+                      barrier_weight=args.barrier_weight, barrier_a=args.barrier_a,
+                      barrier_M=args.barrier_M, barrier_p=args.barrier_p,
+                      barrier_cap=args.barrier_cap),
         loss=Loss(ppo_clip=args.clip, aux_beta=args.beta, aux_loss=args.aux_loss),
         trainer=Trainer(lr=args.lr, clip=args.clip, ppo_epochs=args.ppo_epochs,
                         minibatches=args.minibatches),
