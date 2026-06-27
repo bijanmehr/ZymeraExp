@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
+from . import checkpoint as _ckpt
 from . import dataset as _dataset
 
 EPS = 1e-6
@@ -200,7 +201,8 @@ def _val_median_rel_err_connected(model, data, idx):
 
 
 def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, batch=128,
-                       val_frac=0.2, agree_w=0.0, patience=15, seed=0, eval_every=50):
+                       val_frac=0.2, agree_w=0.0, patience=15, seed=0, eval_every=50,
+                       ckpt_path=None, ckpt_every=1000):
     """Train a ConfigurableGCRN on masked multi-N data; return (model, info).
 
     `data`: dict X_node (S,H,Nmax,6), X_adj (S,H,Nmax,Nmax), X_pos (S,H,Nmax,2),
@@ -208,6 +210,12 @@ def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, b
     optax: adamw(lr, weight_decay) + clip_by_global_norm(1.0) + cosine schedule over `steps`.
     Early-stop on val linear-space median-rel-err over CONNECTED real nodes; keep best.
     info = {"val_acc", "val_err", "steps_run"}.
+
+    Crash-safe checkpointing: if `ckpt_path` is set, the full training state (model, optimizer
+    state, best-so-far model, RNG key, and the step/best/patience scalars) is written there
+    every `ckpt_every` steps, and the run RESUMES from it when the file already exists (e.g.
+    after a crash). The optimizer state carries the cosine-schedule step, so resume keeps the
+    LR schedule exact. The checkpoint is deleted on clean completion.
     """
     X_node = jnp.asarray(data["X_node"], jnp.float32)
     X_adj = jnp.asarray(data["X_adj"])
@@ -243,8 +251,22 @@ def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, b
     best_model = model
     best_err = np.inf
     no_improve = 0
-    it = 0
-    for it in range(steps):
+    start_it = 0
+
+    # resume from a prior checkpoint if one exists (crash recovery); template gives structure
+    if _ckpt.exists(ckpt_path):
+        template = {"model": model, "opt_state": opt_state, "best_model": best_model,
+                    "key": key, "scalars": jnp.zeros((3,), jnp.float32)}
+        st = _ckpt.load_state(ckpt_path, template)
+        model, opt_state, best_model, key = (st["model"], st["opt_state"],
+                                             st["best_model"], st["key"])
+        it_f, be_f, ni_f = (float(x) for x in np.asarray(st["scalars"]))
+        start_it, best_err, no_improve = int(it_f) + 1, be_f, int(ni_f)
+        print(f"[ckpt] resume {ckpt_path}: step {start_it}/{steps}, best_err={best_err:.4f}",
+              flush=True)
+
+    it = max(0, start_it - 1)
+    for it in range(start_it, steps):
         key, sk, dk = jax.random.split(key, 3)
         idx = jax.random.randint(sk, (bs,), 0, n_tr)
         # dkey enables DropEdge if the model was built with dropedge>0 (training only)
@@ -260,7 +282,12 @@ def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, b
                 no_improve += 1
                 if no_improve >= patience:
                     break
+        if ckpt_path and ((it + 1) % ckpt_every == 0 or it == steps - 1):
+            _ckpt.save_state(ckpt_path, {
+                "model": model, "opt_state": opt_state, "best_model": best_model,
+                "key": key, "scalars": jnp.asarray([it, best_err, no_improve], jnp.float32)})
 
+    _ckpt.remove(ckpt_path)                    # clean completion -> drop the resume checkpoint
     val_acc = float(np.clip(1.0 - best_err, 0.0, 1.0)) if np.isfinite(best_err) else 0.0
     info = {"val_acc": val_acc, "val_err": float(best_err), "steps_run": it + 1}
     return best_model, info

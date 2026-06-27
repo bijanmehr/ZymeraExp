@@ -26,6 +26,7 @@ import numpy as np
 from .config import DataCfg
 from . import datagen, dataset, identity, margin, metrics, signal
 from .models_eqx import ConfigurableGCRN
+from . import checkpoint as _ckpt
 from . import train_eqx
 
 CONNECTED_TAU = train_eqx.CONNECTED_TAU
@@ -212,7 +213,15 @@ def _build_model(cfg, key):
     )
 
 
-def _train(model, data, cfg, seed):
+def _ckpt_path(cfg, tag):
+    """Per-training checkpoint path under cfg['ckpt_dir'] (default results/ckpt), or None if
+    checkpointing is disabled (cfg['ckpt'] = False) or no tag is given."""
+    if not tag or not cfg.get("ckpt", True):
+        return None
+    return os.path.join(cfg.get("ckpt_dir", "results/ckpt"), f"{tag}.train.eqx")
+
+
+def _train(model, data, cfg, seed, ckpt_tag=None):
     return train_eqx.train_configurable(
         model, data,
         steps=int(cfg.get("steps", 12000)),
@@ -223,6 +232,8 @@ def _train(model, data, cfg, seed):
         agree_w=float(cfg.get("agree_w", 0.0)),
         patience=int(cfg.get("patience", 15)),
         seed=seed,
+        ckpt_path=_ckpt_path(cfg, ckpt_tag),
+        ckpt_every=int(cfg.get("ckpt_every", 1000)),
     )
 
 
@@ -292,7 +303,9 @@ def _cv_at_N(cfg, base_seed):
         held_data = _augment(dataset.pad_batch([held_group], N_max), cfg, seed=base_seed + 201 * (f + 1))
 
         model = _build_model(cfg, jax.random.PRNGKey(base_seed + 31 + f))
-        model, _ = _train(model, tr_data, cfg, seed=base_seed + 41 + f)
+        cv_name = cfg.get("name", cfg.get("op", "cfg"))
+        model, _ = _train(model, tr_data, cfg, seed=base_seed + 41 + f,
+                          ckpt_tag=f"{cv_name}-fold{f}")
         overall, _, _ = _score(model, held_data)
         accs.append(overall)
 
@@ -346,10 +359,21 @@ def run_config(cfg, *, base_seed=0):
     train_N = list(cfg["train_N"])
     eval_N = list(cfg.get("eval_N", train_N))
 
-    # --- train on the multi-N pool ---
+    # --- train on the multi-N pool (checkpointed; resumes a crashed config mid-training) ---
+    name = cfg.get("name", cfg.get("op", "cfg"))
     pool = _build_pool(train_N, H, base_seed + 1, cfg)
     model = _build_model(cfg, jax.random.PRNGKey(base_seed))
-    model, info = _train(model, pool, cfg, seed=base_seed)
+    model, info = _train(model, pool, cfg, seed=base_seed, ckpt_tag=f"{name}-main")
+    # persist the deployable trained estimator (+ hyperparam meta to rebuild its skeleton)
+    if cfg.get("ckpt", True):
+        meta = {"name": name, "op": cfg.get("op"), "content": cfg.get("content", "value"),
+                "hidden": int(cfg.get("hidden", 128)), "n_rounds": int(cfg.get("n_rounds", 2)),
+                "heads": int(cfg.get("heads", 4)), "comm_r": float(cfg.get("comm_r", 5)),
+                "in_size": _model_in_size(cfg), "id_mode": cfg.get("id_mode", "none"),
+                "margin_mode": cfg.get("margin_mode", "off"),
+                "signal_mode": cfg.get("signal_mode", "off")}
+        _ckpt.save_model(os.path.join(cfg.get("ckpt_dir", "results/ckpt"),
+                                      f"{name}.model.eqx"), model, meta)
 
     # --- in-distribution eval on a FRESH held-out set across eval_N ---
     eval_data = _build_pool(eval_N, H, base_seed + 9000, cfg, N_max=max(train_N + eval_N))
