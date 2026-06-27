@@ -149,6 +149,24 @@ class Reward:
     Defaults = zymera DEFAULT_TERMS weights (coverage 1 / connectivity 2 /
     collision -4). ``soft_lambda_penalty`` is the λ scale used only when
     ``MissionSafety.mechanism == 'soft_lambda'``.
+
+    Connectivity-FLOOR barrier ("Hyper-Singularity") — a STANDALONE, config-knobbed
+    reward term (``env_utils.connectivity_barrier``) that COMPOSES with every other
+    connectivity mechanism (``conn_signal`` / ``mechanism``); it does NOT replace any.
+    A capped one-sided wall on each agent's nearest-neighbour Chebyshev distance:
+    EXACTLY 0 inside ``barrier_a`` (silent in the safe zone), an explosive-but-FINITE
+    rise as a link nears ``barrier_M`` (the break range), saturating at ``barrier_cap``
+    at/past ``barrier_M``. ``barrier_weight`` is the formula's ``k``; at its DEFAULT 0
+    the term is OFF / exactly 0 and the composed reward is byte-unchanged.
+
+    * ``barrier_weight`` — k; the term's weight. 0 (default) -> OFF (no-op).
+    * ``barrier_a``      — launch point (0 below it). ``None`` -> ``world.comm_r * 0.6``.
+    * ``barrier_M``      — the wall / break range. ``None`` -> ``world.comm_r`` (link
+                           breaks at comm range). Both resolve via the ``barrier_a`` /
+                           ``barrier_M`` accessors on :class:`CTDEConfig` (one source of
+                           truth for ``comm_r``, like ``MissionSafety.constraint_threshold``).
+    * ``barrier_p``      — explosion power on the ``(M - x)`` denominator.
+    * ``barrier_cap``    — the finite "almost-infinity" ceiling the wall saturates at.
     """
     kind: str = "extrinsic"
     w_coverage: float = 1.0       # new_coverage (fresh team-covered cells)
@@ -156,6 +174,12 @@ class Reward:
     w_collision: float = -4.0     # collision_count (co-located others; penalty)
     soft_lambda_penalty: float = 1.0
     normalized: bool = False      # divide coverage term by free-cell count
+    # --- connectivity-FLOOR barrier (composes with conn_signal/mechanism) ---
+    barrier_weight: float = 0.0          # k; 0 -> term OFF / exactly 0 (byte-unchanged)
+    barrier_a: float | None = None       # launch point; None -> world.comm_r * 0.6
+    barrier_M: float | None = None       # wall / break range; None -> world.comm_r
+    barrier_p: float = 2.0               # explosion power
+    barrier_cap: float = 50.0            # finite "almost infinity" ceiling
 
 
 @dataclass(frozen=True)
@@ -270,6 +294,20 @@ class CTDEConfig:
         grading threshold ``connectivity.threshold`` (one floor, not a second)."""
         ms = self.mission_safety.constraint_threshold
         return self.connectivity.threshold if ms is None else ms
+
+    @property
+    def barrier_a(self) -> float:
+        """Resolved barrier launch point a: ``reward.barrier_a`` if set, else
+        ``world.comm_r * 0.6`` (one source of truth for ``comm_r``)."""
+        a = self.reward.barrier_a
+        return float(self.world.comm_r) * 0.6 if a is None else float(a)
+
+    @property
+    def barrier_M(self) -> float:
+        """Resolved barrier wall / break range M: ``reward.barrier_M`` if set, else
+        ``world.comm_r`` (the link breaks at comm range)."""
+        m = self.reward.barrier_M
+        return float(self.world.comm_r) if m is None else float(m)
 
 
 # --- field name -> leaf type, for from_dict reconstruction --------------------

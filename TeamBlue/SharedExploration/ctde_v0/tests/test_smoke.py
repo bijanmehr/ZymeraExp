@@ -246,6 +246,143 @@ def test_reward_and_lambda2():
     assert l2.shape == () and float(l2) >= 0.0
 
 
+# ---- connectivity-FLOOR barrier ("Hyper-Singularity") -----------------------
+
+def _barrier_cfg(**reward_over):
+    """A tiny cfg whose Reward block carries explicit barrier knobs (a=2, M=5)."""
+    from ctde_v0.config import Reward
+    base = dict(barrier_weight=1.0, barrier_a=2.0, barrier_M=5.0,
+                barrier_p=2.0, barrier_cap=50.0)
+    base.update(reward_over)
+    return _tiny_cfg(world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+                     reward=Reward(**base))
+
+
+def test_barrier_shape_zero_rise_cap_and_finite():
+    """(a) SHAPE: f==0 for x<=a, strictly increasing for a<x<M, saturates at cap as
+    x->M, f==cap for x>=M (incl. x==M exactly AND x==M+1), and NO nan/inf anywhere."""
+    cfg = _barrier_cfg()                                   # a=2, M=5, cap=50
+    a, M, cap = cfg.barrier_a, cfg.barrier_M, cfg.reward.barrier_cap
+    assert (a, M, cap) == (2.0, 5.0, 50.0)
+
+    # sweep x over [0, M+1] on a fine grid (single-agent nearest-nbr distance).
+    xs = jnp.linspace(0.0, M + 1.0, 64)
+
+    def f_of(x):                                           # pure single-agent eval
+        pos = jnp.array([[0.0, 0.0], [0.0, x]], dtype=jnp.float32)
+        return env_utils.connectivity_barrier(pos, cfg)[0]
+    fs = jax.vmap(f_of)(xs)
+
+    assert bool(jnp.isfinite(fs).all()), fs                # no nan/inf for ANY x
+    assert bool((fs >= 0.0).all()) and bool((fs <= cap).all())  # in [0, cap]
+    # silent below the launch point.
+    below = xs <= a
+    assert bool((fs[below] == 0.0).all()), fs[below]
+    # non-decreasing across the whole sweep (monotone wall, never dips).
+    assert bool((jnp.diff(fs) >= -1e-5).all()), fs
+    # STRICTLY increasing on the rising sub-cap portion of (a, M): take the samples in
+    # (a, M) that have NOT yet saturated to the ceiling — they must be strictly rising.
+    mid = (xs > a) & (xs < M) & (fs < cap - 1e-3)
+    fmid = fs[mid]
+    assert fmid.shape[0] >= 3
+    assert bool((jnp.diff(fmid) > 0).all()), fmid          # strictly rising pre-cap
+    # saturates toward cap as x -> M (just inside the wall is already at the ceiling).
+    assert float(f_of(M - 0.05)) > 0.9 * cap
+    # at/after the wall -> exactly cap (x == M, x == M+1, and a far isolate).
+    assert float(f_of(M)) == cap
+    assert float(f_of(M + 1.0)) == cap
+    iso = jnp.array([[0.0, 0.0], [0.0, M + 50.0]], dtype=jnp.float32)
+    assert float(env_utils.connectivity_barrier(iso, cfg)[0]) == cap
+
+
+def test_barrier_per_agent_layout():
+    """(b) PER-AGENT: a hand-built layout — an agent with a neighbour inside a -> 0;
+    an agent whose nearest neighbour is just inside M -> large (near cap); an isolated
+    agent (nearest > M) -> exactly cap. Each agent reads its OWN nearest-nbr distance.
+
+    Layout (Chebyshev, a=2, M=5, cap=50): a0(0,0)&a1(0,1) are a tight pair (dist 1 < a
+    -> both 0); a2(0,5.9) sits a hair inside the wall — its NEAREST neighbour is a1 at
+    dist 4.9, in (a,M) and right against M -> the pole pushes it to the ceiling; a3 is
+    far away (isolated, nearest > M -> exactly cap). Float positions let 'just inside M'
+    be unambiguous while the metric stays the same Chebyshev the comm graph uses."""
+    cfg = _barrier_cfg()                                   # a=2, M=5, cap=50
+    cap = cfg.reward.barrier_cap
+    # a0,a1 tight pair; a2 a hair inside the wall (nearest = a1 at dist 4.9); a3 isolated.
+    pos = jnp.array([[0.0, 0.0], [0.0, 1.0], [0.0, 5.9], [0.0, 50.0]], dtype=jnp.float32)
+    f = env_utils.connectivity_barrier(pos, cfg)
+    assert f.shape == (4,) and f.dtype == jnp.float32
+    assert bool(jnp.isfinite(f).all())
+    # a0 & a1: nearest neighbour (each other) at dist 1 < a -> exactly 0 (safe interior).
+    assert float(f[0]) == 0.0 and float(f[1]) == 0.0
+    # a2: nearest at dist 4.9, just inside (a=2, M=5) and against the wall -> ~cap.
+    assert 0.0 < float(f[2]) <= cap and float(f[2]) > 0.5 * cap, f
+    # a3: nearest neighbour (a2 at dist ~45) > M -> exactly the ceiling.
+    assert float(f[3]) == cap, f
+    # the isolated agent is (tied-)most penalized; the near-wall agent far above the pair.
+    assert float(f[3]) >= float(f[2]) and float(f[2]) > float(f[0])
+
+
+def test_barrier_default_off_is_byte_unchanged():
+    """(c) REGRESSION: barrier_weight==0 (the DEFAULT) -> compose_reward is byte-
+    identical to the pre-barrier reward (the term contributes EXACTLY nothing — the
+    no-op gate lives in compose_reward, which skips the subtraction entirely)."""
+    cfg = _tiny_cfg()                                      # default Reward: barrier_weight 0
+    assert cfg.reward.barrier_weight == 0.0
+    env = env_utils.build_env(cfg)
+    _, state = env.reset(jax.random.PRNGKey(3))
+    move = jnp.zeros((cfg.world.n_agents,), jnp.int32)
+    _, state2, _, _, info = env.step(state, move, jax.random.PRNGKey(4))
+
+    # reference reward WITHOUT the barrier term (re-derive the pre-barrier sum exactly).
+    r = cfg.reward
+    rt = info["reward_terms"]
+    ref = (r.w_coverage * rt["coverage"]
+           + r.w_connectivity * rt["connectivity"]
+           + r.w_collision * rt["collision"]).astype(jnp.float32)
+    got = env_utils.compose_reward(rt, state2, cfg)
+    assert bool(jnp.array_equal(got, ref)), (got, ref)     # byte-identical with weight 0
+    # the function never returns nan/inf even at the default (k=0) on a live layout.
+    f0 = env_utils.connectivity_barrier(state2.body.position, cfg)
+    assert bool(jnp.isfinite(f0).all()), f0
+    # with k=0 the SMOOTH region contributes exactly 0 (the cap-at-wall is unconditional,
+    # but it never reaches the reward because compose_reward skips the term at weight 0).
+    pos_safe = jnp.array([[0, 0], [0, 1]], dtype=jnp.int32)   # tight pair, x=1 < a
+    assert bool((env_utils.connectivity_barrier(pos_safe, cfg) == 0.0).all())
+
+
+def test_barrier_config_roundtrip():
+    """The barrier knobs round-trip through to_dict/from_dict and the comm_r-derived
+    defaults resolve (None -> comm_r*0.6 for a, comm_r for M)."""
+    from ctde_v0.config import Reward
+    # defaults: a/M unset -> resolved off comm_r (=5 here -> a=3.0, M=5.0).
+    cfg = _tiny_cfg(world=World(grid=10, n_agents=2, comm_r=5, horizon=6))
+    assert cfg.reward.barrier_a is None and cfg.reward.barrier_M is None
+    assert cfg.barrier_a == 3.0 and cfg.barrier_M == 5.0
+    # explicit knobs survive a JSON-shaped round trip.
+    cfg2 = _tiny_cfg(reward=Reward(barrier_weight=2.5, barrier_a=1.0, barrier_M=4.0,
+                                   barrier_p=3.0, barrier_cap=25.0))
+    d = cfg2.to_dict()
+    assert d["reward"]["barrier_weight"] == 2.5
+    assert d["reward"]["barrier_a"] == 1.0 and d["reward"]["barrier_M"] == 4.0
+    assert d["reward"]["barrier_p"] == 3.0 and d["reward"]["barrier_cap"] == 25.0
+    assert from_dict(d).to_dict() == d
+
+
+def test_barrier_composes_in_rollout():
+    """The barrier COMPOSES with a mechanism in a live rollout: weight>0 runs a full
+    PPO iteration (finite reward, controller still 100% valid) — it is an ADDITIVE term,
+    not a replacement for the mission-safety mechanism."""
+    cfg = _tiny_cfg(reward=_barrier_cfg().reward,          # barrier on (weight 1, a2/M5)
+                    mission_safety=MissionSafety(mechanism="soft_lambda"))
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    _, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0
+
+
 # ---- one full PPO iteration -------------------------------------------------
 
 def test_one_train_step_runs():
@@ -459,6 +596,11 @@ if __name__ == "__main__":
     test_local_edge_margin_edge_vs_interior()
     test_local_edge_margin_interior_all_zero()
     test_reward_and_lambda2()
+    test_barrier_shape_zero_rise_cap_and_finite()
+    test_barrier_per_agent_layout()
+    test_barrier_default_off_is_byte_unchanged()
+    test_barrier_config_roundtrip()
+    test_barrier_composes_in_rollout()
     test_one_train_step_runs()
     test_soft_lambda_mechanism_runs()
     test_collision_mask_train_step_runs()

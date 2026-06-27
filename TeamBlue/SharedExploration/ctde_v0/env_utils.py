@@ -76,6 +76,13 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
     the coverage term is divided by the free-cell count (fractional coverage).
     When the soft-λ mechanism is active, ``lambda2_penalty`` (a shared scalar
     shortfall) is subtracted with weight ``Reward.soft_lambda_penalty``.
+
+    When ``Reward.barrier_weight > 0`` the per-agent **connectivity-FLOOR barrier**
+    (:func:`connectivity_barrier`, read off ``world.body.position`` — the SAME source
+    true λ₂ / :func:`local_edge_margin` use) is SUBTRACTED. It composes with every
+    other connectivity mechanism (it is NOT a replacement). At the default
+    ``barrier_weight == 0`` the branch is skipped entirely, so the composed reward is
+    byte-identical to the pre-barrier behaviour.
     """
     r = cfg.reward
     cov = reward_terms["coverage"]
@@ -94,6 +101,11 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
     # Only present when build_env appended the 0-weight 'overlap' probe term.
     if cfg.reward_anti_overlap == "on" and "overlap" in reward_terms:
         out = out - cfg.anti_overlap_weight * reward_terms["overlap"]
+    # Connectivity-FLOOR barrier ("Hyper-Singularity"): a capped per-agent wall at the
+    # disconnection edge, COMPOSED with whatever else is active. weight==0 -> skipped
+    # entirely (no op added; out byte-identical). k=barrier_weight is inside the term.
+    if r.barrier_weight > 0:
+        out = out - connectivity_barrier(world.body.position, cfg)
     return out.astype(jnp.float32)
 
 
@@ -139,6 +151,66 @@ def local_edge_margin(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     )                                                          # (N,) soft degree
     target = jnp.asarray(cfg.mission_safety.degree_target, dtype=jnp.float32)
     return jax.nn.relu(target - soft_deg).astype(jnp.float32)  # (N,) per-agent margin
+
+
+def connectivity_barrier(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+    """(N,) float32 — the per-agent **connectivity FLOOR barrier** ("Hyper-Singularity").
+
+    A one-sided interior-point wall on each agent's NEAREST-NEIGHBOUR distance: it is
+    EXACTLY 0 while the agent is comfortably linked (silent in the safe zone), rises
+    smoothly as that agent's closest teammate drifts toward the edge of comm range,
+    and saturates at a finite ``cap`` ("almost infinity") at / past the break point —
+    so the rollout feels an explosive-but-finite push BEFORE the link snaps. It is a
+    standalone, config-knobbed reward TERM that COMPOSES with every other connectivity
+    mechanism (``conn_signal`` / ``mechanism``); it does NOT replace any of them. When
+    ``Reward.barrier_weight == 0`` (the default) it is identically 0 and a no-op.
+
+    The signal is the LOCAL Chebyshev nearest-neighbour distance — the SAME metric as
+    the comm graph (:func:`controller._cheby` / :func:`kb_adjacency`), so the wall and
+    the link agree on "range":
+
+      x_i = min_{j != i} cheby_dist(i, j)         (self masked with +inf before the min)
+
+    The barrier is the user's formula, made RL-safe (the literal pole at ``M`` is
+    GUARDED so there is no inf/nan for ANY x, including ``x_i == M`` exactly and
+    ``x_i > M`` / a lone agent's ``x_i = +inf``):
+
+      raw(x)  = barrier_weight * relu(x - a)^2 / (M - x)^p     (0 for x<=a; pole at x=M)
+      xc_i    = minimum(x_i, M - eps)             eps=1e-3, so (M - xc) in [eps, .] > 0
+      f_i     = minimum( barrier_weight * relu(xc_i - a)^2 / (M - xc_i)^p , cap )
+      f_i     = cap         where  x_i >= M        (link already broken / agent isolated)
+
+    Here ``a = barrier_a`` (launch point), ``M = barrier_M`` (the wall / break range),
+    ``p = barrier_p`` (explosion power), ``cap = barrier_cap`` (the finite ceiling) and
+    ``barrier_weight`` IS the ``k`` of the formula (already folded in). The ``relu(·)^2``
+    is the user's ``(x - a + |x - a|)^2 / 4`` written via the ReLU identity. Result is
+    finite and in ``[0, cap]`` for every x. Pure JAX (vmap/scan/jit-safe).
+    """
+    r = cfg.reward
+    k = jnp.asarray(r.barrier_weight, dtype=jnp.float32)
+    a = jnp.asarray(cfg.barrier_a, dtype=jnp.float32)        # resolved (None -> comm_r*0.6)
+    M = jnp.asarray(cfg.barrier_M, dtype=jnp.float32)        # resolved (None -> comm_r)
+    p = jnp.asarray(r.barrier_p, dtype=jnp.float32)
+    cap = jnp.asarray(r.barrier_cap, dtype=jnp.float32)
+    eps = jnp.asarray(1e-3, dtype=jnp.float32)
+
+    n = position.shape[0]
+    # Chebyshev pairwise distance (same metric as the comm graph / controller._cheby).
+    d = jnp.max(jnp.abs(position[:, None, :] - position[None, :, :]),
+                axis=-1).astype(jnp.float32)                          # (N,N)
+    # mask self with +inf so a lone agent yields x_i=+inf -> caught by the x>=M branch.
+    # (jnp.where, NOT eye*inf: 0*inf would be NaN on the OFF-diagonal and poison the min.)
+    d = jnp.where(jnp.eye(n, dtype=bool), jnp.inf, d)                # (N,N), diag +inf
+    x = jnp.min(d, axis=-1)                                           # (N,) nearest-nbr dist
+
+    # GUARD the pole: clamp x below M so the denominator (M - xc) >= eps > 0 (finite,
+    # never 0/negative), THEN cap. x >= M (incl. x == M exactly and the +inf isolate)
+    # is forced to the ceiling regardless of the clamped value.
+    xc = jnp.minimum(x, M - eps)                                      # (N,) in (-inf, M-eps]
+    raw = k * jax.nn.relu(xc - a) ** 2 / (M - xc) ** p                # (N,) finite
+    f = jnp.minimum(raw, cap)                                         # (N,) in [0, cap]
+    f = jnp.where(x >= M, cap, f)                                     # broken link -> cap
+    return f.astype(jnp.float32)                                      # (N,)
 
 
 def kb_adjacency(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
