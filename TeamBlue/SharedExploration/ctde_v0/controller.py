@@ -14,6 +14,9 @@ Pieces
 * :func:`greedy_move` — the L1 controller: of the env-valid moves
   (``dynamics.targets`` / ``action_mask``), take the one that most reduces
   Chebyshev distance to the chosen goal; STAY if none helps.
+* :func:`occupied_cell_mask` — (N,A) bool flagging actions whose committed cell
+  is the CURRENT cell of another agent (the hard collision-mask signal); both
+  controllers can ``forbid_collision`` to remove those actions before argmin/max.
 * :func:`team_lambda2_after_action` — true λ₂ the team would have after a
   proposed joint move (used by the action-mask mechanism to score candidates).
 * :func:`candidate_first_moves` — for each agent × candidate, the env move the
@@ -72,8 +75,31 @@ def _cheby(a: jax.Array, b: jax.Array) -> jax.Array:
     return jnp.max(jnp.abs(a - b), axis=-1)
 
 
+def occupied_cell_mask(pos: jax.Array, valid_targets: jax.Array) -> jax.Array:
+    """(N, A) bool — True where action ``a``'s committed target ``valid_targets[i,a]``
+    lands on the CURRENT cell of ANY OTHER agent ``j != i`` (the hard collision
+    signal). Exact integer-cell match, broadcast over agents.
+
+    STAY (``valid_targets[i, STAY] == pos[i]``, the agent's own cell) is NEVER
+    flagged: an agent's own current cell does not count as "occupied by another",
+    and we force STAY's column off regardless so it always remains selectable.
+
+    CAVEAT: this forbids moving onto a cell another agent occupies RIGHT NOW; two
+    agents simultaneously claiming the same EMPTY cell is still possible under the
+    NoCollision env semantics (see :func:`positions_after`). A deterministic
+    index-priority resolver for that case is a future refinement — not built here.
+    """
+    n = pos.shape[0]
+    # tgt[i,a] == pos[j] for some j != i  (compare every target to every cur cell).
+    same = jnp.all(valid_targets[:, :, None, :] == pos[None, None, :, :], axis=-1)  # (N,A,N)
+    other = ~jnp.eye(n, dtype=bool)                                  # (N,N) j != i
+    occ = jnp.any(same & other[:, None, :], axis=-1)                 # (N,A) any other on it
+    stay = int(ActionId.STAY)
+    return occ.at[:, stay].set(False)                               # STAY never blocked
+
+
 def greedy_move(pos: jax.Array, goal: jax.Array, valid_targets: jax.Array,
-                action_valid: jax.Array) -> jax.Array:
+                action_valid: jax.Array, forbid_collision: bool = False) -> jax.Array:
     """(N,) int32 — L1 greedy controller move toward ``goal``.
 
     For each agent: among env-VALID actions (``action_valid`` (N,A) bool, from
@@ -82,11 +108,17 @@ def greedy_move(pos: jax.Array, goal: jax.Array, valid_targets: jax.Array,
     Ties and "no move helps" fall back to STAY (STAY is always valid). The result
     is always a valid move, so :class:`SequentialClaim`/the env never reverts it.
 
-    ``goal`` (N,2) int32 — the chosen absolute goal cell per agent.
+    ``goal`` (N,2) int32 — the chosen absolute goal cell per agent. When
+    ``forbid_collision`` is True the hard collision-mask (:func:`occupied_cell_mask`)
+    removes actions whose target sits on another agent's CURRENT cell (their
+    distance is set to +inf before the argmin); STAY always stays selectable.
     """
     d = _cheby(valid_targets, goal[:, None, :]).astype(jnp.float32)   # (N,A) dist if taken
     # forbid invalid actions by a large distance so argmin never selects them.
     d = jnp.where(action_valid, d, jnp.inf)
+    if forbid_collision:
+        # hard collision mask: same +inf-distance trick removes occupied-cell moves.
+        d = jnp.where(occupied_cell_mask(pos, valid_targets), jnp.inf, d)
     # current distance (= STAY distance, STAY target == own cell).
     stay = int(ActionId.STAY)
     best = jnp.argmin(d, axis=-1).astype(jnp.int32)                   # (N,)
@@ -128,7 +160,7 @@ def _local_conn_score(pos: jax.Array, comm_r: int, sharp: float) -> jax.Array:
 
 
 def relay_move(pos: jax.Array, valid_targets: jax.Array, action_valid: jax.Array,
-               comm_r: int, sharp: float) -> jax.Array:
+               comm_r: int, sharp: float, forbid_collision: bool = False) -> jax.Array:
     """(N,) int32 — relay L1 controller: each relay agent takes the env-VALID move
     that MAXIMIZES its own local connectivity proxy (soft incident-edge mass),
     others held at their current cell while it is scored. STAY is the safe default
@@ -139,8 +171,14 @@ def relay_move(pos: jax.Array, valid_targets: jax.Array, action_valid: jax.Array
     valid action with the largest value wins. This makes the relay hold/strengthen
     the bridge from purely local information (agent_architecture.md: relay = the
     λ̂₂-anchor tool). Result is always a valid move, so the env never reverts it.
+
+    When ``forbid_collision`` is True the hard collision-mask
+    (:func:`occupied_cell_mask`) removes actions whose target sits on another
+    agent's CURRENT cell (their score is set to -inf before the argmax); STAY
+    always stays selectable.
     """
     n, A = action_valid.shape
+    blocked = occupied_cell_mask(pos, valid_targets) if forbid_collision else None
 
     def score_agent(i):
         # for each action a: i -> its committed cell, others stay at pos.
@@ -150,6 +188,8 @@ def relay_move(pos: jax.Array, valid_targets: jax.Array, action_valid: jax.Array
             return _local_conn_score(pos_next, comm_r, sharp)[i]     # scalar
         s = jax.vmap(for_action)(jnp.arange(A))                      # (A,)
         s = jnp.where(action_valid[i], s, -jnp.inf)                  # forbid invalid
+        if blocked is not None:
+            s = jnp.where(blocked[i], -jnp.inf, s)                   # forbid collisions
         return jnp.argmax(s).astype(jnp.int32)                      # best valid action
 
     return jax.vmap(score_agent)(jnp.arange(n))                      # (N,)

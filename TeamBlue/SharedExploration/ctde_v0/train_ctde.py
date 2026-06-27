@@ -60,8 +60,26 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
     p.add_argument("--goal-k", type=int, default=9)
     p.add_argument("--stride", type=int, default=3)
     # mechanism / aux
-    p.add_argument("--mechanism", choices=["action_mask", "soft_lambda"],
-                   default="action_mask")
+    p.add_argument("--mechanism",
+                   choices=["action_mask", "soft_lambda", "lagrangian",
+                            "pid_lagrangian"],
+                   default="action_mask",
+                   help="connectivity mechanism (I1b adds the two adaptive duals)")
+    p.add_argument("--collision-mask", choices=["off", "on"], default="off",
+                   help="on=hard collision mask (never step onto an occupied cell)")
+    p.add_argument("--conn-signal",
+                   choices=["global_lambda2", "local_edge_margin"],
+                   default="global_lambda2",
+                   help="connectivity SIGNAL source for the penalty mechanisms "
+                        "(I1c; orthogonal to --mechanism): global broadcast λ₂ floor "
+                        "vs per-agent edge-margin. action_mask ignores it.")
+    p.add_argument("--degree-target", type=float, default=1.0,
+                   help="per-agent soft-degree floor for --conn-signal local_edge_margin")
+    p.add_argument("--lambda-lr", type=float, default=0.05,
+                   help="dual-ascent step size (lagrangian mechanism)")
+    p.add_argument("--constraint-threshold", type=float, default=None,
+                   help="connectivity floor τ for the dual violation "
+                        "(default: reuse connectivity.threshold)")
     p.add_argument("--aux-loss", choices=["mse", "huber"], default="mse")
     p.add_argument("--beta", type=float, default=0.1, help="aux λ₂ loss weight")
     # Increment-1: role picker + anti-overlap reward
@@ -98,7 +116,11 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
                           agg=args.agg, norm=args.norm),
         action_head=dataclasses.replace(CTDEConfig().action_head, K=args.goal_k,
                                         stride=args.stride),
-        mission_safety=MissionSafety(mechanism=args.mechanism),
+        mission_safety=MissionSafety(mechanism=args.mechanism,
+                                     conn_signal=args.conn_signal,
+                                     degree_target=args.degree_target,
+                                     lambda_lr=args.lambda_lr,
+                                     constraint_threshold=args.constraint_threshold),
         reward=Reward(),
         loss=Loss(ppo_clip=args.clip, aux_beta=args.beta, aux_loss=args.aux_loss),
         trainer=Trainer(lr=args.lr, clip=args.clip, ppo_epochs=args.ppo_epochs,
@@ -110,6 +132,7 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
         role_picker=args.role_picker,
         reward_anti_overlap=args.anti_overlap,
         anti_overlap_weight=args.anti_overlap_weight,
+        collision_mask=args.collision_mask,
         scale=f"{args.grid}x{args.grid}/{args.n_agents}",
         iters=args.iters, rollouts_per_iter=args.rollouts, seed=args.seed,
         ckpt_path=ckpt_path,
@@ -118,6 +141,11 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
 
 
 def _log(it, logs):
+    # λ tail only when an adaptive mechanism is moving the dual (kept off the v0 line).
+    dual = (f"  λ={logs['dual_lambda']:.4f}->{logs.get('dual_lambda_next', 0.0):.4f}"
+            f" (v={logs.get('dual_violation', 0.0):.3f})"
+            if logs.get("dual_lambda_next", 0.0) or logs.get("dual_lambda", 0.0)
+            else "")
     print(
         f"[iter {it:3d}] reward={logs['ep_reward']:8.2f}  "
         f"cov={logs['coverage_pct']*100:5.1f}%  "
@@ -126,7 +154,7 @@ def _log(it, logs):
         f"aux_acc={logs['aux_acc']*100:5.1f}%  "
         f"(med_rel={logs['median_rel_l2']:.3f})  "
         f"expl={logs.get('explorer_frac', 1.0)*100:5.1f}%  "
-        f"ctrl_valid={logs['ctrl_valid_frac']*100:5.1f}%",
+        f"ctrl_valid={logs['ctrl_valid_frac']*100:5.1f}%{dual}",
         flush=True,
     )
 

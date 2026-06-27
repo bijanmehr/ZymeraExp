@@ -92,6 +92,10 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     goal move and role 1 (relay) takes the local-connectivity-anchor move
     (:func:`controller.relay_move`); both go through valid-moves-only controllers,
     selected per agent by role.
+
+    When ``cfg.collision_mask == 'on'`` both controllers also ``forbid_collision``
+    (the hard collision-mask: never step onto a cell another agent occupies NOW);
+    STAY stays selectable so an emitted move is always env-valid (off -> v0).
     """
     pos = state.body.position
     h, w = state.wall.shape
@@ -100,10 +104,13 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     goal = goal_cells[jnp.arange(n), goal_idx]                        # (N,2)
     valid_targets = env.dynamics.targets(state)                       # (N,A,2)
     action_valid = env.action_mask(state)                            # (N,A)
-    expl_move = ctrl.greedy_move(pos, goal, valid_targets, action_valid)   # (N,)
+    forbid = cfg is not None and cfg.collision_mask == "on"           # hard collision axis
+    expl_move = ctrl.greedy_move(pos, goal, valid_targets, action_valid,
+                                 forbid_collision=forbid)             # (N,)
     if role_idx is not None:
         relay = ctrl.relay_move(pos, valid_targets, action_valid,
-                                cfg.world.comm_r, cfg.connectivity.lambda2_sharp)  # (N,)
+                                cfg.world.comm_r, cfg.connectivity.lambda2_sharp,
+                                forbid_collision=forbid)              # (N,)
         move = jnp.where(role_idx == ROLE_RELAY, relay, expl_move)    # (N,) per-role
     else:
         move = expl_move
@@ -116,12 +123,22 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
 # =============================================================================
 
 
-def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
-    """Collect ONE episode under the current (actor, critic). Pure (vmap over key)."""
+def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lambda):
+    """Collect ONE episode under the current (actor, critic). Pure (vmap over key).
+
+    ``dual_lambda`` is the CURRENT dual-variable λ from the train state (a scalar):
+    for the adaptive mechanisms (lagrangian / pid_lagrangian) the per-step
+    connectivity shortfall is weighted by it (the penalty the policy can influence);
+    it is ignored by action_mask / soft_lambda (those paths are byte-unchanged)."""
     reset_key, scan_key = jax.random.split(key)
     obs0, state0 = env.reset(reset_key)
 
     use_roles = cfg.role_picker == "expl_relay"
+    adaptive = cfg.mission_safety.mechanism in ("lagrangian", "pid_lagrangian")
+    # conn_signal (I1c) is ORTHOGONAL to mechanism: it only changes WHAT shortfall
+    # the soft_lambda / adaptive penalty reads. "global_lambda2" (default) = the I1b
+    # global scalar broadcast to N; "local_edge_margin" = a per-agent margin.
+    local_signal = cfg.mission_safety.conn_signal == "local_edge_margin"
 
     def body(carry, _):
         state, obs, k = carry
@@ -157,11 +174,33 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
         move, move_valid = _goal_to_move(env, state, goal, stencil, role_idx, cfg)
         obs_next, state_next, _rew, done, info = env.step(state, move, sk)
 
-        # soft-λ penalty (shared scalar shortfall below the floor); 0 unless soft.
+        # connectivity penalty (subtracted in compose_reward); 0 unless a penalty
+        # mechanism is active. FIXED-weight (soft_lambda, via Reward.soft_lambda_penalty)
+        # vs ADAPTIVE (lagrangian / pid_lagrangian, weighted HERE by the train-state
+        # ``dual_lambda`` so the dual scales the penalty the policy feels). conn_signal
+        # picks the SHORTFALL it reads, leaving the mechanism wiring identical:
+        #   global_lambda2 (default) -> a GLOBAL scalar shortfall broadcast to all N.
+        #   local_edge_margin       -> a PER-AGENT margin p (N,), NOT broadcast: each
+        #                              agent i gets its own p_i so the rollout charges
+        #                              the agent that is stretching the bridge.
         l2_true = _eu.true_lambda2(state_next.body.position, cfg)     # ()
+        if local_signal:
+            margin = _eu.local_edge_margin(state_next.body.position, cfg)  # (N,) per-agent
         if cfg.mission_safety.mechanism == "soft_lambda":
-            short = jax.nn.relu(cfg.mission_safety.min_lambda2 - l2_true)
-            l2_penalty = jnp.broadcast_to(short, (n,))
+            if local_signal:
+                l2_penalty = margin                                  # (N,) per-agent, fixed weight
+            else:
+                short = jax.nn.relu(cfg.mission_safety.min_lambda2 - l2_true)
+                l2_penalty = jnp.broadcast_to(short, (n,))
+        elif adaptive:
+            # connectivity shortfall, scaled by the dual λ; the policy can shrink it by
+            # holding the graph (compose_reward subtracts it with Reward.soft_lambda_penalty
+            # == 1.0 so λ is the only weight).
+            if local_signal:
+                l2_penalty = dual_lambda * margin                    # (N,) per-agent · λ
+            else:
+                short = jax.nn.relu(cfg.constraint_threshold - l2_true)
+                l2_penalty = jnp.broadcast_to(dual_lambda * short, (n,))
         else:
             l2_penalty = None
 
@@ -180,6 +219,12 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
             "move": move, "move_valid": move_valid,
             "done": done.any().astype(jnp.float32),
         }
+        if local_signal:
+            # per-step aggregate margin shortfall (mean over agents) — the dual reads
+            # its rollout-mean as the violation (the local counterpart of the true-λ₂
+            # violation; only present on the local_edge_margin path so the
+            # global_lambda2 trajectory pytree is byte-unchanged from I1b).
+            per_step["margin_step"] = margin.mean()                    # ()
         return (state_next, obs_next, k), per_step
 
     (state_T, _obs_T, _), traj = jax.lax.scan(
@@ -190,10 +235,16 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
     return traj
 
 
-def collect(env, actor, critic, cfg: CTDEConfig, stencil, key):
-    """Vmap ``_single_rollout`` over B seeds -> batched trajectory (leading B,T)."""
+def collect(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lambda):
+    """Vmap ``_single_rollout`` over B seeds -> batched trajectory (leading B,T).
+
+    ``dual_lambda`` (scalar) is the current train-state dual variable, broadcast to
+    every rollout (it weights the adaptive connectivity penalty; see
+    :func:`_single_rollout`)."""
     keys = jax.random.split(key, cfg.rollouts_per_iter)
-    return jax.vmap(lambda k: _single_rollout(env, actor, critic, cfg, stencil, k))(keys)
+    return jax.vmap(
+        lambda k: _single_rollout(env, actor, critic, cfg, stencil, k, dual_lambda)
+    )(keys)
 
 
 # =============================================================================
@@ -331,10 +382,59 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
 # =============================================================================
 
 
+class DualState(eqx.Module):
+    """Functional state for the ADAPTIVE connectivity mechanisms — carried THROUGH
+    ``jax.lax``/``filter_jit`` in :class:`TrainState` (never host-side mutation), so
+    the dual variable survives the jitted update.
+
+    * ``lam``      — the dual variable λ ≥ 0 (the connectivity-penalty weight the
+                     rollout reads; updated each PPO iteration by dual ascent / PID).
+    * ``integral`` — PID integral term Σ v (pid_lagrangian only; 0 otherwise).
+    * ``prev_v``   — previous iteration's violation, for the PID derivative term.
+
+    Inert for action_mask / soft_lambda (λ never enters their reward, and the
+    update is gated to the two adaptive mechanisms) — so I1 behaviour is unchanged.
+    """
+    lam: jax.Array
+    integral: jax.Array
+    prev_v: jax.Array
+
+
+def init_dual(cfg: CTDEConfig) -> DualState:
+    """Initial dual state: λ = ``mission_safety.lambda_init`` (scalar f32), integral
+    and prev-error 0. Same shape regardless of mechanism (jit-stable)."""
+    init = jnp.asarray(cfg.mission_safety.lambda_init, dtype=jnp.float32)
+    z = jnp.zeros((), dtype=jnp.float32)
+    return DualState(lam=init, integral=z, prev_v=z)
+
+
+def dual_update(dual: DualState, violation: jax.Array, cfg: CTDEConfig) -> DualState:
+    """One dual step from the realized connectivity ``violation``
+    ``v = relu(τ − mean_rollout(true λ₂)) ≥ 0``. Pure / jit-safe.
+
+    * lagrangian      — dual ASCENT: ``λ_next = relu(λ + lambda_lr · v)``.
+    * pid_lagrangian  — PID (Stooke et al. 2020): ``integral += v``;
+        ``λ = relu(kp·v + ki·integral + kd·(v − prev_v))``; carry ``prev_v = v``.
+    * else            — returned unchanged (action_mask / soft_lambda inert).
+    """
+    ms = cfg.mission_safety
+    if ms.mechanism == "lagrangian":
+        lam = jax.nn.relu(dual.lam + ms.lambda_lr * violation)
+        return DualState(lam=lam, integral=dual.integral, prev_v=violation)
+    if ms.mechanism == "pid_lagrangian":
+        integral = dual.integral + violation
+        deriv = violation - dual.prev_v
+        lam = jax.nn.relu(ms.pid_kp * violation + ms.pid_ki * integral
+                          + ms.pid_kd * deriv)
+        return DualState(lam=lam, integral=integral, prev_v=violation)
+    return dual                                                      # inert otherwise
+
+
 class TrainState(eqx.Module):
     actor: Actor
     critic: Critic
     opt_state: optax.OptState
+    dual: DualState                 # adaptive-mechanism dual variable (functional)
 
 
 def make_optimizer(cfg: CTDEConfig):
@@ -359,7 +459,8 @@ def init_state(env, cfg: CTDEConfig, key) -> TrainState:
                     cfg.regularization.dropout, key=kc)
     opt = make_optimizer(cfg)
     params = (eqx.filter(actor, eqx.is_array), eqx.filter(critic, eqx.is_array))
-    return TrainState(actor=actor, critic=critic, opt_state=opt.init(params))
+    return TrainState(actor=actor, critic=critic, opt_state=opt.init(params),
+                      dual=init_dual(cfg))
 
 
 def _update_epoch(carry, flat, perm, key, cfg: CTDEConfig, opt):
@@ -396,9 +497,12 @@ def _update_epoch(carry, flat, perm, key, cfg: CTDEConfig, opt):
 
 
 def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
-    """One PPO iteration: collect -> GAE -> ppo_epochs of minibatch updates."""
+    """One PPO iteration: collect -> GAE -> ppo_epochs of minibatch updates ->
+    dual update (adaptive mechanisms). The dual variable read at rollout time is
+    the CURRENT ``state.dual.lam``; it is updated AFTER the policy step from the
+    realized connectivity violation and carried forward in the returned state."""
     ck, pk = jax.random.split(key)
-    traj = collect(env, state.actor, state.critic, cfg, stencil, ck)
+    traj = collect(env, state.actor, state.critic, cfg, stencil, ck, state.dual.lam)
     adv, ret = compute_advantages(traj, cfg)
 
     # The KB adjacency the actor consumed at rollout time is stored in the traj
@@ -429,8 +533,22 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     carry0 = (state.actor, state.critic, state.opt_state)
     carry, epoch_metrics = jax.lax.scan(one_epoch, carry0, epoch_keys)
     actor, critic, opt_state = carry
-    state = TrainState(actor=actor, critic=critic, opt_state=opt_state)
     last_metrics = jax.tree_util.tree_map(lambda x: x[-1], epoch_metrics)
+
+    # ---- dual update (adaptive connectivity mechanisms; inert otherwise) ----
+    # realized violation on this iter's rollout (a CTDE training-time signal);
+    # dual_update advances λ (+ PID state). The aggregation pattern is the SAME for
+    # both conn_signals — a rollout-mean shortfall — only the per-step quantity swaps
+    # (I1c): global_lambda2 -> v = relu(τ − mean-over-rollout true λ₂) [byte-unchanged];
+    # local_edge_margin -> v = mean_i p_i over the rollout (the aggregate per-agent
+    # margin shortfall, == traj["margin_step"].mean()).
+    lam_used = state.dual.lam                                         # λ this rollout used
+    if cfg.mission_safety.conn_signal == "local_edge_margin":
+        violation = traj["margin_step"].mean()
+    else:
+        violation = jax.nn.relu(cfg.constraint_threshold - traj["true_l2"].mean())
+    dual = dual_update(state.dual, violation, cfg)
+    state = TrainState(actor=actor, critic=critic, opt_state=opt_state, dual=dual)
 
     # ---- iteration diagnostics (on the freshly collected traj) ----
     ep_reward = traj["rew_team"].sum(axis=1).mean()
@@ -471,6 +589,12 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
         "ctrl_valid_frac": valid_frac,
         "explorer_frac": explorer_frac,
         "relay_frac": 1.0 - explorer_frac,
+        # adaptive-mechanism diagnostics: λ the rollout USED, λ AFTER the dual step,
+        # and the realized connectivity violation that drove it (0 / constant unless
+        # mechanism is lagrangian / pid_lagrangian).
+        "dual_lambda": lam_used,
+        "dual_lambda_next": dual.lam,
+        "dual_violation": violation,
     }
     return state, logs
 

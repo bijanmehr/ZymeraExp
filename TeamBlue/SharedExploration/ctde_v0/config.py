@@ -92,14 +92,53 @@ class ActionHead:
 class MissionSafety:
     """Connectivity / mission-safety enforcement — the swept mechanism axis.
 
-    * ``mechanism`` — "action_mask" (default): forbid goal candidates whose
-                      greedy first move would drop true λ₂ below ``min_lambda2``
-                      (a hard local guardrail) | "soft_lambda": no masking; a
-                      λ·penalty term is added to the reward instead.
+    * ``mechanism`` — the connectivity-enforcement mechanism (I1b extends the set):
+        - "action_mask" (default): forbid goal candidates whose greedy first move
+          would drop true λ₂ below ``min_lambda2`` (a hard local guardrail).
+        - "soft_lambda": no masking; a FIXED-weight λ·penalty term is added to the
+          reward instead (``Reward.soft_lambda_penalty``).
+        - "lagrangian": an ADAPTIVE penalty — a dual variable λ ≥ 0 (carried in the
+          train state) is dual-ascended on the realized connectivity violation so
+          the policy LEARNS to hold the graph (Lagrangian-PPO).
+        - "pid_lagrangian": same violation, but λ comes from a PID controller
+          (Stooke et al. 2020, "Responsive Safety in RL") for smoother dual
+          dynamics (carries integral + prev-error in the train state).
+      The two adaptive mechanisms read a CTDE training-time true-λ₂ signal; only
+      they activate the dual-variable state (action_mask / soft_lambda are byte-
+      unchanged from I1).
+    * ``conn_signal`` — the SIGNAL SOURCE the penalty mechanisms read, ORTHOGONAL
+      to ``mechanism`` (I1c adds this axis; every mechanism × conn_signal combo is
+      valid, action_mask alone ignores it since it masks actions, no penalty):
+        - "global_lambda2" (default): the I1b signal — a GLOBAL scalar (true team λ₂
+          vs the floor) broadcast IDENTICALLY to all N agents, so no single agent
+          knows it is the one stretching the bridge. Default keeps I1b byte-unchanged.
+        - "local_edge_margin": a LOCAL, PER-AGENT signal — each agent's own
+          soft-degree shortfall (``env_utils.local_edge_margin``), positive only for
+          agents drifting toward the edge of comm range (anticipatory, partial-obs-
+          native), ≈0 for agents comfortably in the interior. Not broadcast.
+    * ``degree_target`` — the per-agent soft-degree floor the "local_edge_margin"
+      signal charges the shortfall against (p_i = relu(degree_target − soft_deg_i)).
     * ``min_lambda2`` — the connectivity floor the action_mask defends.
+    * ``lambda_init`` — initial dual variable λ for the adaptive mechanisms.
+    * ``lambda_lr`` — dual-ascent step size for the "lagrangian" mechanism.
+    * ``constraint_threshold`` — the connectivity floor τ the violation
+        ``v = relu(τ − mean_rollout(true λ₂))`` is measured against (global_lambda2);
+        under local_edge_margin the violation is instead ``v = mean_i p_i``, the
+        rollout-mean per-agent margin shortfall. ``None`` -> reuse the locked grading
+        threshold ``Connectivity.threshold`` (do NOT invent a second floor); resolve
+        via :meth:`CTDEConfig.constraint_threshold`.
+    * ``pid_kp`` / ``pid_ki`` / ``pid_kd`` — PID gains for "pid_lagrangian".
     """
     mechanism: str = "action_mask"
+    conn_signal: str = "global_lambda2"         # {"global_lambda2","local_edge_margin"}
+    degree_target: float = 1.0                  # soft-degree floor for local_edge_margin
     min_lambda2: float = 1e-3
+    lambda_init: float = 0.0
+    lambda_lr: float = 0.05
+    constraint_threshold: float | None = None   # None -> Connectivity.threshold
+    pid_kp: float = 1.0
+    pid_ki: float = 0.01
+    pid_kd: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -199,6 +238,16 @@ class CTDEConfig:
     reward_anti_overlap: str = "off"
     anti_overlap_weight: float = 1.0  # weight on same_step_overlap when on
 
+    # ---- Increment-1b knobs (additive; defaults reproduce I1 behaviour) ------
+    # collision_mask: "off" -> the controller may step onto a cell another agent
+    #   currently occupies (v0/I1 behaviour). "on" -> a HARD collision mask
+    #   (controller.occupied_cell_mask) removes those moves from BOTH L1
+    #   controllers before they pick, so agents never step onto an occupied cell;
+    #   STAY stays selectable (emitted moves remain env-valid). Exposed as an axis,
+    #   NOT hardcoded. (The learned connectivity mechanisms live on
+    #   ``mission_safety.mechanism`` — lagrangian / pid_lagrangian.)
+    collision_mask: str = "off"
+
     # ---- run control --------------------------------------------------------
     scale: str = "16x16/4"            # human label for the rung
     iters: int = 50                  # PPO iterations
@@ -213,6 +262,14 @@ class CTDEConfig:
     @property
     def n_actions_goal(self) -> int:
         return self.action_head.K
+
+    @property
+    def constraint_threshold(self) -> float:
+        """Connectivity floor τ the Lagrangian mechanisms measure the violation
+        against. ``mission_safety.constraint_threshold`` if set, else the locked
+        grading threshold ``connectivity.threshold`` (one floor, not a second)."""
+        ms = self.mission_safety.constraint_threshold
+        return self.connectivity.threshold if ms is None else ms
 
 
 # --- field name -> leaf type, for from_dict reconstruction --------------------

@@ -21,6 +21,7 @@ import jax.numpy as jnp
 import zymera
 from zymera.missions_terms import _lambda2
 
+from . import controller as _ctrl
 from .config import CTDEConfig
 
 
@@ -104,6 +105,40 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
 def true_lambda2(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     """Scalar true Fiedler value of the soft comm-graph at ``position`` (N,2)."""
     return _lambda2(position, cfg.world.comm_r, cfg.connectivity.lambda2_sharp)
+
+
+def local_edge_margin(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+    """(N,) float32 — the PER-AGENT "you're at the edge of comms range" signal.
+
+    Where ``true_lambda2`` is a GLOBAL scalar (the team's λ₂ floor) broadcast
+    identically to every agent — so no single agent knows IT is the one stretching
+    the bridge — this is its LOCAL, per-agent counterpart: each agent reads only its
+    OWN incident-edge mass and is penalized for the shortfall against a target
+    degree. An agent comfortably surrounded by in-range teammates scores ≈0; one
+    drifting toward the edge of its comm range (links approaching / crossing
+    ``comm_r``) sees its penalty ramp up. It is ANTICIPATORY (the soft edge weight
+    decays smoothly as a link nears ``comm_r``, so it fires BEFORE the link breaks)
+    and partial-observability-native (computable from an agent's own neighbourhood).
+
+    Construction — the SAME soft incident-edge mass the relay tool maximizes
+    (:func:`controller._local_conn_score`, reused so the signal and the relay
+    anchor agree):
+
+      w_ij      = sigmoid(sharp · (comm_r − cheby_dist_ij))   for j ≠ i
+      soft_deg_i = Σ_{j≠i} w_ij                               (soft neighbour count)
+      p_i        = relu(degree_target − soft_deg_i)           (the shortfall)
+
+    where ``sharp = cfg.connectivity.lambda2_sharp``, ``comm_r = cfg.world.comm_r``
+    and ``degree_target = cfg.mission_safety.degree_target``. The result is the
+    per-agent shortfall in exactly the soft-degree the relay maximizes — NOT
+    averaged/broadcast: ``p_i`` is agent i's own margin, so the rollout can charge
+    the stretching agent specifically. Pure JAX (vmap/scan/jit-safe).
+    """
+    soft_deg = _ctrl._local_conn_score(
+        position, cfg.world.comm_r, cfg.connectivity.lambda2_sharp
+    )                                                          # (N,) soft degree
+    target = jnp.asarray(cfg.mission_safety.degree_target, dtype=jnp.float32)
+    return jax.nn.relu(target - soft_deg).astype(jnp.float32)  # (N,) per-agent margin
 
 
 def kb_adjacency(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
