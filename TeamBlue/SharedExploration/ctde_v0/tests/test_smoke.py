@@ -78,8 +78,9 @@ def test_actor_backbone_forward():
     adj = env_utils.kb_adjacency(state.body.position, cfg)
     actor = Actor(env.obs.obs_channels, cfg.action_head.K,
                   backbone_cfg=cfg.backbone, dropout=0.0, key=jax.random.PRNGKey(2))
-    goal_logits, value, l2_hat, z = actor(obs, adj, inference=True)
+    goal_logits, role_logits, value, l2_hat, z = actor(obs, adj, inference=True)
     assert goal_logits.shape == (cfg.world.n_agents, cfg.action_head.K)
+    assert role_logits.shape == (cfg.world.n_agents, actor.n_roles)
     assert value.shape == (cfg.world.n_agents,)
     assert l2_hat.shape == (cfg.world.n_agents,)
     assert z.shape == (cfg.world.n_agents, cfg.backbone.width)
@@ -96,7 +97,7 @@ def test_aggregators_all_run():
         bb = dataclasses.replace(cfg0.backbone, agg=agg)
         actor = Actor(env.obs.obs_channels, cfg0.action_head.K,
                       backbone_cfg=bb, dropout=0.0, key=jax.random.PRNGKey(3))
-        _, _, _, z = actor(obs, adj, inference=True)
+        _, _, _, _, z = actor(obs, adj, inference=True)
         assert jnp.isfinite(z).all(), agg
 
 

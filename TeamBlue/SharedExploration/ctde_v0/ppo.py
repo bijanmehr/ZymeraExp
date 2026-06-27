@@ -79,10 +79,20 @@ def _goal_mask(env, state, cfg: CTDEConfig, stencil):
     return jnp.ones((n, K), dtype=bool)
 
 
-def _goal_to_move(env, state, goal_idx, stencil):
-    """((N,) move, (N,) bool was-valid) from the chosen goals via the L1 greedy
-    controller. ``was_valid[i]`` audits that the emitted move is in the env's
-    action mask (the controller's guarantee)."""
+ROLE_EXPLORER = 0   # role index: explorer = the frontier/goal behaviour
+ROLE_RELAY = 1      # role index: relay = the local λ̂₂-anchor (hold the bridge)
+
+
+def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig = None):
+    """((N,) move, (N,) bool was-valid) from chosen goals (+optional roles) via the
+    L1 controllers. ``was_valid[i]`` audits the emitted move is env-valid.
+
+    ``role_idx`` None -> every agent runs the explorer (greedy-toward-goal) move
+    (v0 behaviour, default-unchanged). Otherwise role 0 (explorer) keeps the greedy
+    goal move and role 1 (relay) takes the local-connectivity-anchor move
+    (:func:`controller.relay_move`); both go through valid-moves-only controllers,
+    selected per agent by role.
+    """
     pos = state.body.position
     h, w = state.wall.shape
     goal_cells = ctrl.goal_targets(pos, stencil, h, w)                 # (N,K,2)
@@ -90,7 +100,13 @@ def _goal_to_move(env, state, goal_idx, stencil):
     goal = goal_cells[jnp.arange(n), goal_idx]                        # (N,2)
     valid_targets = env.dynamics.targets(state)                       # (N,A,2)
     action_valid = env.action_mask(state)                            # (N,A)
-    move = ctrl.greedy_move(pos, goal, valid_targets, action_valid)   # (N,)
+    expl_move = ctrl.greedy_move(pos, goal, valid_targets, action_valid)   # (N,)
+    if role_idx is not None:
+        relay = ctrl.relay_move(pos, valid_targets, action_valid,
+                                cfg.world.comm_r, cfg.connectivity.lambda2_sharp)  # (N,)
+        move = jnp.where(role_idx == ROLE_RELAY, relay, expl_move)    # (N,) per-role
+    else:
+        move = expl_move
     was_valid = jnp.take_along_axis(action_valid, move[:, None], axis=1)[:, 0]
     return move, was_valid
 
@@ -105,12 +121,16 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
     reset_key, scan_key = jax.random.split(key)
     obs0, state0 = env.reset(reset_key)
 
+    use_roles = cfg.role_picker == "expl_relay"
+
     def body(carry, _):
         state, obs, k = carry
-        k, ak, sk = jax.random.split(k, 3)
+        k, ak, rk, sk = jax.random.split(k, 4)
 
         adj_off = _eu.kb_adjacency(state.body.position, cfg)          # (N,N) KB graph
-        goal_logits, value_agent, l2_hat, _z = actor(obs, adj_off, inference=True)
+        goal_logits, role_logits, value_agent, l2_hat, _z = actor(
+            obs, adj_off, inference=True
+        )
         central = env.central_obs(state)                              # (Cg,H,W)
         v_team = critic(central, inference=True)                      # ()
 
@@ -121,14 +141,27 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
             jax.nn.log_softmax(masked_logits, axis=-1), goal[:, None], axis=-1
         )[:, 0]                                                       # (N,)
 
-        move, move_valid = _goal_to_move(env, state, goal, stencil)   # (N,) env action
+        # role picker (L3): sample a role per agent when enabled, else all-explorer.
+        n = state.n_agents
+        if use_roles:
+            role = jax.random.categorical(rk, role_logits, axis=-1)   # (N,)
+            role_logp = jnp.take_along_axis(
+                jax.nn.log_softmax(role_logits, axis=-1), role[:, None], axis=-1
+            )[:, 0]                                                   # (N,)
+            role_idx = role
+        else:
+            role = jnp.zeros((n,), jnp.int32)                         # explorer
+            role_logp = jnp.zeros((n,), jnp.float32)
+            role_idx = None                                          # v0 routing
+
+        move, move_valid = _goal_to_move(env, state, goal, stencil, role_idx, cfg)
         obs_next, state_next, _rew, done, info = env.step(state, move, sk)
 
         # soft-λ penalty (shared scalar shortfall below the floor); 0 unless soft.
         l2_true = _eu.true_lambda2(state_next.body.position, cfg)     # ()
         if cfg.mission_safety.mechanism == "soft_lambda":
             short = jax.nn.relu(cfg.mission_safety.min_lambda2 - l2_true)
-            l2_penalty = jnp.broadcast_to(short, (state.n_agents,))
+            l2_penalty = jnp.broadcast_to(short, (n,))
         else:
             l2_penalty = None
 
@@ -140,6 +173,7 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key):
         per_step = {
             "obs": obs, "adj": adj_off, "central": central,
             "goal": goal, "goal_logp": logp, "goal_mask": gmask,
+            "role": role, "role_logp": role_logp,
             "v_team": v_team, "l2_hat": l2_hat,
             "rew_agent": rew_agent, "rew_team": rew_team,
             "true_l2": l2_true, "coverage": cov, "degree": degree,
@@ -206,25 +240,38 @@ def _aux_loss(l2_hat, true_l2, cfg: CTDEConfig):
     return jnp.mean(err ** 2)                                        # mse (default)
 
 
+def _clipped_pg(logp, old_logp, adv_norm, clip):
+    """Clipped PPO surrogate for a (M,N) log-prob head against (M,1) adv."""
+    ratio = jnp.exp(logp - old_logp)
+    unclipped = ratio * adv_norm
+    clipped = jnp.clip(ratio, 1.0 - clip, 1.0 + clip) * adv_norm
+    return -jnp.minimum(unclipped, clipped).mean()
+
+
 def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
-    """Total loss = PPO(goal) + vf*value + beta*aux + degreeReg - ent*entropy."""
+    """Total loss = PPO(goal) [+ PPO(role)] + vf*value + beta*aux + degreeReg
+    - ent*(goal entropy [+ role entropy]). The role terms are added ONLY when
+    ``role_picker == 'expl_relay'`` (off -> identical to v0)."""
     obs = batch["obs"]                 # (M,N,C,H,W)
     adj = batch["adj"]                 # (M,N,N) KB graph
     central = batch["central"]         # (M,Cg,H,W)
     goal = batch["goal"]               # (M,N) sampled goal index
     old_logp = batch["goal_logp"]      # (M,N)
     gmask = batch["goal_mask"]         # (M,N,K)
+    role = batch["role"]               # (M,N) sampled role index
+    old_role_logp = batch["role_logp"] # (M,N)
     adv = batch["adv"]                 # (M,) team advantage
     ret = batch["ret"]                 # (M,) team return
     true_l2 = batch["true_l2"]         # (M,) aux target
     degree = batch["degree"]           # (M,N) per-node comm degree
 
+    use_roles = cfg.role_picker == "expl_relay"
     M = obs.shape[0]
     akeys = jax.random.split(key, M)
     # actor forward over the minibatch (dropout active in training).
     def fwd(o, a, kk):
         return actor(o, a, key=kk, inference=False)
-    goal_logits, _v_agent, l2_hat, _z = jax.vmap(fwd)(obs, adj, akeys)
+    goal_logits, role_logits, _v_agent, l2_hat, _z = jax.vmap(fwd)(obs, adj, akeys)
     # goal_logits (M,N,K); apply the SAME mask used at sample time.
     masked = jnp.where(gmask, goal_logits, _NEG)
     logp_all = jax.nn.log_softmax(masked, axis=-1)                  # (M,N,K)
@@ -234,11 +281,23 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
 
     adv_b = jax.lax.stop_gradient(adv)[:, None]                     # (M,1)
     adv_norm = (adv_b - adv_b.mean()) / (adv_b.std() + EPS)
-    ratio = jnp.exp(logp - old_logp)                               # (M,N)
     clip = cfg.loss.ppo_clip
-    unclipped = ratio * adv_norm
-    clipped = jnp.clip(ratio, 1.0 - clip, 1.0 + clip) * adv_norm
-    policy_loss = -jnp.minimum(unclipped, clipped).mean()
+    goal_pg = _clipped_pg(logp, old_logp, adv_norm, clip)
+
+    # role policy head (shares the team advantage; trained only when enabled).
+    if use_roles:
+        role_logp_all = jax.nn.log_softmax(role_logits, axis=-1)    # (M,N,R)
+        role_logp = jnp.take_along_axis(
+            role_logp_all, role[..., None], axis=-1)[..., 0]        # (M,N)
+        role_probs = jnp.exp(role_logp_all)
+        role_entropy = -(role_probs * role_logp_all).sum(-1)        # (M,N)
+        role_pg = _clipped_pg(role_logp, old_role_logp, adv_norm, clip)
+        policy_loss = goal_pg + role_pg
+        role_ent = role_entropy.mean()
+    else:
+        policy_loss = goal_pg
+        role_pg = jnp.zeros(())
+        role_ent = jnp.zeros(())
 
     v_pred = jax.vmap(lambda c: critic(c, inference=False))(central)  # (M,)
     value_loss = jnp.mean((v_pred - jax.lax.stop_gradient(ret)) ** 2)
@@ -257,11 +316,12 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         + cfg.loss.vf_coef * value_loss
         + cfg.loss.aux_beta * aux_loss
         + reg.degree_reg * degree_reg
-        - reg.entropy_coef * ent
+        - reg.entropy_coef * (ent + role_ent)
     )
     metrics = {
-        "policy_loss": policy_loss, "value_loss": value_loss,
-        "aux_loss": aux_loss, "entropy": ent, "degree_reg": degree_reg,
+        "policy_loss": policy_loss, "goal_pg": goal_pg, "role_pg": role_pg,
+        "value_loss": value_loss, "aux_loss": aux_loss,
+        "entropy": ent, "role_entropy": role_ent, "degree_reg": degree_reg,
     }
     return total, metrics
 
@@ -350,6 +410,8 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
         "goal": _flatten_BT(traj["goal"]),
         "goal_logp": _flatten_BT(traj["goal_logp"]),
         "goal_mask": _flatten_BT(traj["goal_mask"]),
+        "role": _flatten_BT(traj["role"]),
+        "role_logp": _flatten_BT(traj["role_logp"]),
         "adv": _flatten_BT(adv),
         "ret": _flatten_BT(ret),
         "true_l2": _flatten_BT(traj["true_l2"]),
@@ -389,6 +451,10 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     # mask (the greedy controller's guarantee; should be exactly 1.0).
     valid_frac = traj["move_valid"].astype(jnp.float32).mean()
 
+    # role split: fraction of agent-steps assigned EXPLORER vs RELAY. When
+    # role_picker is off every agent is an explorer (frac=1.0 by construction).
+    explorer_frac = (traj["role"] == ROLE_EXPLORER).astype(jnp.float32).mean()
+
     logs = {
         "ep_reward": ep_reward,
         "coverage_pct": coverage_pct,
@@ -400,8 +466,11 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
         "policy_loss": jnp.mean(last_metrics["policy_loss"]),
         "value_loss": jnp.mean(last_metrics["value_loss"]),
         "entropy": jnp.mean(last_metrics["entropy"]),
+        "role_entropy": jnp.mean(last_metrics["role_entropy"]),
         "degree_reg": jnp.mean(last_metrics["degree_reg"]),
         "ctrl_valid_frac": valid_frac,
+        "explorer_frac": explorer_frac,
+        "relay_frac": 1.0 - explorer_frac,
     }
     return state, logs
 

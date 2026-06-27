@@ -31,8 +31,19 @@ from .config import CTDEConfig
 
 def build_env(cfg: CTDEConfig):
     """Construct the comm-coverage env from the config's World block (recipe
-    defaults supply the reward TERMS; we re-weight their magnitudes ourselves)."""
+    defaults supply the reward TERMS; we re-weight their magnitudes ourselves).
+
+    When ``reward_anti_overlap == 'on'`` we append a **zero-weight** ``overlap``
+    term (``same_step_overlap``) so the env populates ``info['reward_terms']
+    ['overlap']`` — :func:`compose_reward` then re-weights it. Zero weight keeps the
+    env's own (unused) scalar reward identical; we always compose the reward here.
+    """
     w = cfg.world
+    terms = None
+    if cfg.reward_anti_overlap == "on":
+        # default coverage/connectivity/collision terms + a 0-weight overlap probe.
+        from zymera.missions_terms import DEFAULT_TERMS
+        terms = list(DEFAULT_TERMS) + [("overlap", 0.0)]
     env = zymera.make(
         w.recipe,
         grid=w.grid,
@@ -43,6 +54,7 @@ def build_env(cfg: CTDEConfig):
         n_obstacles=w.n_obstacles,
         spawn_radius=w.spawn_radius,   # None -> scatter spawn inside the recipe
         max_steps=None,                # horizon controlled by the fixed-length scan
+        terms=terms,                   # None -> recipe DEFAULT_TERMS (v0 unchanged)
     )
     comm_r = int(env.channel.topology.radius)
     assert comm_r == w.comm_r, (comm_r, w.comm_r)
@@ -76,6 +88,11 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
     )
     if lambda2_penalty is not None:
         out = out - r.soft_lambda_penalty * lambda2_penalty
+    # Anti-overlap (Increment-1): penalize cells my footprint shares with a
+    # teammate THIS step (same_step_overlap) -> rewards non-redundant coverage.
+    # Only present when build_env appended the 0-weight 'overlap' probe term.
+    if cfg.reward_anti_overlap == "on" and "overlap" in reward_terms:
+        out = out - cfg.anti_overlap_weight * reward_terms["overlap"]
     return out.astype(jnp.float32)
 
 

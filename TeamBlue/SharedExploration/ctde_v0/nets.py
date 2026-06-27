@@ -174,40 +174,51 @@ class Backbone(eqx.Module):
 
 
 class Actor(eqx.Module):
-    """Decentralized per-agent actor: LPAC backbone -> belief z_i -> three heads.
+    """Decentralized per-agent actor: LPAC backbone -> belief z_i -> four heads.
 
       * ``goal_head``  (W -> K)  L3 goal-pointer logits over candidate waypoints.
+      * ``role_head``  (W -> R)  L3 role-picker logits over {explorer, relay}
+        (R = ``n_roles``; the Increment-1 labor-division head off the belief).
       * ``aux_head``   (W -> 1)  decentralized local-Fiedler λ̂₂ estimate (raw).
       * ``value_head`` (W -> 1)  per-agent baseline (diagnostic / IPPO fallback).
 
-    ``__call__(obs, adj_off, *, key)`` -> ``(goal_logits (N,K), value (N,),
-    lambda2_hat (N,), z (N,W))``. The belief ``z`` is returned so the trainer can
-    compute the degree regularizer / inspect the KB.
+    ``__call__(obs, adj_off, *, key)`` -> ``(goal_logits (N,K), role_logits (N,R),
+    value (N,), lambda2_hat (N,), z (N,W))``. The role head is ALWAYS built (cheap)
+    so the parameter surface is stable across the ``role_picker`` knob; the trainer
+    only *samples / conditions on* it when ``role_picker == 'expl_relay'`` (when off
+    every agent is an explorer and the role logits are ignored — default-unchanged).
+    The belief ``z`` is returned so the trainer can compute the degree regularizer.
     """
     backbone: Backbone
     goal_head: eqx.nn.Linear
+    role_head: eqx.nn.Linear
     aux_head: eqx.nn.Linear
     value_head: eqx.nn.Linear
     K: int = eqx.field(static=True)
+    n_roles: int = eqx.field(static=True)
 
-    def __init__(self, in_ch: int, K: int, *, backbone_cfg, dropout: float, key):
-        kb, kg, ka, kv = jax.random.split(key, 4)
+    def __init__(self, in_ch: int, K: int, *, backbone_cfg, dropout: float, key,
+                 n_roles: int = 2):
+        kb, kg, kr, ka, kv = jax.random.split(key, 5)
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
         )
         W = backbone_cfg.width
         self.goal_head = eqx.nn.Linear(W, K, key=kg)
+        self.role_head = eqx.nn.Linear(W, n_roles, key=kr)
         self.aux_head = eqx.nn.Linear(W, 1, key=ka)
         self.value_head = eqx.nn.Linear(W, 1, key=kv)
         self.K = int(K)
+        self.n_roles = int(n_roles)
 
     def __call__(self, obs, adj_off, *, key=None, inference: bool = False):
         z = self.backbone(obs, adj_off, key=key, inference=inference)   # (N,W)
         goal_logits = jax.vmap(self.goal_head)(z)                       # (N,K)
+        role_logits = jax.vmap(self.role_head)(z)                       # (N,R)
         value = jax.vmap(self.value_head)(z)[:, 0]                      # (N,)
         lambda2_hat = jax.vmap(self.aux_head)(z)[:, 0]                  # (N,)
-        return goal_logits, value, lambda2_hat, z
+        return goal_logits, role_logits, value, lambda2_hat, z
 
 
 # =============================================================================

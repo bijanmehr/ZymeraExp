@@ -64,6 +64,12 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
                    default="action_mask")
     p.add_argument("--aux-loss", choices=["mse", "huber"], default="mse")
     p.add_argument("--beta", type=float, default=0.1, help="aux λ₂ loss weight")
+    # Increment-1: role picker + anti-overlap reward
+    p.add_argument("--role-picker", choices=["off", "expl_relay"], default="off",
+                   help="off=homogeneous goal head (v0); expl_relay=learned role head")
+    p.add_argument("--anti-overlap", choices=["off", "on"], default="off",
+                   help="on=subtract same_step_overlap from the composed reward")
+    p.add_argument("--anti-overlap-weight", type=float, default=1.0)
     # trainer
     p.add_argument("--iters", type=int, default=50)
     p.add_argument("--rollouts", type=int, default=8, help="episodes per iteration")
@@ -101,6 +107,9 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
                                       entropy_coef=args.entropy_coef,
                                       weight_decay=args.weight_decay,
                                       dropout=args.dropout),
+        role_picker=args.role_picker,
+        reward_anti_overlap=args.anti_overlap,
+        anti_overlap_weight=args.anti_overlap_weight,
         scale=f"{args.grid}x{args.grid}/{args.n_agents}",
         iters=args.iters, rollouts_per_iter=args.rollouts, seed=args.seed,
         ckpt_path=ckpt_path,
@@ -116,6 +125,7 @@ def _log(it, logs):
         f"meanλ2={logs['mean_lambda2']:.3f}  "
         f"aux_acc={logs['aux_acc']*100:5.1f}%  "
         f"(med_rel={logs['median_rel_l2']:.3f})  "
+        f"expl={logs.get('explorer_frac', 1.0)*100:5.1f}%  "
         f"ctrl_valid={logs['ctrl_valid_frac']*100:5.1f}%",
         flush=True,
     )

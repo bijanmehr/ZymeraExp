@@ -112,6 +112,49 @@ def candidate_first_moves(pos: jax.Array, goal_cells: jax.Array,
     return moves.T                                                    # (N,K)
 
 
+def _local_conn_score(pos: jax.Array, comm_r: int, sharp: float) -> jax.Array:
+    """(N,) per-agent LOCAL connectivity proxy from positions ``pos`` (N,2).
+
+    The relay anchor uses the soft per-node degree = sum of smooth edge weights to
+    in-range teammates (≈ a soft count of neighbours, the local λ̂₂-contribution an
+    agent can read off its own neighbourhood). Higher = better anchored. This is a
+    LOCAL signal (each agent's own incident edge mass), not the global λ₂ — it is
+    what a partial-observability relay can actually compute to "hold the bridge".
+    """
+    d = jnp.max(jnp.abs(pos[:, None, :] - pos[None, :, :]), axis=-1).astype(jnp.float32)
+    w = jax.nn.sigmoid(sharp * (comm_r - d))
+    w = w * (1.0 - jnp.eye(pos.shape[0]))                            # zero self
+    return w.sum(-1)                                                 # (N,) soft degree
+
+
+def relay_move(pos: jax.Array, valid_targets: jax.Array, action_valid: jax.Array,
+               comm_r: int, sharp: float) -> jax.Array:
+    """(N,) int32 — relay L1 controller: each relay agent takes the env-VALID move
+    that MAXIMIZES its own local connectivity proxy (soft incident-edge mass),
+    others held at their current cell while it is scored. STAY is the safe default
+    (it is always valid and is scored at the agent's current anchoring).
+
+    For agent i and candidate action a, we move ONLY i to ``valid_targets[i,a]``
+    (everyone else stays) and read i's soft degree at the resulting layout; the
+    valid action with the largest value wins. This makes the relay hold/strengthen
+    the bridge from purely local information (agent_architecture.md: relay = the
+    λ̂₂-anchor tool). Result is always a valid move, so the env never reverts it.
+    """
+    n, A = action_valid.shape
+
+    def score_agent(i):
+        # for each action a: i -> its committed cell, others stay at pos.
+        def for_action(a):
+            tgt = valid_targets[i, a]                                # (2,)
+            pos_next = pos.at[i].set(tgt)                            # only i moves
+            return _local_conn_score(pos_next, comm_r, sharp)[i]     # scalar
+        s = jax.vmap(for_action)(jnp.arange(A))                      # (A,)
+        s = jnp.where(action_valid[i], s, -jnp.inf)                  # forbid invalid
+        return jnp.argmax(s).astype(jnp.int32)                      # best valid action
+
+    return jax.vmap(score_agent)(jnp.arange(n))                      # (N,)
+
+
 def positions_after(pos: jax.Array, actions: jax.Array,
                     valid_targets: jax.Array) -> jax.Array:
     """(N,2) int32 — committed positions if every agent took ``actions`` (N,).

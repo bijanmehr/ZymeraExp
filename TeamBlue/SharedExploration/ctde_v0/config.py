@@ -187,6 +187,18 @@ class CTDEConfig:
     trainer: Trainer = field(default_factory=Trainer)
     regularization: Regularization = field(default_factory=Regularization)
 
+    # ---- Increment-1 knobs (additive; defaults reproduce v0 behaviour) -------
+    # role_picker: "off" -> homogeneous goal head (v0). "expl_relay" -> a learned
+    #   role head off z_i picks {explorer, relay} per agent; explorers run the
+    #   frontier/goal behaviour, relays run a local λ̂₂-anchor move that holds the
+    #   bridge. The role is a categorical PPO action trained as part of the policy.
+    role_picker: str = "off"
+    # reward_anti_overlap: "on" -> subtract anti_overlap_weight * same_step_overlap
+    #   (teammate-overlapping fresh cells) from the composed reward, rewarding
+    #   NON-redundant coverage. "off" -> v0 reward unchanged.
+    reward_anti_overlap: str = "off"
+    anti_overlap_weight: float = 1.0  # weight on same_step_overlap when on
+
     # ---- run control --------------------------------------------------------
     scale: str = "16x16/4"            # human label for the rung
     iters: int = 50                  # PPO iterations
