@@ -58,3 +58,18 @@ zero-shot extrapolation to N∈{24,30}. Four sweeps in parallel (tmux `zymera`/`
 - **margin** (dist-to-comm-range) and **signal+ID** (soft path-loss weighting × identity) sweeps — running.
 - **Better aggregators** (PNA etc.) — lit search in progress.
 - Real-mission data (coverage policy / on-policy) — still owed.
+
+## 2026-06-26 (cont.) — `index`-ID result + aggregator literature
+
+- **`id=index` (raw normalized agent index) HELPED in-distribution: 0.63 vs 0.58** for none/random, and was
+  more reliable (cv-std 0.016 vs 0.035). This *contradicts* the simple "ID is irrelevant" story — but it did
+  **NOT fix extrapolation** (→24 0.55, →30 0.00). Interpretation: a positional/index feature gives the
+  per-node readout a useful within-distribution symmetry-breaker (helps *fitting*), even though λ₂ itself is
+  permutation-invariant — but it doesn't generalize past the training N. (The `random` tag still = no help.)
+- **Better-aggregator literature (search).** Standout: **PNA — Principal Neighbourhood Aggregation**
+  (arXiv:2004.05718, NeurIPS'20): single aggregators are *provably insufficient* to distinguish neighbourhoods
+  in continuous space → **combine multiple aggregators (mean/max/min/std) × degree-scalers**. Plus **learnable**
+  aggregators: SoftmaxAgg (learnable temperature → mean↔min↔max), PowerMean, GenAgg (generalised f-mean,
+  arXiv:2306.13826). And directly on our N=30 wall: **"Learning to Pool in GNNs for Extrapolation"
+  (arXiv:2106.06210)** — the aggregator choice *drives* size-extrapolation. → next aggregator arms: **PNA**
+  (prime candidate — we currently pick ONE aggregator; PNA says use them together) + Softmax/PowerMean.

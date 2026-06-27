@@ -172,7 +172,12 @@ def predict_configurable(model, data):
 
     def fwd(xn, xa, xp):
         return model(xn, xa, xp)                            # eval: no dropedge
-    out = jax.vmap(fwd)(X_node, X_adj, X_pos)
+    # Use lax.map (sequential per-sample) rather than jax.vmap here: vmap over the model
+    # miscompiles on GPU XLA for some (batch, N) layouts -- single-head attention at N=20
+    # raised "INVALID_ARGUMENT: Reshape ... 8x1024 -> 8x2x32x32" (an XLA layout/fusion bug;
+    # the per-sample/bare forward always compiles). lax.map compiles the single-sample forward
+    # and scans it, dodging the bug. Eval is not the training hot loop, so the cost is moot.
+    out = jax.lax.map(lambda xs: fwd(*xs), (X_node, X_adj, X_pos))
     lam = np.asarray(jnp.exp(out["logl2"]))                 # (S,Nmax) linear
     cprob = np.asarray(jax.nn.sigmoid(out["cflag"]))        # (S,Nmax) prob
     lam = np.where(mask, lam, 0.0)
