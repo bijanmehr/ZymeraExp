@@ -186,18 +186,53 @@ def predict_configurable(model, data):
     return lam, cprob
 
 
+@eqx.filter_jit
+def _val_median_rel_err_connected_dev(model, X_node, X_adj, X_pos, y, node_mask):
+    """On-device median rel-err over connected real nodes -> a single scalar (jnp).
+
+    Equivalent to the host version below, but every op stays on the accelerator so the
+    only host transfer is the final scalar. The forward uses `lax.map` (sequential
+    per-sample) for the SAME reason `predict_configurable` does -- vmap over the model
+    miscompiles on GPU XLA for single-head attention at some (batch, N) layouts.
+
+    Median parity with ``np.median(rel[conn])``: select the connected real-node entries
+    (set the rest to +inf so they sort to the end), sort, then average the two middle
+    order statistics at indices ``(n-1)//2`` and ``n//2`` (n = #valid). This reproduces
+    numpy's even/odd-count median *bit-for-bit* (verified). When no window is connected
+    the result is +inf, matching the host version's ``np.inf`` early return.
+    """
+    def fwd(xn, xa, xp):
+        return model(xn, xa, xp)                            # eval: no dropedge
+    out = jax.lax.map(lambda xs: fwd(*xs), (X_node, X_adj, X_pos))
+    lam = jnp.exp(out["logl2"])                             # (s,Nmax) linear
+    mask = node_mask.astype(bool)
+    conn = (y > CONNECTED_TAU)[:, None] & mask              # (s,Nmax) connected real nodes
+    true = jnp.broadcast_to(y[:, None], lam.shape)
+    rel = jnp.abs(lam - true) / jnp.maximum(jnp.abs(true), EPS)
+    relf = jnp.where(conn, rel, jnp.inf).reshape(-1)        # invalid -> +inf (sort to end)
+    n = conn.sum()
+    sv = jnp.sort(relf)
+    lo = (n - 1) // 2
+    hi = n // 2
+    med = 0.5 * (sv[lo] + sv[hi])
+    return jnp.where(n > 0, med, jnp.inf)
+
+
 def _val_median_rel_err_connected(model, data, idx):
-    """Median rel-err in LINEAR space over CONNECTED-window real nodes (idx subset)."""
-    sub = {k: (np.asarray(data[k])[idx]) for k in ("X_node", "X_adj", "X_pos", "y", "node_mask")}
-    lam, _ = predict_configurable(model, sub)               # (s,Nmax)
-    y = np.asarray(sub["y"], np.float32)
-    mask = np.asarray(sub["node_mask"], bool)
-    conn = (y > CONNECTED_TAU)[:, None] & mask              # only connected windows' real nodes
-    if not conn.any():
-        return np.inf
-    true = np.broadcast_to(y[:, None], lam.shape)
-    rel = np.abs(lam - true) / np.maximum(np.abs(true), EPS)
-    return float(np.median(rel[conn]))
+    """Median rel-err in LINEAR space over CONNECTED-window real nodes (idx subset).
+
+    Thin host wrapper around the jit'd on-device kernel: slices the val arrays by `idx`
+    (on device) and returns one Python float. Kept as the per-eval entry point (callers
+    and tests reference it by name), so the numeric result is identical to the previous
+    pure-numpy implementation while the per-eval GPU->CPU array round-trip is removed.
+    """
+    idx = jnp.asarray(idx)
+    Xn = jnp.asarray(data["X_node"], jnp.float32)[idx]
+    Xa = jnp.asarray(data["X_adj"])[idx]
+    Xp = jnp.asarray(data["X_pos"], jnp.float32)[idx]
+    y = jnp.asarray(data["y"], jnp.float32)[idx]
+    m = jnp.asarray(data["node_mask"])[idx]
+    return float(_val_median_rel_err_connected_dev(model, Xn, Xa, Xp, y, m))
 
 
 def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, batch=128,
@@ -236,17 +271,44 @@ def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, b
     opt = optax.chain(optax.clip_by_global_norm(1.0), optax.adamw(sched, weight_decay=weight_decay))
     opt_state = opt.init(eqx.filter(model, eqx.is_array))
 
-    @eqx.filter_jit
-    def step_fn(model, opt_state, xn, xa, xp, yb, mb, dkey):
-        loss, grads = eqx.filter_value_and_grad(configurable_loss)(
-            model, xn, xa, xp, yb, mb, agree_w=agree_w, key=dkey)
-        updates, opt_state = opt.update(grads, opt_state, eqx.filter(model, eqx.is_array))
-        model = eqx.apply_updates(model, updates)
-        return model, opt_state, loss
-
     n_tr = Xn_tr.shape[0]
     bs = min(batch, n_tr)
     key = jax.random.PRNGKey(seed + 1)
+
+    # --- chunked training: run `chunk_len` steps as ONE compiled lax.scan ----------------
+    # The scan body is the SAME `split -> randint -> grad step` as the old per-step loop, in
+    # the SAME order, so the RNG stream (and therefore every model update) is bit-identical;
+    # it just collapses `chunk_len` host launches into one. The carry is (params, opt_state,
+    # key) -- only the array leaves of the model travel through the scan; the static skeleton
+    # is closed over and re-combined. `chunk_len` is static (recompiles only for a final
+    # short chunk when steps % eval_every != 0). Built lazily and cached per length.
+    _runner_cache = {}
+
+    def _get_runner(chunk_len):
+        runner = _runner_cache.get(chunk_len)
+        if runner is None:
+            @eqx.filter_jit
+            def runner(model, opt_state, key, Xn_tr, Xa_tr, Xp_tr, y_tr, m_tr, _cl=chunk_len):
+                static = eqx.filter(model, eqx.is_array, inverse=True)
+
+                def body(carry, _):
+                    params, ostate, k = carry
+                    model_c = eqx.combine(params, static)
+                    k, sk, dk = jax.random.split(k, 3)
+                    idx = jax.random.randint(sk, (bs,), 0, n_tr)
+                    # dkey enables DropEdge if the model was built with dropedge>0 (train only)
+                    loss, grads = eqx.filter_value_and_grad(configurable_loss)(
+                        model_c, Xn_tr[idx], Xa_tr[idx], Xp_tr[idx], y_tr[idx], m_tr[idx],
+                        agree_w=agree_w, key=dk)
+                    updates, ostate = opt.update(grads, ostate, eqx.filter(model_c, eqx.is_array))
+                    model_c = eqx.apply_updates(model_c, updates)
+                    return (eqx.filter(model_c, eqx.is_array), ostate, k), None
+
+                init = (eqx.filter(model, eqx.is_array), opt_state, key)
+                (params_f, ostate_f, key_f), _ = jax.lax.scan(body, init, None, length=_cl)
+                return eqx.combine(params_f, static), ostate_f, key_f
+            _runner_cache[chunk_len] = runner
+        return runner
 
     best_model = model
     best_err = np.inf
@@ -265,29 +327,38 @@ def train_configurable(model, data, *, steps=8000, lr=3e-4, weight_decay=1e-4, b
         print(f"[ckpt] resume {ckpt_path}: step {start_it}/{steps}, best_err={best_err:.4f}",
               flush=True)
 
-    it = max(0, start_it - 1)
-    for it in range(start_it, steps):
-        key, sk, dk = jax.random.split(key, 3)
-        idx = jax.random.randint(sk, (bs,), 0, n_tr)
-        # dkey enables DropEdge if the model was built with dropedge>0 (training only)
-        model, opt_state, _ = step_fn(model, opt_state, Xn_tr[idx], Xa_tr[idx], Xp_tr[idx],
-                                      y_tr[idx], m_tr[idx], dk)
-        if (it + 1) % eval_every == 0 or it == steps - 1:
-            err = _val_median_rel_err_connected(model, va, va_local_idx)
-            if err < best_err - 1e-5:
-                best_err = err
-                best_model = model
-                no_improve = 0
-            else:
-                no_improve += 1
-                if no_improve >= patience:
-                    break
-        if ckpt_path and ((it + 1) % ckpt_every == 0 or it == steps - 1):
+    # Outer host loop over chunks. Each chunk runs the steps in [done, done+chunk_len) on
+    # device, then evals / early-stops / checkpoints at chunk granularity. Because evals in
+    # the old loop fired exactly at every `eval_every` boundary (and at the final step), the
+    # chunk boundaries land on the SAME steps -- so early-stop and checkpoint decisions, and
+    # `steps_run`, are identical to the per-step loop.
+    last_it = start_it - 1
+    done = start_it
+    while done < steps:
+        chunk_len = min(eval_every, steps - done)
+        model, opt_state, key = _get_runner(chunk_len)(
+            model, opt_state, key, Xn_tr, Xa_tr, Xp_tr, y_tr, m_tr)
+        done += chunk_len
+        last_it = done - 1                                  # 0-based index of last step run
+
+        err = _val_median_rel_err_connected(model, va, va_local_idx)
+        if err < best_err - 1e-5:
+            best_err = err
+            best_model = model
+            no_improve = 0
+        else:
+            no_improve += 1
+
+        if no_improve >= patience:
+            break                                           # early stop (ckpt dropped below)
+
+        if ckpt_path and ((last_it + 1) % ckpt_every == 0 or last_it == steps - 1):
             _ckpt.save_state(ckpt_path, {
                 "model": model, "opt_state": opt_state, "best_model": best_model,
-                "key": key, "scalars": jnp.asarray([it, best_err, no_improve], jnp.float32)})
+                "key": key, "scalars": jnp.asarray([last_it, best_err, no_improve],
+                                                    jnp.float32)})
 
     _ckpt.remove(ckpt_path)                    # clean completion -> drop the resume checkpoint
     val_acc = float(np.clip(1.0 - best_err, 0.0, 1.0)) if np.isfinite(best_err) else 0.0
-    info = {"val_acc": val_acc, "val_err": float(best_err), "steps_run": it + 1}
+    info = {"val_acc": val_acc, "val_err": float(best_err), "steps_run": last_it + 1}
     return best_model, info
