@@ -43,7 +43,7 @@ else:
     )
 
 
-def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
+def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
     p = argparse.ArgumentParser(description="grounded CTDE v0 (LPAC + goal head + aux-λ₂)")
     # world
     p.add_argument("--grid", type=int, default=16)
@@ -156,6 +156,17 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
     p.add_argument("--run-dir", type=str, default=None,
                    help="dir to save config.json + history.json (+ checkpoint)")
     p.add_argument("--ckpt", action="store_true", help="save a model checkpoint in run-dir")
+    p.add_argument("--init-from", type=str, default=None,
+                   help="warm-start: path to a previously-saved model.eqx (a prior "
+                        "run's --ckpt actor+critic) to INITIALIZE training from "
+                        "instead of random init (the scale-strategy / warm-start "
+                        "ladder). The LPAC backbone is scale-invariant, so a model "
+                        "trained @16²/4 loads into a @32²/10 run unchanged (same "
+                        "in-channels/width/K/n_roles -> same param shapes; only "
+                        "--grid/--n-agents/--comm-r differ). The optimizer state is "
+                        "NOT carried — the policy is warm-started, the optimizer is "
+                        "re-initialised fresh on the loaded params. Default None = "
+                        "random init (byte-unchanged).")
     args = p.parse_args(argv)
 
     ckpt_path = (os.path.join(args.run_dir, "model.eqx")
@@ -196,7 +207,7 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
         iters=args.iters, rollouts_per_iter=args.rollouts, seed=args.seed,
         ckpt_path=ckpt_path,
     )
-    return cfg, args.run_dir, bool(args.ckpt)
+    return cfg, args.run_dir, bool(args.ckpt), args.init_from
 
 
 def _log(it, logs):
@@ -219,8 +230,13 @@ def _log(it, logs):
 
 
 def main(argv=None):
-    cfg, run_dir, want_ckpt = _parse_args(argv)
+    cfg, run_dir, want_ckpt, init_from = _parse_args(argv)
     print("config:", json.dumps(cfg.to_dict(), indent=2), flush=True)
+    if init_from:
+        # the scale-strategy / warm-start ladder: load a prior rung's actor+critic.
+        print(f"WARM-START: init actor+critic from {init_from} "
+              f"(scale-invariant cross-rung load; fresh optimizer + dual) "
+              f"-> training {cfg.scale}", flush=True)
     if run_dir:
         os.makedirs(run_dir, exist_ok=True)
         with open(os.path.join(run_dir, "config.json"), "w") as f:
@@ -229,7 +245,7 @@ def main(argv=None):
     env = env_utils.build_env(cfg)
     print("env:", repr(env), flush=True)
 
-    state, history = ppo.train(env, cfg, log_fn=_log)
+    state, history = ppo.train(env, cfg, log_fn=_log, init_from=init_from)
 
     if len(history) >= 2:
         first, last = history[0], history[-1]
@@ -256,23 +272,16 @@ def main(argv=None):
         print(f"saved config.json + history.json -> {run_dir}", flush=True)
 
     if cfg.ckpt_path:
-        # Reuse the Fiedler experiment's checkpoint helper if importable; else
-        # fall back to a local eqx serialise + JSON config sidecar.
-        os.makedirs(os.path.dirname(cfg.ckpt_path) or ".", exist_ok=True)
-        model = (state.actor, state.critic)
-        try:
-            _fiedler = os.path.abspath(os.path.join(
-                os.path.dirname(__file__), "..", "..", "..", "FiedlerValueEstimation",
-            ))
-            sys.path.insert(0, _fiedler)
-            from fiedler import checkpoint as ckpt  # type: ignore
-
-            ckpt.save_model(cfg.ckpt_path, model, meta=cfg.to_dict())
-        except Exception:
-            import equinox as eqx
-            eqx.tree_serialise_leaves(cfg.ckpt_path, model)
-            with open(cfg.ckpt_path + ".meta.json", "w") as f:
-                json.dump(cfg.to_dict(), f, indent=2)
+        # Save the deployable (actor, critic) snapshot + a config-meta sidecar via the
+        # local checkpoint module (self-contained, byte-compatible with the Fiedler
+        # format). This is EXACTLY what `--init-from` reads back to warm-start the next
+        # scale rung: a same-shaped (actor, critic) tuple the loader deserialises into a
+        # fresh current-config skeleton.
+        if __package__ in (None, ""):
+            from ctde_v0 import checkpoint as ckpt  # type: ignore
+        else:
+            from . import checkpoint as ckpt
+        ckpt.save_model(cfg.ckpt_path, (state.actor, state.critic), meta=cfg.to_dict())
         print(f"saved checkpoint -> {cfg.ckpt_path}", flush=True)
 
     return state, history

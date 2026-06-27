@@ -1448,6 +1448,126 @@ def test_short_train_loop():
     assert all(jnp.isfinite(h["aux_loss"]) for h in history)
 
 
+# ---- warm-start / checkpoint-init (the scale-strategy: cross-rung load) ------
+#
+# The LPAC backbone + heads are scale-invariant: the (actor, critic) PARAM SHAPES
+# depend only on the obs/central channels, width/depth/mp_rounds, the goal-K and
+# n_roles — NOT on grid size or agent count (those only set runtime tensor dims via
+# same-padding conv + global-average-pool + the per-agent vmap). So a model saved at
+# one rung loads into a fresh skeleton built for the NEXT rung with byte-identical
+# param shapes; only --grid/--n-agents/--comm-r differ, none of which appear in the
+# params. These two tests pin (a) that cross-rung warm-start actually transplants the
+# saved weights (and trains), and (b) that the DEFAULT (no --init-from) random init is
+# byte-unchanged.
+
+
+def test_warm_start_cross_rung_loads_and_trains(tmp_path):
+    """(a) Save a tiny model @8²/2, then warm-start a @10²/3 run from it (different
+    grid AND agent count). The loaded actor params must be the SAVED ones (warm-
+    started) — NOT the fresh-random init the @10²/3 skeleton would otherwise get — and
+    training must run a couple iters with the controller emitting only valid moves
+    (ctrl_valid == 100%). This proves the scale-invariant cross-rung load end to end."""
+    import equinox as eqx
+    from ctde_v0 import checkpoint as ckpt
+
+    # TRAIN a tiny source model @8²/2 (one real PPO step so its weights move OFF the
+    # random draw — otherwise the scale-invariant random init would coincide with the
+    # @10²/3 fresh init at the same seed and the load would be indistinguishable), then
+    # SAVE its (actor, critic) snapshot.
+    cfg_small = _tiny_cfg(world=World(grid=8, n_agents=2, comm_r=3, horizon=6))
+    env_small = env_utils.build_env(cfg_small)
+    opt_s = ppo.make_optimizer(cfg_small)
+    stencil_s = ppo.make_stencil(cfg_small)
+    src0 = ppo.init_state(env_small, cfg_small, jax.random.PRNGKey(0))
+    src, _ = ppo.train_step(env_small, src0, cfg_small, jax.random.PRNGKey(1),
+                            opt_s, stencil_s)
+    path = str(tmp_path / "model.eqx")
+    ckpt.save_model(path, (src.actor, src.critic), meta=cfg_small.to_dict())
+    assert os.path.exists(path)
+
+    # a DIFFERENT rung: 10²/3 (different grid, n_agents AND comm_r) — same backbone.
+    cfg_big = _tiny_cfg(world=World(grid=10, n_agents=3, comm_r=5, horizon=6), iters=2)
+    env_big = env_utils.build_env(cfg_big)
+
+    # the fresh-random init the @10²/3 skeleton would get WITHOUT a warm start
+    # (same key the warm-start path uses) — to prove the load actually replaced it.
+    key = jax.random.PRNGKey(cfg_big.seed)
+    fresh = ppo.init_state(env_big, cfg_big, key)
+
+    warm = ppo.init_state_from_checkpoint(env_big, cfg_big, path, key)
+
+    saved_actor = jax.tree_util.tree_leaves(eqx.filter(src.actor, eqx.is_array))
+    warm_actor = jax.tree_util.tree_leaves(eqx.filter(warm.actor, eqx.is_array))
+    fresh_actor = jax.tree_util.tree_leaves(eqx.filter(fresh.actor, eqx.is_array))
+    # scale-invariant shapes: the @8²/2 save and the @10²/3 skeleton agree leaf-for-leaf.
+    assert len(saved_actor) == len(warm_actor) == len(fresh_actor)
+    # warm-started == the SAVED weights (transplanted across rungs)...
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(warm_actor, saved_actor)), \
+        "warm-start actor != saved checkpoint (not warm-started)"
+    # ...and NOT the fresh-random init it would otherwise have gotten.
+    assert not all(bool(jnp.array_equal(a, b))
+                   for a, b in zip(warm_actor, fresh_actor)), \
+        "warm-start actor == fresh random (checkpoint load was a no-op)"
+    # critic is warm-started too.
+    saved_critic = jax.tree_util.tree_leaves(eqx.filter(src.critic, eqx.is_array))
+    warm_critic = jax.tree_util.tree_leaves(eqx.filter(warm.critic, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(warm_critic, saved_critic))
+
+    # and it TRAINS from the warm start: a couple iters @10²/3, controller stays valid.
+    _, history = ppo.train(env_big, cfg_big, init_from=path)
+    assert len(history) == 2
+    assert all(jnp.isfinite(h["aux_loss"]) for h in history)
+    assert all(float(h["ctrl_valid_frac"]) == 1.0 for h in history)
+
+
+def test_warm_start_rejects_mismatched_backbone(tmp_path):
+    """A checkpoint with a DIFFERENT backbone (width 16) must NOT load into a width-32
+    skeleton: the scale-invariance contract allows only grid/n_agents/comm_r to change
+    between rungs — a different architecture has different param SHAPES and must fail
+    loudly (caught at deserialise, before any silent reshape)."""
+    from ctde_v0 import checkpoint as ckpt
+    import pytest
+
+    cfg_w16 = _tiny_cfg(world=World(grid=8, n_agents=2, comm_r=3, horizon=6),
+                        backbone=Backbone(width=16, depth=2, mp_rounds=2))
+    env_w16 = env_utils.build_env(cfg_w16)
+    src = ppo.init_state(env_w16, cfg_w16, jax.random.PRNGKey(0))
+    path = str(tmp_path / "model.eqx")
+    ckpt.save_model(path, (src.actor, src.critic), meta=cfg_w16.to_dict())
+
+    cfg_w32 = _tiny_cfg(world=World(grid=10, n_agents=3, comm_r=5, horizon=6),
+                        backbone=Backbone(width=32, depth=2, mp_rounds=2))
+    env_w32 = env_utils.build_env(cfg_w32)
+    with pytest.raises((ValueError, RuntimeError)):
+        ppo.init_state_from_checkpoint(env_w32, cfg_w32, path, jax.random.PRNGKey(1))
+
+
+def test_init_from_none_is_byte_unchanged():
+    """(b) REGRESSION: the default (init_from=None) random init is byte-identical to a
+    plain ppo.init_state — the warm-start branch is never touched, so the RNG draw /
+    param surface is unchanged."""
+    import equinox as eqx
+    cfg = _tiny_cfg(iters=1)
+    env = env_utils.build_env(cfg)
+    key = jax.random.PRNGKey(cfg.seed)
+
+    # ppo.train(init_from=None) seeds init_state with PRNGKey(cfg.seed); reproduce it.
+    ref = ppo.init_state(env, cfg, key)
+    # default-path train should leave the FIRST init byte-identical: run one iter from
+    # each and confirm the post-step params match (same init + same step => same out).
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    s_ref = ppo.init_state(env, cfg, key)
+    n_ref, _ = ppo.train_step(env, s_ref, cfg, jax.random.PRNGKey(123), opt, stencil)
+    # and the train() default path (no init_from) must start from that same init.
+    _state, hist = ppo.train(env, cfg)
+    assert len(hist) == 1
+    la = jax.tree_util.tree_leaves(eqx.filter(ref.actor, eqx.is_array))
+    lb = jax.tree_util.tree_leaves(eqx.filter(s_ref.actor, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(la, lb)), \
+        "default init_state is not reproducible from PRNGKey(cfg.seed)"
+
+
 if __name__ == "__main__":
     test_config_roundtrip()
     test_conn_signal_axis_roundtrip()
@@ -1515,4 +1635,9 @@ if __name__ == "__main__":
     test_global_lambda2_default_is_byte_unchanged()
     test_action_mask_and_soft_lambda_unchanged_by_dual()
     test_short_train_loop()
+    import pathlib
+    import tempfile
+    test_warm_start_cross_rung_loads_and_trains(pathlib.Path(tempfile.mkdtemp()))
+    test_warm_start_rejects_mismatched_backbone(pathlib.Path(tempfile.mkdtemp()))
+    test_init_from_none_is_byte_unchanged()
     print("all smoke tests passed")

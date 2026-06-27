@@ -586,6 +586,89 @@ def init_state(env, cfg: CTDEConfig, key) -> TrainState:
                       dual=init_dual(cfg))
 
 
+def init_state_from_checkpoint(env, cfg: CTDEConfig, ckpt_path: str, key) -> TrainState:
+    """Warm-start the train state from a previously-saved ``(actor, critic)``.
+
+    The **scale-strategy** entry point. The LPAC backbone + heads are
+    scale-invariant by construction: the (actor, critic) parameter shapes depend
+    only on the obs/central CHANNELS, ``width``/``depth``/``mp_rounds``, the goal
+    head ``K`` and ``n_roles`` — NOT on the grid size or agent count (those only
+    set runtime tensor dims via same-padding conv + global-average-pool + the
+    per-agent vmap). So a model saved at one rung (e.g. 16²/4) loads into a fresh
+    skeleton built for the NEXT rung (e.g. 32²/10) with byte-identical param
+    shapes — only ``--grid`` / ``--n-agents`` / ``--comm-r`` differ, none of which
+    appear in the params.
+
+    We build a fresh Actor/Critic from the CURRENT ``cfg`` (so K / width / depth /
+    mp_rounds / agg / message_content / explorer_tool / compass / recurrence all
+    match the run you're launching), then ``eqx.tree_deserialise_leaves`` the saved
+    params INTO that skeleton. Deserialise validates leaf shapes against the
+    template, so a mismatched backbone (different width / channels / K) raises here
+    rather than corrupting the run; we additionally assert leaf-count + per-leaf
+    shape compatibility up front with a clear scale-strategy error message.
+
+    **Optimizer state is NOT carried.** Adam's moment estimates are tied to the
+    previous rung's loss landscape (and we deliberately do not serialise opt_state
+    in the deployable ``model.eqx`` snapshot), so we warm-start the POLICY and
+    re-initialise a FRESH optimizer on the loaded params (``opt.init(params)``).
+    The dual variable is likewise re-initialised from ``cfg`` (a per-run safety
+    knob, not a learned weight). Net effect: same architecture, transplanted
+    weights, clean Adam moments + clean dual — exactly the warm-start-ladder rung
+    hand-off.
+    """
+    from . import checkpoint as _ckpt
+
+    ka, kc = jax.random.split(key)
+    in_ch = env.obs.obs_channels
+    cg = env.obs.central_channels
+    template_actor = Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                           dropout=cfg.regularization.dropout, key=ka,
+                           explorer_tool=cfg.action_head.explorer_tool,
+                           compass=cfg.action_head.compass,
+                           recurrence=cfg.backbone.recurrence)
+    template_critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth,
+                             cfg.backbone.norm, cfg.regularization.dropout, key=kc)
+
+    # Shape-compatibility gate BEFORE deserialise, with a scale-strategy-aware
+    # message (eqx would also catch this, but later and more cryptically).
+    saved = _ckpt.load_model(ckpt_path, (template_actor, template_critic))
+    _assert_param_shapes_match((saved[0], saved[1]),
+                               (template_actor, template_critic), ckpt_path)
+    actor, critic = saved
+
+    # Fresh optimizer on the LOADED params (opt_state intentionally NOT carried
+    # across rungs — see docstring) + a fresh dual from cfg.
+    opt = make_optimizer(cfg)
+    params = (eqx.filter(actor, eqx.is_array), eqx.filter(critic, eqx.is_array))
+    return TrainState(actor=actor, critic=critic, opt_state=opt.init(params),
+                      dual=init_dual(cfg))
+
+
+def _assert_param_shapes_match(loaded, template, ckpt_path: str) -> None:
+    """Assert the loaded (actor, critic) array leaves match the fresh template
+    leaf-for-leaf (count + shape + dtype). This is the scale-invariance contract:
+    a model saved @16²/4 must transplant into a @32²/10 skeleton, so any mismatch
+    means the BACKBONE config (width / channels / K / depth / mp_rounds / agg /
+    n_roles) differs — NOT the scale — and must be fixed before training."""
+    lo = jax.tree_util.tree_leaves(eqx.filter(loaded, eqx.is_array))
+    te = jax.tree_util.tree_leaves(eqx.filter(template, eqx.is_array))
+    if len(lo) != len(te):
+        raise ValueError(
+            f"--init-from {ckpt_path!r}: checkpoint has {len(lo)} param leaves but "
+            f"the current-config skeleton has {len(te)}. The architecture differs "
+            f"(width / depth / mp_rounds / agg / explorer_tool / compass / "
+            f"recurrence / message_content / goal-K / n_roles) — the scale-strategy "
+            f"warm-start needs an IDENTICAL backbone; only --grid/--n-agents/--comm-r "
+            f"may change between rungs.")
+    for i, (a, b) in enumerate(zip(lo, te)):
+        if a.shape != b.shape:
+            raise ValueError(
+                f"--init-from {ckpt_path!r}: param leaf {i} shape {a.shape} != "
+                f"skeleton {b.shape}. The architecture differs (only grid/n_agents/"
+                f"comm_r may change between scale rungs — they do not appear in the "
+                f"param shapes).")
+
+
 def _update_epoch(carry, flat, perm, key, cfg: CTDEConfig, opt):
     """One PPO epoch over ``flat`` (M,...), split into ``minibatches`` chunks.
 
@@ -730,15 +813,25 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     return state, logs
 
 
-def train(env, cfg: CTDEConfig, *, key=None, log_fn=None):
+def train(env, cfg: CTDEConfig, *, key=None, log_fn=None, init_from: str | None = None):
     """Full training loop over ``cfg.iters`` PPO iterations.
 
-    ``log_fn(it, host_logs)`` is called each iteration. Returns (TrainState, history)."""
+    ``log_fn(it, host_logs)`` is called each iteration. Returns (TrainState, history).
+
+    ``init_from`` (the scale-strategy / warm-start dial): if a path is given, the
+    train state is warm-started from that saved ``(actor, critic)`` snapshot via
+    :func:`init_state_from_checkpoint` (scale-invariant cross-rung load; fresh
+    optimizer + dual) instead of a random init. ``None`` (default) = random init,
+    byte-identical to before this option existed (the ``init_from`` branch is never
+    touched, so the RNG draw / param surface is unchanged)."""
     if key is None:
         key = jax.random.PRNGKey(cfg.seed)
     opt = make_optimizer(cfg)
     stencil = make_stencil(cfg)
-    state = init_state(env, cfg, key)
+    if init_from is None:
+        state = init_state(env, cfg, key)
+    else:
+        state = init_state_from_checkpoint(env, cfg, init_from, key)
 
     @eqx.filter_jit
     def jitted_step(state, k):
