@@ -24,7 +24,7 @@ import jax
 import numpy as np
 
 from .config import DataCfg
-from . import datagen, dataset, identity, margin, metrics, signal
+from . import datagen, dataset, dynamics, identity, margin, metrics, signal
 from .models_eqx import ConfigurableGCRN
 from . import checkpoint as _ckpt
 from . import train_eqx
@@ -96,7 +96,8 @@ def _model_in_size(cfg):
     """
     return (_id_in_size(cfg)
             + (1 if cfg.get("margin_mode", "off") == "on" else 0)
-            + (1 if _signal_on(cfg) else 0))
+            + (1 if _signal_on(cfg) else 0)
+            + (3 if cfg.get("dynamics_mode", "off") == "on" else 0))
 
 
 def _augment_id(data, cfg, seed):
@@ -171,13 +172,31 @@ def _augment_signal(data, cfg):
     return data
 
 
-def _augment(data, cfg, seed):
-    """Full node-feature augmentation pipeline for a padded batch: ID, margin, then signal.
+def _dynamics_on(cfg):
+    """True iff cfg requests the dynamic-features overlay (dynamics_mode == 'on')."""
+    return cfg.get("dynamics_mode", "off") == "on"
 
-    Signal runs LAST so its node feature lands after ID + margin, and so its adjacency
-    re-weighting reads the binary adjacency the earlier steps left untouched.
+
+def _augment_dynamics(data, cfg):
+    """Append the temporal-trend node features (Delta-degree, neighbor approach-rate, own speed)
+    to a padded batch (after ID + margin, BEFORE signal so degree reads the binary adjacency).
+    No-op unless cfg['dynamics_mode']=='on'."""
+    if not _dynamics_on(cfg):
+        return data
+    data = dict(data)
+    data["X_node"], _ = dynamics.augment_with_dynamics(
+        data["X_node"], data["X_adj"], data["X_pos"], comm_r=float(cfg.get("comm_r", 5)))
+    return data
+
+
+def _augment(data, cfg, seed):
+    """Full node-feature augmentation pipeline: ID, margin, dynamics, then signal.
+
+    Signal runs LAST so its node feature lands after the others and its adjacency re-weighting
+    reads the binary adjacency the earlier steps left untouched (dynamics also reads binary degree).
     """
-    return _augment_signal(_augment_margin(_augment_id(data, cfg, seed), cfg), cfg)
+    return _augment_signal(_augment_dynamics(
+        _augment_margin(_augment_id(data, cfg, seed), cfg), cfg), cfg)
 
 
 def _build_pool(N_list, H, seed, cfg, N_max=None):
