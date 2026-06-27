@@ -110,3 +110,24 @@ Eval path fixed to `lax.map` (the GPU XLA vmap miscompile on single-head attenti
    explicit size-transfer regularizer, NOT a message-design tweak.
 6. No deployable model artifacts this run (the sweeps were launched on the pre-checkpoint `run_config`); the
    checkpoint layer (per-config + step-level resume + `model.eqx` snapshots) lands for the next/stacking runs.
+
+## 2026-06-26 — content=`learned` check (mean / max / multihead, parallel workers)
+
+Tested the one content never actually run in OFAT. `learned` = `MLP(z_j)` per message (adds capacity, no new
+input information — unlike geom/margin/signal which add inter-agent distance).
+
+| op | learned acc / cv (std) / →24 | value acc / cv / →24 | read |
+|---|---|---|---|
+| mean | 0.641 / 0.654 (.0096) / .55 | 0.580 / .609 / .56 | learned **+0.06**, far tighter |
+| max | 0.654 / **0.680** (.015) / **.57** | 0.656 / .663 / .47 | acc tie, **best cv20 anywhere**, big extrap gain |
+| multihead | 0.653 / 0.662 (.006) / .57 | 0.659 / .670 / .56 | acc ~tie, extrap a touch better |
+
+**Verdict: the prior ("learned is weak, no new info") was WRONG.** `learned` rescues the weak `mean` (+0.06, up
+to the margin/geom level) and on `max` gives the best cv20 (**0.680**) and best extrap→24 (**0.568**) of any max
+variant. On the strong aggregators it *ties* value on accuracy (does NOT break ~0.66). → include `learned` in the
+grid content axis {value, learned, geom, margin, signal}; **max+learned** is a standout for reliability+extrap.
+
+**Reinforced (important):** every content × aggregator clusters **0.64–0.66** in-distribution — the ~0.66 ceiling
+is *structural*, not a message-design problem, so message-design stacking alone will not reach 0.95. N=30 still
+0.00 everywhere. The likely real levers are training-distribution (include larger N — also fixes N=30), more/
+better data, or a target reformulation — not more message features.
