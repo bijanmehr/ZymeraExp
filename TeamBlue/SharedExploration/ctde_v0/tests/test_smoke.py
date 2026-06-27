@@ -755,6 +755,230 @@ def test_recurrence_feedforward_train_step_byte_unchanged():
     assert all(bool(jnp.array_equal(a, b)) for a, b in zip(lc, ld)), "critic diverged"
 
 
+# ---- message_content axis (I2: learned | edge_distance | index) -------------
+#
+# The GNN message-design dial — WHAT each agent appends to its comm message beyond the
+# learned `msg` feature transform. `learned` (default) is byte-unchanged; `edge_distance`
+# appends the comm_r-normalized sender->receiver distance (receiver knows how far each
+# neighbour is); `index` appends a fixed sinusoidal embedding of the sender's normalized
+# index (receiver tells neighbours apart). Both extra signals are scale-/count-invariant.
+
+
+def test_message_content_config_roundtrip():
+    """I2: a non-default message_content round-trips through the config tree and the
+    default reproduces v0."""
+    import dataclasses
+    cfg = _tiny_cfg()
+    assert cfg.backbone.message_content == "learned"           # the default
+    assert cfg.to_dict()["backbone"]["message_content"] == "learned"
+    for mode in ("edge_distance", "index"):
+        cm = _tiny_cfg(backbone=dataclasses.replace(_tiny_cfg().backbone,
+                                                    message_content=mode))
+        d = cm.to_dict()
+        assert d["backbone"]["message_content"] == mode
+        assert from_dict(d).to_dict() == d
+
+
+def test_kb_distance_normalized_and_scale_invariant():
+    """``kb_distance`` is the comm-graph Chebyshev distance NORMALIZED by comm_r (so
+    in-range edges land in [0,1]) with a cleared diagonal — and the SAME relative layout
+    yields the SAME normalized distances when both positions and comm_r scale together
+    (scale-invariant). Out-of-range pairs read > 1 (the receiver masks them out)."""
+    cfg = _tiny_cfg(world=World(grid=16, n_agents=3, comm_r=4, horizon=6))
+    pos = jnp.array([[0, 0], [0, 2], [0, 8]], dtype=jnp.int32)  # a1 in range, a2 out
+    d = env_utils.kb_distance(pos, cfg)
+    assert d.shape == (3, 3) and d.dtype == jnp.float32
+    assert float(jnp.diag(d).max()) == 0.0                     # diagonal cleared
+    assert abs(float(d[0, 1]) - 0.5) < 1e-6                    # cheby 2 / comm_r 4 = 0.5
+    assert float(d[0, 2]) > 1.0                                # cheby 8 / 4 = 2.0 -> out of range
+    # scale-invariance: double the grid, positions AND comm_r -> identical normalized dist.
+    cfg2 = _tiny_cfg(world=World(grid=32, n_agents=3, comm_r=8, horizon=6))
+    d2 = env_utils.kb_distance(pos * 2, cfg2)
+    assert bool(jnp.allclose(d, d2)), (d, d2)
+
+
+def test_edge_distance_message_encodes_neighbour_distance():
+    """I2 edge_distance: the aggregated message ENCODES neighbour distance — with the
+    SAME features on every node (so any output difference is purely geometric), a NEAR
+    neighbour and a FAR neighbour produce different aggregated belief features at the
+    receiver. (`learned` cannot tell them apart; edge_distance can.)"""
+    W = 16
+    feats = jnp.ones((3, W), dtype=jnp.float32) * 0.5          # identical -> isolate distance
+    layer = nets.MPLayer(W, "mean", 4, key=jax.random.PRNGKey(0),
+                         message_content="edge_distance")
+    adj = jnp.array([[0, 1, 0], [1, 0, 0], [0, 0, 0]], dtype=bool)   # a0's only nbr is a1
+    near = jnp.array([[0., 0.1, 0.], [0.1, 0., 0.], [0., 0., 0.]], dtype=jnp.float32)
+    far = jnp.array([[0., 0.9, 0.], [0.9, 0., 0.], [0., 0., 0.]], dtype=jnp.float32)
+    out_near = layer(feats, adj, near)[0]
+    out_far = layer(feats, adj, far)[0]
+    assert jnp.isfinite(out_near).all() and jnp.isfinite(out_far).all()
+    assert not bool(jnp.allclose(out_near, out_far)), "distance not encoded in the message"
+    # a `learned` layer (no distance channel) is BLIND to the same swap.
+    learned = nets.MPLayer(W, "mean", 4, key=jax.random.PRNGKey(0),
+                           message_content="learned")
+    assert bool(jnp.array_equal(learned(feats, adj, near), learned(feats, adj, far)))
+
+
+def test_edge_distance_train_step_runs():
+    """I2: a PPO iter with --message-content edge_distance on 10×10/2 runs without error,
+    threads the comm-graph distance through the rollout AND the loss, and the controller
+    still emits 100% valid moves (the actor — incl. the widened update — takes a step)."""
+    import dataclasses
+    import equinox as eqx
+    cfg = _tiny_cfg(
+        world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+        backbone=dataclasses.replace(_tiny_cfg().backbone,
+                                     message_content="edge_distance"),
+    )
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    new_state, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"]) and jnp.isfinite(logs["policy_loss"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0              # only valid moves emitted
+    p0 = jax.tree_util.tree_leaves(eqx.filter(state.actor, eqx.is_array))
+    p1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(p0, p1)), "actor unchanged"
+
+
+def test_index_signal_distinct_and_agent_count_invariant():
+    """I2 index: distinct senders produce DISTINGUISHABLE identity signals, and it is the
+    SAME function at N=4 and N=10 (agent-count-invariant: a fixed sinusoid of i/N, not a
+    learned per-N table). Identity at the SAME normalized index u=i/N matches across team
+    sizes, and the embedding dimension never depends on N."""
+    import itertools
+    s4 = nets._index_signal(4)
+    s10 = nets._index_signal(10)
+    assert s4.shape == (4, nets._IDX_DIM) and s10.shape == (10, nets._IDX_DIM)
+    # the embedding width is FIXED (N-independent).
+    assert s4.shape[1] == s10.shape[1] == nets._IDX_DIM
+    # every pair of senders is distinguishable (no two identity codes collide).
+    for i, j in itertools.combinations(range(4), 2):
+        assert float(jnp.linalg.norm(s4[i] - s4[j])) > 1e-3, (i, j)
+    # SAME function across team sizes: matching normalized index u=i/N gives the SAME code
+    # (u=0 -> agent0 in both; u=0.5 -> agent2 of 4 == agent5 of 10).
+    assert bool(jnp.allclose(s4[0], s10[0]))
+    assert bool(jnp.allclose(s4[2], s10[5], atol=1e-6))
+
+
+def test_index_message_distinguishes_neighbours():
+    """I2 index: a receiver whose neighbour is sender j gets a DIFFERENT aggregated message
+    than a receiver whose neighbour is a different sender — the identity channel lets the
+    receiver tell its neighbours apart (identical features, so the diff is pure identity).
+    Same MPLayer applied at N=4 and N=10 runs (the function is agent-count-invariant)."""
+    W = 16
+    feats4 = jnp.ones((4, W), dtype=jnp.float32) * 0.5         # identical -> isolate identity
+    layer = nets.MPLayer(W, "mean", 4, key=jax.random.PRNGKey(0), message_content="index")
+    # a0's neighbour is a1; a2's neighbour is a3 — different sender identities.
+    adj = jnp.array([[0, 1, 0, 0], [1, 0, 0, 0],
+                     [0, 0, 0, 1], [0, 0, 1, 0]], dtype=bool)
+    out = layer(feats4, adj, None)
+    assert jnp.isfinite(out).all()
+    assert not bool(jnp.allclose(out[0], out[2])), "identity not encoded in the message"
+    # the SAME layer (no per-N params) applies unchanged at a larger team size.
+    feats10 = jnp.ones((10, W), dtype=jnp.float32) * 0.5
+    adj10 = jnp.zeros((10, 10), dtype=bool).at[0, 1].set(True).at[1, 0].set(True)
+    out10 = layer(feats10, adj10, None)
+    assert out10.shape == (10, W) and jnp.isfinite(out10).all()
+
+
+def test_index_train_step_runs():
+    """I2: a PPO iter with --message-content index on 10×10/2 runs without error and the
+    controller still emits 100% valid moves (the actor takes a gradient step)."""
+    import dataclasses
+    import equinox as eqx
+    cfg = _tiny_cfg(
+        world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+        backbone=dataclasses.replace(_tiny_cfg().backbone, message_content="index"),
+    )
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    new_state, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"]) and jnp.isfinite(logs["policy_loss"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0
+    p0 = jax.tree_util.tree_leaves(eqx.filter(state.actor, eqx.is_array))
+    p1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(p0, p1)), "actor unchanged"
+
+
+def test_message_content_learned_param_tree_byte_identical():
+    """I2 REGRESSION (param surface): a `learned` (default) MPLayer is bit-for-bit the
+    PRE-message_content layer — the update Linear is (2W -> W) exactly and the key
+    consumption order is unchanged. (The non-default modes widen the update input, but
+    the default's param tree must match the original.)"""
+    import equinox as eqx
+    W = 16
+    key = jax.random.PRNGKey(123)
+    learned = nets.MPLayer(W, "max", 4, key=key, message_content="learned")
+    # the update reads [self || agg] = 2W with NO extra channel.
+    assert learned.upd.weight.shape == (W, 2 * W), learned.upd.weight.shape
+    # the non-default modes widen the update input (extra channels appended).
+    ed = nets.MPLayer(W, "max", 4, key=key, message_content="edge_distance")
+    ix = nets.MPLayer(W, "max", 4, key=key, message_content="index")
+    assert ed.upd.weight.shape == (W, 2 * W + 2)
+    assert ix.upd.weight.shape == (W, 2 * W + nets._IDX_DIM)
+    # msg / q / k are IDENTICAL across modes (only `upd` changes) — proving the key split
+    # order is preserved, so `learned` reproduces the original network's non-upd params.
+    for name in ("msg", "q", "k"):
+        a = jax.tree_util.tree_leaves(eqx.filter(getattr(learned, name), eqx.is_array))
+        b = jax.tree_util.tree_leaves(eqx.filter(getattr(ed, name), eqx.is_array))
+        assert all(bool(jnp.array_equal(x, y)) for x, y in zip(a, b)), name
+
+
+def test_message_content_learned_forward_byte_unchanged():
+    """I2 REGRESSION (forward): message_content='learned' (DEFAULT) leaves the actor
+    forward byte-identical and IGNORES any supplied ``dist`` — passing a distance matrix
+    to a learned actor changes nothing (the static branch never reads it)."""
+    cfg = _tiny_cfg()
+    assert cfg.backbone.message_content == "learned"           # the default
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    dist = env_utils.kb_distance(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2))
+    out_none = actor(obs, adj, inference=True)
+    out_dist = actor(obs, adj, dist=dist, inference=True)      # learned ignores dist
+    for a, b in zip(out_none, out_dist):
+        assert bool(jnp.array_equal(a, b)), "learned read dist (should ignore it)"
+    # and the belief equals the raw backbone readout (no extra channel anywhere).
+    z_raw = actor.backbone(obs, adj, inference=True)
+    assert bool(jnp.array_equal(out_none[4], z_raw))
+
+
+def test_message_content_learned_train_step_byte_unchanged():
+    """I2 REGRESSION (the update + trajectory): message_content='learned' (DEFAULT) leaves
+    the WHOLE PPO step byte-identical — the rollout trajectory carries NO 'dist' key (it
+    lives only on the non-default modes) and a full train_step under the default matches
+    one under an explicit 'learned' config bit-for-bit."""
+    import dataclasses
+    import equinox as eqx
+    cfg_def = _tiny_cfg()
+    assert cfg_def.backbone.message_content == "learned"
+    cfg_exp = _tiny_cfg(backbone=dataclasses.replace(_tiny_cfg().backbone,
+                                                     message_content="learned"))
+    env = env_utils.build_env(cfg_def)
+    stencil = ppo.make_stencil(cfg_def)
+    # (i) the rollout pytree carries NO 'dist' key (distance is a non-default-only channel).
+    st = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    traj = ppo.collect(env, st.actor, st.critic, cfg_def, stencil, jax.random.PRNGKey(6),
+                       jnp.float32(0.0))
+    assert "dist" not in traj                                  # trajectory untouched
+    # (ii) a full train_step under the default and under an explicit learned config produce
+    #      bit-identical actor/critic params (the learned path is byte-unchanged).
+    opt = ppo.make_optimizer(cfg_def)
+    s_def = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    s_exp = ppo.init_state(env, cfg_exp, jax.random.PRNGKey(5))
+    n_def, _ = ppo.train_step(env, s_def, cfg_def, jax.random.PRNGKey(6), opt, stencil)
+    n_exp, _ = ppo.train_step(env, s_exp, cfg_exp, jax.random.PRNGKey(6), opt, stencil)
+    la = jax.tree_util.tree_leaves(eqx.filter(n_def.actor, eqx.is_array))
+    lb = jax.tree_util.tree_leaves(eqx.filter(n_exp.actor, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(la, lb)), "actor diverged"
+
+
 # ---- controller: only valid moves ------------------------------------------
 
 def test_controller_emits_only_valid_moves():
@@ -1259,6 +1483,16 @@ if __name__ == "__main__":
     test_recurrent_loss_forward_reproduces_rollout_logits()
     test_recurrent_minibatches_over_episodes_intact()
     test_recurrence_feedforward_train_step_byte_unchanged()
+    test_message_content_config_roundtrip()
+    test_kb_distance_normalized_and_scale_invariant()
+    test_edge_distance_message_encodes_neighbour_distance()
+    test_edge_distance_train_step_runs()
+    test_index_signal_distinct_and_agent_count_invariant()
+    test_index_message_distinguishes_neighbours()
+    test_index_train_step_runs()
+    test_message_content_learned_param_tree_byte_identical()
+    test_message_content_learned_forward_byte_unchanged()
+    test_message_content_learned_train_step_byte_unchanged()
     test_controller_emits_only_valid_moves()
     test_collision_mask_never_blocks_stay_and_stays_valid()
     test_collision_mask_forbids_occupied_cells()

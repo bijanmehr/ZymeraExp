@@ -156,17 +156,25 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     # the soft_lambda / adaptive penalty reads. "global_lambda2" (default) = the I1b
     # global scalar broadcast to N; "local_edge_margin" = a per-agent margin.
     local_signal = cfg.mission_safety.conn_signal == "local_edge_margin"
+    # message_content (I2 message-design dial) is a backbone axis ORTHOGONAL to the rest:
+    # the non-default modes append a per-edge geometry channel (the normalized comm-graph
+    # distance) to each message, so the rollout must compute that distance and STORE it in
+    # the trajectory (gated so the default 'learned' trace pytree is byte-unchanged).
+    edge_msg = cfg.backbone.message_content != "learned"
 
     def body(carry, _):
         state, obs, h, k = carry
         k, ak, rk, sk = jax.random.split(k, 4)
 
         adj_off = _eu.kb_adjacency(state.body.position, cfg)          # (N,N) KB graph
+        # normalized sender->receiver distance for the non-default message_content modes;
+        # None for 'learned' (the backbone ignores it -> byte-identical to v0).
+        dist = _eu.kb_distance(state.body.position, cfg) if edge_msg else None  # (N,N)|None
         # Feed the carried hidden h in and get the step's NEW hidden out (h_next). On
         # the feedforward path h_next is the zero passthrough (h stays zeros all
         # episode); on the recurrent path it is GRUCell(z, h), carried to the next step.
         goal_logits, role_logits, value_agent, l2_hat, _z, h_next = actor(
-            obs, adj_off, h=h, inference=True
+            obs, adj_off, dist=dist, h=h, inference=True
         )
         central = env.central_obs(state)                              # (Cg,H,W)
         v_team = critic(central, inference=True)                      # ()
@@ -245,6 +253,11 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             # violation; only present on the local_edge_margin path so the
             # global_lambda2 trajectory pytree is byte-unchanged from I1b).
             per_step["margin_step"] = margin.mean()                    # ()
+        if edge_msg:
+            # store the per-step comm-graph distance so the PPO loss replays the actor on
+            # exactly the same edge geometry (parallels "adj"). Only present for the non-
+            # default message_content modes -> the 'learned' trajectory pytree is unchanged.
+            per_step["dist"] = dist                                    # (N,N)
         return (state_next, obs_next, h_next, k), per_step
 
     (state_T, _obs_T, _h_T, _), traj = jax.lax.scan(
@@ -319,21 +332,27 @@ def _clipped_pg(logp, old_logp, adv_norm, clip):
     return -jnp.minimum(unclipped, clipped).mean()
 
 
-def _actor_forward_ff(actor, obs, adj, key):
+def _actor_forward_ff(actor, obs, adj, key, dist=None):
     """Feedforward actor forward over a FLAT minibatch (M rows). vmap the actor per
     row (h=None -> the zero passthrough, never used); returns (goal_logits (M,N,K),
     role_logits (M,N,R), l2_hat (M,N), feat (M,N,W)). Byte-identical to the
-    pre-recurrence forward (the actor's feedforward branch reads z directly)."""
+    pre-recurrence forward (the actor's feedforward branch reads z directly).
+
+    ``dist`` (M,N,N) is the per-row comm-graph distance for the non-default
+    message_content modes (replayed from the trajectory, exactly like ``adj``); None
+    for the default 'learned' mode (the actor ignores it -> byte-unchanged forward)."""
     M = obs.shape[0]
     akeys = jax.random.split(key, M)
 
-    def fwd(o, a, kk):
-        g, r, _v, l2, feat, _h = actor(o, a, key=kk, inference=False)
+    def fwd(o, a, d, kk):
+        g, r, _v, l2, feat, _h = actor(o, a, dist=d, key=kk, inference=False)
         return g, r, l2, feat
-    return jax.vmap(fwd)(obs, adj, akeys)
+    if dist is None:
+        return jax.vmap(lambda o, a, kk: fwd(o, a, None, kk))(obs, adj, akeys)
+    return jax.vmap(fwd)(obs, adj, dist, akeys)
 
 
-def _actor_forward_recurrent(actor, obs, adj, key):
+def _actor_forward_recurrent(actor, obs, adj, key, dist=None):
     """Recurrent actor forward over a minibatch of EPISODES (obs (B,T,N,C,H,W)).
 
     For each episode independently, run a ``lax.scan`` over the T steps that RE-FOLDS
@@ -346,25 +365,34 @@ def _actor_forward_recurrent(actor, obs, adj, key):
 
     Each episode is one INDEPENDENT sequence (h resets per episode); minibatching over
     episodes (not flattened steps) is what keeps the 100-step sequences intact for the
-    scan. Per-step dropout keys are derived deterministically (split per (episode,t))."""
+    scan. Per-step dropout keys are derived deterministically (split per (episode,t)).
+
+    ``dist`` (B,T,N,N) is the per-step comm-graph distance for the non-default
+    message_content modes (replayed exactly like ``adj``); None for 'learned'."""
     B, T = obs.shape[0], obs.shape[1]
     N = obs.shape[2]
     h0 = actor.init_hidden(N)                                       # (N,W) per-episode start
     ep_keys = jax.random.split(key, B)                             # one key per episode
+    # carry a per-step dist (or a zeros placeholder that the actor ignores when learned),
+    # so the scan signature is identical in both modes.
+    dist_e_all = dist if dist is not None else jnp.zeros((B, T, N, N), jnp.float32)
+    use_dist = dist is not None
 
-    def per_episode(obs_e, adj_e, ek):
+    def per_episode(obs_e, adj_e, dist_e, ek):
         # obs_e (T,N,C,H,W), adj_e (T,N,N); scan the recurrence over the T steps.
         step_keys = jax.random.split(ek, T)                       # (T,) per-step dropout keys
 
         def step(h, inp):
-            o_t, a_t, kk = inp
-            g, r, _v, l2, feat, h_next = actor(o_t, a_t, h=h, key=kk, inference=False)
+            o_t, a_t, d_t, kk = inp
+            d_in = d_t if use_dist else None
+            g, r, _v, l2, feat, h_next = actor(o_t, a_t, dist=d_in, h=h, key=kk,
+                                               inference=False)
             return h_next, (g, r, l2, feat)
 
-        _hT, outs = jax.lax.scan(step, h0, (obs_e, adj_e, step_keys))
+        _hT, outs = jax.lax.scan(step, h0, (obs_e, adj_e, dist_e, step_keys))
         return outs                                               # each (T,N,...)
 
-    g, r, l2, feat = jax.vmap(per_episode)(obs, adj, ep_keys)      # each (B,T,N,...)
+    g, r, l2, feat = jax.vmap(per_episode)(obs, adj, dist_e_all, ep_keys)  # each (B,T,N,...)
     # flatten (B,T,...) -> (B*T,...) so the downstream loss sees the same M-row layout.
     flat = lambda x: x.reshape((B * T,) + x.shape[2:])
     return flat(g), flat(r), flat(l2), flat(feat)
@@ -385,13 +413,16 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
     recurrent = cfg.backbone.recurrence == "recurrent"
     obs = batch["obs"]                 # FF: (M,N,C,H,W) | REC: (B,T,N,C,H,W)
     adj = batch["adj"]                 # FF: (M,N,N)     | REC: (B,T,N,N)
+    # the non-default message_content modes stored the per-step comm-graph distance in the
+    # trajectory ("dist"); replay it alongside adj. None for 'learned' -> ignored forward.
+    dist = batch.get("dist")           # FF: (M,N,N) | REC: (B,T,N,N) | None (learned)
     use_roles = cfg.role_picker == "expl_relay"
 
     if recurrent:
         # actor forward along each episode (BPTT scan), flattened to (M=B*T,...). The
         # per-step targets/old-logps/adv arrive (B,T,...) and are flattened the SAME way.
         goal_logits, role_logits, l2_hat, _z = _actor_forward_recurrent(
-            actor, obs, adj, key)
+            actor, obs, adj, key, dist)
         B, T = obs.shape[0], obs.shape[1]
         _f = lambda x: x.reshape((B * T,) + x.shape[2:])
         central = _f(batch["central"]); goal = _f(batch["goal"])
@@ -410,7 +441,8 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         ret = batch["ret"]                 # (M,) team return
         true_l2 = batch["true_l2"]         # (M,) aux target
         degree = batch["degree"]           # (M,N) per-node comm degree
-        goal_logits, role_logits, l2_hat, _z = _actor_forward_ff(actor, obs, adj, key)
+        goal_logits, role_logits, l2_hat, _z = _actor_forward_ff(
+            actor, obs, adj, key, dist)
     # goal_logits (M,N,K); apply the SAME mask used at sample time.
     masked = jnp.where(gmask, goal_logits, _NEG)
     logp_all = jax.nn.log_softmax(masked, axis=-1)                  # (M,N,K)
@@ -607,8 +639,12 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     # are the independent unit — never mix steps across episodes). The minibatch slicer
     # (_update_epoch) is identical in both cases; only the indexed leading axis differs
     # (M flat rows vs B episodes), and loss_fn detects which by the leading rank.
-    fields = ("obs", "adj", "central", "goal", "goal_logp", "goal_mask",
-              "role", "role_logp", "true_l2", "degree")
+    fields = ["obs", "adj", "central", "goal", "goal_logp", "goal_mask",
+              "role", "role_logp", "true_l2", "degree"]
+    # the non-default message_content modes carry a per-step "dist" in the trajectory;
+    # minibatch it alongside "adj" (gated so the 'learned' field set is unchanged).
+    if cfg.backbone.message_content != "learned":
+        fields.append("dist")
     if cfg.backbone.recurrence == "recurrent":
         flat = {k: traj[k] for k in fields}          # keep (B,T,...) — minibatch episodes
         flat["adv"], flat["ret"] = adv, ret          # (B,T) per-episode advantage/return

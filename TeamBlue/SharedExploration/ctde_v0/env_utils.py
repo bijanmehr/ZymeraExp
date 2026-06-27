@@ -226,6 +226,25 @@ def kb_adjacency(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     return adj & ~jnp.eye(n, dtype=bool)
 
 
+def kb_distance(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+    """(N,N) float32 — the comm-graph sender→receiver Chebyshev distance, NORMALIZED
+    by ``comm_r`` (so in-range edges land in [0,1]) with the diagonal CLEARED to 0.
+
+    This is the SAME Chebyshev distance ``kb_adjacency`` thresholds (the comm graph /
+    DiskTopology metric), exposed for the GNN-KB ``message_content`` modes that append a
+    per-edge geometry channel to each message (``nets.MPLayer`` / ``edge_distance``). It
+    is normalized by ``comm_r`` (NOT raw cells) so a model trained @16²/4 reads the same
+    edge geometry @32²/10 — SCALE-INVARIANT. The receiver multiplies it by the (boolean)
+    adjacency, so out-of-range entries (> 1 here) never enter the aggregation.
+    Pure JAX (vmap/scan/jit-safe).
+    """
+    n = position.shape[0]
+    d = jnp.max(jnp.abs(position[:, None, :] - position[None, :, :]),
+                axis=-1).astype(jnp.float32)                              # (N,N) cheby
+    d = d / jnp.maximum(jnp.asarray(cfg.world.comm_r, jnp.float32), 1.0)  # normalize -> [0,1] in-range
+    return jnp.where(jnp.eye(n, dtype=bool), 0.0, d).astype(jnp.float32)  # (N,N), diag 0
+
+
 def degree_stats(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     """(N,) float32 per-node in-range degree (neighbour count) over the comm
     graph — the per-node statistic the SizeShiftReg-style regularizer watches.

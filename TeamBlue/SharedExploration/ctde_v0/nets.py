@@ -79,6 +79,38 @@ def _encode(layers, x):
 # =============================================================================
 
 
+# Per-sender IDENTITY signal dimension for ``message_content == 'index'`` — a small
+# FIXED (non-learned) sinusoidal embedding of the agent's NORMALIZED index i/N. Fixed
+# (not a per-N learned table) and a function of i/N (not i) so it is agent-count-
+# invariant: a model trained @4 agents reads the SAME identity geometry @10 agents.
+_IDX_DIM = 8
+
+
+def _index_signal(n: int) -> jax.Array:
+    """(N, ``_IDX_DIM``) float32 per-sender IDENTITY embedding — a fixed sinusoidal
+    code of each agent's NORMALIZED index ``i/N`` so a receiver can tell its neighbours
+    apart WITHOUT a learned per-N table.
+
+    AGENT-COUNT-INVARIANT by construction: the code is a function of the fraction
+    ``u_i = i/N ∈ [0,1)`` (not the raw index i) evaluated at a fixed bank of geometric
+    frequencies, so the SAME function maps any team size — identity ``j=2`` in a team of
+    4 (``u=0.5``) and identity ``j=5`` in a team of 10 (``u=0.5``) get the same signal,
+    and the embedding dimension ``_IDX_DIM`` never depends on N. The frequencies are the
+    standard transformer geometric ladder; ``_IDX_DIM`` must be even (sin/cos pairs).
+    Pure JAX (jit-safe; ``n`` is static under the rollout/loss scans)."""
+    half = _IDX_DIM // 2
+    u = jnp.arange(n, dtype=jnp.float32) / jnp.maximum(float(n), 1.0)   # (N,) i/N in [0,1)
+    freqs = 2.0 * jnp.pi * (2.0 ** jnp.arange(half, dtype=jnp.float32))  # (half,) geometric
+    ang = u[:, None] * freqs[None, :]                                   # (N, half)
+    return jnp.concatenate([jnp.sin(ang), jnp.cos(ang)], axis=-1)       # (N, _IDX_DIM)
+
+
+# extra per-receiver message-content channels appended to the aggregated neighbour
+# summary, keyed by ``message_content``. ``learned`` adds NOTHING (extra dim 0) so the
+# update Linear is the original (2W -> W) and the layer is byte-identical to v0.
+_EXTRA_DIM = {"learned": 0, "edge_distance": 2, "index": _IDX_DIM}
+
+
 class MPLayer(eqx.Module):
     """One message-passing round over the comm graph.
 
@@ -90,29 +122,82 @@ class MPLayer(eqx.Module):
       * "multihead" — softmax attention over neighbours (``heads`` heads), the
         attention weights sum to 1 so the readout is agent-count-invariant.
 
+    ``message_content`` (the I2 "message design" dial) selects WHAT each agent puts in
+    its comm message BEYOND the learned ``msg`` feature transform — an EXTRA per-edge
+    channel appended to the aggregated summary before the update (the receiver fuses it
+    alongside the learned messages). It is ALWAYS aggregated with a degree-normalized
+    MEAN (count-invariant regardless of ``agg``) so adding it never breaks size-transfer:
+
+      * "learned" (default) — NOTHING extra; the message is ``msg(feats)`` exactly, the
+        update reads ``[self || agg]`` (2W) and the layer is BYTE-IDENTICAL to v0.
+      * "edge_distance" — append the (comm_r-normalized) sender→receiver Chebyshev
+        distance per edge, summarized to the receiver as its [mean, min] neighbour
+        distance (2 channels). The receiver thus knows HOW FAR each neighbour is; the
+        normalization by ``comm_r`` keeps it in [0,1] = scale-invariant.
+      * "index" — append a fixed sinusoidal embedding of the SENDER's normalized index
+        (``_index_signal``; ``_IDX_DIM`` channels), mean-pooled over neighbours, so the
+        receiver can tell its neighbours apart. Fixed (not a learned per-N table) and a
+        function of i/N -> agent-count-invariant.
+
+    For the two non-default modes the update Linear widens to ``2W + extra`` and a ``dist``
+    (N,N) matrix (normalized sender→receiver distance, diagonal 0) is threaded in by the
+    caller; the ``learned`` path ignores ``dist`` and keeps the (2W -> W) update.
+
     A boolean ``adj`` (N,N, self-loops removed by the caller for neighbour msgs)
-    selects who is in range. ``__call__(feats, adj_off)`` -> (N, width).
+    selects who is in range. ``__call__(feats, adj_off, dist=None)`` -> (N, width).
     """
     msg: eqx.nn.Linear          # neighbour-message transform
-    upd: eqx.nn.Linear          # node update from [self || aggregated]
+    upd: eqx.nn.Linear          # node update from [self || aggregated || extra]
     q: eqx.nn.Linear            # attention query (multihead)
     k: eqx.nn.Linear            # attention key   (multihead)
     agg: str = eqx.field(static=True)
     heads: int = eqx.field(static=True)
     width: int = eqx.field(static=True)
+    message_content: str = eqx.field(static=True)
 
-    def __init__(self, width: int, agg: str, heads: int, *, key):
+    def __init__(self, width: int, agg: str, heads: int, *, key,
+                 message_content: str = "learned"):
         km, ku, kq, kk = jax.random.split(key, 4)
+        extra = _EXTRA_DIM[str(message_content)]
         self.msg = eqx.nn.Linear(width, width, key=km)
-        self.upd = eqx.nn.Linear(2 * width, width, key=ku)
+        # update input = [self (W) || agg (W) || message-content extra (E)]; E==0 for
+        # the default 'learned' -> Linear(2W, W) exactly as v0 (byte-identical param tree).
+        self.upd = eqx.nn.Linear(2 * width + extra, width, key=ku)
         self.q = eqx.nn.Linear(width, width, key=kq)
         self.k = eqx.nn.Linear(width, width, key=kk)
         self.agg = agg
         self.heads = int(heads)
         self.width = int(width)
+        self.message_content = str(message_content)
 
-    def __call__(self, feats, adj_off):
-        # feats (N,W); adj_off (N,N) bool with diagonal already cleared.
+    def _content_extra(self, n: int, mask, dist) -> jax.Array:
+        """(N, E) the message-content EXTRA channels for the receivers — what each agent
+        appends to its message beyond the learned ``msg`` transform, mean-pooled over its
+        in-range neighbours (degree-normalized -> agent-count-invariant). ``mask`` (N,N)
+        bool selects neighbours; ``dist`` (N,N) is the normalized sender→receiver distance.
+
+          * edge_distance — [mean, min] of each receiver's neighbour distances (2 chans).
+          * index         — mean of the SENDER identity codes over neighbours (_IDX_DIM).
+
+        ``learned`` never calls this (extra dim 0). Pure JAX (jit-safe)."""
+        deg = jnp.maximum(mask.sum(-1, keepdims=True), 1.0)             # (N,1) neighbour count
+        if self.message_content == "edge_distance":
+            # dist is normalized (in [0,1]); summarize each receiver's neighbourhood by the
+            # MEAN and MIN (nearest) neighbour distance -> a near vs far neighbour shifts it.
+            mf = mask.astype(jnp.float32)
+            mean_d = (mf * dist).sum(-1, keepdims=True) / deg           # (N,1) mean dist
+            far = jnp.where(mask, dist, jnp.inf)                        # (N,N) non-edges -> +inf
+            min_d = jnp.min(far, axis=-1, keepdims=True)               # (N,1) nearest nbr
+            min_d = jnp.where(jnp.isfinite(min_d), min_d, 0.0)        # isolated -> 0
+            return jnp.concatenate([mean_d, min_d], axis=-1)           # (N,2)
+        if self.message_content == "index":
+            ids = _index_signal(n)                                      # (N,_IDX_DIM) sender codes
+            return (mask.astype(jnp.float32) @ ids) / deg              # (N,_IDX_DIM) mean over nbrs
+        raise ValueError(f"unknown message_content {self.message_content!r}")
+
+    def __call__(self, feats, adj_off, dist=None):
+        # feats (N,W); adj_off (N,N) bool with diagonal already cleared. dist (N,N) is the
+        # normalized sender->receiver distance (only the non-'learned' modes consume it).
         n = feats.shape[0]
         m = jax.vmap(self.msg)(feats)                       # (N,W) messages
         mask = adj_off                                      # (N,N) i has neighbour j
@@ -142,7 +227,15 @@ class MPLayer(eqx.Module):
         else:
             raise ValueError(f"unknown aggregator {self.agg!r}")
 
-        cat = jnp.concatenate([feats, agg], axis=-1)                    # (N,2W)
+        # message-content EXTRA (the I2 message-design dial): for 'learned' (default) the
+        # branch is skipped entirely (message_content is STATIC) -> cat is [self || agg]
+        # (2W) and the update is byte-identical to v0; the non-default modes append their
+        # extra (distance / identity) channels, aggregated count-invariantly.
+        if self.message_content == "learned":
+            cat = jnp.concatenate([feats, agg], axis=-1)                # (N,2W)
+        else:
+            extra = self._content_extra(n, mask, dist)                 # (N,E)
+            cat = jnp.concatenate([feats, agg, extra], axis=-1)         # (N,2W+E)
         out = jax.vmap(self.upd)(cat)                                   # (N,W)
         return jax.nn.relu(out)
 
@@ -151,31 +244,42 @@ class Backbone(eqx.Module):
     """LPAC backbone: per-agent CNN -> GAP -> feature, then ``mp_rounds`` of GNN
     message passing over the comm graph -> per-agent belief ``z_i`` (N, width).
 
-    ``__call__(obs, adj_off, *, key)`` with ``obs`` (N,C,H,W) and ``adj_off``
-    (N,N) bool (in-range neighbours, diagonal cleared). Optional LayerNorm +
-    dropout on the belief. Returns ``z`` (N, width).
+    ``__call__(obs, adj_off, *, dist=None, key)`` with ``obs`` (N,C,H,W) and ``adj_off``
+    (N,N) bool (in-range neighbours, diagonal cleared). ``dist`` (N,N) is the NORMALIZED
+    sender→receiver distance (in [0,1], diagonal 0) the non-default ``message_content``
+    modes append to each message; the default ``learned`` mode ignores it entirely (so
+    the forward is byte-identical to v0 whether or not a ``dist`` is supplied). Optional
+    LayerNorm + dropout on the belief. Returns ``z`` (N, width).
+
+    ``message_content`` (the I2 message-design dial) is threaded into every ``MPLayer``;
+    see :class:`MPLayer` for the modes (learned | edge_distance | index).
     """
     conv: list
     mp: list
     ln: eqx.nn.LayerNorm | None
     drop: eqx.nn.Dropout | None
     width: int = eqx.field(static=True)
+    message_content: str = eqx.field(static=True)
 
     def __init__(self, in_ch: int, width: int, depth: int, mp_rounds: int,
-                 agg: str, heads: int, norm: str, dropout: float, *, key):
+                 agg: str, heads: int, norm: str, dropout: float, *, key,
+                 message_content: str = "learned"):
         kc, kmp = jax.random.split(key)
         self.conv = _conv_stack(in_ch, width, depth, kc)
         mp_keys = jax.random.split(kmp, max(mp_rounds, 1))
-        self.mp = [MPLayer(width, agg, heads, key=mp_keys[i]) for i in range(mp_rounds)]
+        self.mp = [MPLayer(width, agg, heads, key=mp_keys[i],
+                           message_content=message_content)
+                   for i in range(mp_rounds)]
         self.ln = eqx.nn.LayerNorm(width) if norm == "layer" else None
         self.drop = eqx.nn.Dropout(dropout) if dropout > 0 else None
         self.width = int(width)
+        self.message_content = str(message_content)
 
-    def __call__(self, obs, adj_off, *, key=None, inference: bool = False):
+    def __call__(self, obs, adj_off, *, dist=None, key=None, inference: bool = False):
         feats = jax.vmap(lambda o: _encode(self.conv, o))(obs)         # (N,W)
         z = feats
         for layer in self.mp:
-            z = layer(z, adj_off)                                      # (N,W)
+            z = layer(z, adj_off, dist)                                # (N,W)
         if self.ln is not None:
             z = jax.vmap(self.ln)(z)
         if self.drop is not None:
@@ -578,6 +682,7 @@ class Actor(eqx.Module):
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
+            message_content=getattr(backbone_cfg, "message_content", "learned"),
         )
         W = backbone_cfg.width
         self.goal_head = eqx.nn.Linear(W, K, key=kg)
@@ -601,8 +706,13 @@ class Actor(eqx.Module):
         recurrent path (and the inert passthrough returned by the feedforward path)."""
         return jnp.zeros((n, self.width), dtype=jnp.float32)
 
-    def __call__(self, obs, adj_off, *, h=None, key=None, inference: bool = False):
-        z = self.backbone(obs, adj_off, key=key, inference=inference)   # (N,W)
+    def __call__(self, obs, adj_off, *, dist=None, h=None, key=None,
+                 inference: bool = False):
+        # ``dist`` (N,N) is the normalized sender->receiver distance the non-default
+        # backbone message_content modes append to each comm message; the default
+        # 'learned' backbone ignores it (so the forward is byte-identical to v0 whether
+        # or not a dist is supplied — the caller passes it unconditionally for simplicity).
+        z = self.backbone(obs, adj_off, dist=dist, key=key, inference=inference)   # (N,W)
         # Compass directional feature: ADD the gather/explore navigation term to the
         # belief BEFORE any head, so every head (goal / role / λ̂₂ / value) reads the
         # directional cue. `compass_on` is STATIC, so when off this branch never runs

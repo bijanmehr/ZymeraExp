@@ -56,6 +56,15 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
     p.add_argument("--mp-rounds", type=int, default=2)
     p.add_argument("--agg", choices=["mean", "max", "multihead"], default="max")
     p.add_argument("--norm", choices=["layer", "none"], default="layer")
+    p.add_argument("--message-content",
+                   choices=["learned", "edge_distance", "index"], default="learned",
+                   help="GNN message-design dial (I2): what each agent puts in its comm "
+                        "message beyond the learned feature transform. learned=msg(feats) "
+                        "(v0, byte-unchanged); edge_distance=append the comm_r-normalized "
+                        "sender->receiver distance (receiver knows how far each neighbour "
+                        "is); index=append a fixed sinusoidal embedding of the sender's "
+                        "normalized index (receiver tells neighbours apart). Scale- and "
+                        "agent-count-invariant.")
     p.add_argument("--recurrence", choices=["feedforward", "recurrent"],
                    default="feedforward",
                    help="per-agent temporal memory (the recurrence axis): "
@@ -155,7 +164,9 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
         world=World(grid=args.grid, n_agents=args.n_agents, comm_r=args.comm_r,
                     horizon=args.horizon),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
-                          agg=args.agg, norm=args.norm, recurrence=args.recurrence),
+                          agg=args.agg, norm=args.norm,
+                          message_content=args.message_content,
+                          recurrence=args.recurrence),
         action_head=dataclasses.replace(CTDEConfig().action_head, K=args.goal_k,
                                         stride=args.stride,
                                         explorer_tool=args.explorer_tool,

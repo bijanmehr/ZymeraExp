@@ -58,6 +58,23 @@ class Backbone:
     * ``agg``       — neighbour aggregator: "mean" | "max" (default) | "multihead".
                       NORMALIZED / size-invariant by construction (never raw-sum).
     * ``heads``     — attention heads when agg == "multihead".
+    * ``message_content`` — the I2 "message design" dial: WHAT each agent puts in its
+        comm message BEYOND the learned ``msg`` feature transform (an extra per-edge
+        channel the receiver fuses alongside the learned messages):
+        - "learned" (default): the message is ``msg(feats)`` exactly — v0 behaviour,
+          byte-unchanged (the update Linear stays 2W -> W).
+        - "edge_distance": append the (comm_r-normalized) sender→receiver Chebyshev
+          distance per edge, summarized to each receiver as its [mean, min] neighbour
+          distance — so the receiver knows HOW FAR each neighbour is. The distance
+          (``env_utils.kb_distance``) is normalized by ``comm_r`` (in [0,1]) so the
+          signal is SCALE-INVARIANT (a model trained @16²/4 reads it the same @32²/10).
+        - "index": append a per-sender IDENTITY signal — a FIXED sinusoidal embedding of
+          the sender's NORMALIZED index ``i/N`` (``nets._index_signal``), mean-pooled
+          over neighbours, so a receiver can tell its neighbours apart. Fixed (not a
+          learned per-N table) and a function of i/N -> AGENT-COUNT-INVARIANT (the same
+          function maps any team size). The extra channel widens the update Linear; the
+          comm-graph distance is threaded from the rollout into the backbone only for the
+          non-default modes (the 'learned' path ignores it -> byte-identical to v0).
     * ``recurrence``— per-agent temporal memory over the belief (the recurrence axis):
         - "feedforward" (default): the heads read the per-step belief z directly — v0
           behaviour, byte-unchanged. The GRU is still BUILT (stable param surface) but
@@ -78,6 +95,7 @@ class Backbone:
     norm: str = "layer"
     agg: str = "max"
     heads: int = 4
+    message_content: str = "learned"  # {"learned", "edge_distance", "index"}
     recurrence: str = "feedforward"   # {"feedforward", "recurrent"}
 
 
