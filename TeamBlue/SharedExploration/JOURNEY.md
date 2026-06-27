@@ -314,3 +314,80 @@ schema `action_head` + §9 open items. **Open:** A\* vs learned executor (defaul
 grid candidate-frontier extraction. Churn: +1 Phase-1 axis (~+2 configs).
 
 **Next.** → **writing-plans on Phase 0** (now also stubs the action-head interface so 1a′ can slot in).
+
+---
+
+## 2026-06-26/27 — Phase-0 Fiedler estimator settled + first CTDE agent (the 48-hour arc)
+
+Two threads, both feeding the campaign: (A) built and **exhausted the decentralized λ₂ estimator** (the
+Phase-0 substrate) as a standalone study, and (B) stood up the **first grounded CTDE agent** and found its
+failure mode + the design that fixes it.
+
+### A. The Fiedler / λ₂ estimator — `zymera_experiments/FiedlerValueEstimation/`
+
+Standalone supervised study (JAX/Equinox, run on balthar): estimate global λ₂ from local agent views, on
+hard-connectivity-guardrail dispersion data (proxy for coverage comm-graphs). Full write-up in that repo's
+`RESULTS.md` / `FINDINGS.md`.
+
+- **Aggregator:** `max` & `multihead` co-best (~0.66); single-head attention worst (0.557); gcn/sum/gated/
+  laplacian mid. `max` most reliable (cv-std .0055), multihead best extrapolation.
+- **Content:** edge-distance content (`margin`/`geom`/`signal`) and `learned` all lift mean .57→.64
+  (the prior that `learned` was weak was WRONG).
+- **Identity:** `index` helps (+~.05) and was the **single dominant ingredient** in the combination grid;
+  `random` is a dead no-op (λ₂ is permutation-invariant → index is a positional fit aid, not identity).
+- **Two structural walls:** in-distribution **~0.66 ceiling** (no message-design choice breaks it) and
+  **N=30 zero-shot = 0.00** for all 32 configs (the size-transfer wall).
+- **Combination grid (20 cfg):** stacking compounds **modestly** — best `max+learned+index` cv20 **.703** (vs
+  .66), best extrap →24 **.64** (vs .50); reliability + transfer improve, the ~0.70 ceiling holds. Dynamics
+  features (Δdegree / neighbour approach-rate / speed) help a touch (+.01).
+- **The real answer (power-iteration verification):** the learned net caps at 0.66 because it is
+  **rounds-bound** — 2 message rounds can't compute a global spectral property. Decentralized power-iteration
+  hits **0.99**, but rounds-to-precision **grows with N** (N=4 ~8, N=20 ~128). **Mission-budget problem:** 128
+  cold-start rounds doesn't fit a 100-step mission; warm-started **tracking** beats cold-start hugely but still
+  needs ~K=8 rounds/step (~.55–.83) — neither vanilla option is cheap-and-precise. The gap is
+  **rounds/iteration, not message design.**
+- **Ensemble / permutation:** measured — do NOT help (correlated bias, not variance; estimator is invariant
+  so permutation gives zero diversity). Clean negative.
+- **Anticipatory-estimator lit review (robotics/MARL):** every component (NRI neighbour-prediction, GNS
+  world-models, decentralized λ₂, prediction-residual Byzantine detection, online spectral tracking) is
+  **mature**, and the dual-use conjunction is already 2025 work → demote the anticipatory estimator to
+  **borrowed substrate**; the open novelty is the **stealth-adversary vs predictive-detector** game.
+- **Infra:** fixed a **GPU XLA vmap miscompile** (single-head attention at N=20 → eval via `lax.map`); made
+  all launchers **resumable** + added **step-level checkpoints**; renamed **Fidler → Fiedler** everywhere (36
+  files + memory, 219 tests green); **scan-loop trainer refactor** (per-step Python launches → chunked
+  `lax.scan` + on-device eval), **bit-exact, ~10× faster CPU** — the cure for the "GPU 99% util / 33% power"
+  inefficiency (small host-launched kernels, not capacity).
+
+### B. First grounded CTDE agent — `TeamBlue/SharedExploration/ctde_v0/`
+
+The first agent that matches `agent_architecture.md`: **LPAC backbone (CNN → GNN message-passing KB,
+configurable aggregator) → multi-level goal head (L3 goal → fixed L1 controller, NO direct moves) →
+decentralized λ̂₂ aux head → centralized MAPPO critic (CTDE)**, full §5 config (every knob logged) + reg.
+
+- **Validated 16×16/4 on balthar GPU:** end-to-end, **controller 100% valid**, conn 99%, aux loss down.
+- **2000-iter run:** **aux-λ₂ accuracy 21%→90%** (the head learns λ₂ *better* than the passive estimator) —
+  BUT **coverage COLLAPSED 30%→7%** at 100% connectivity. **Diagnosis: the degenerate "huddle" optimum** —
+  clumping gives trivial connectivity *and* makes λ₂ trivially easy (hence the inflated 90%). A
+  **reward-balance failure**: connectivity dominates coverage; the GPU finally drew real power (197→490 W),
+  confirming MARL (vmapped rollouts) uses the card where the tiny estimator kernels didn't.
+
+**Design convergence (with the user) → the full SuperBlue agent as a configurable sweep:**
+- **Roles {explorer, relay}** (the labour-division huddle-fix): **explorer** = frontier-attention pointer
+  (IR2-style, the Phase-5 keystone) over the KB; **relay** = **λ̂₂-anchor** (holds the bridge by maximizing
+  local connectivity) — *the Fiedler estimator becomes the relay's brain.*
+- Plus **Compass** (frontier-heading from the KB — the missing exploration drive), **index in messages** (the
+  grid's top ingredient), **edge-distance message content** (top estimator finding), **anti-overlap reward**
+  (the proven 90%+ lever, [[marl-coverage-clustered-and-push]]), **recurrence/GRU** (the temporal twin of more
+  rounds). All **config axes**; permute → gate → mix winners (not a 250k-cfg Cartesian).
+- **Already live in the v0:** aggregator, mp_rounds, mechanism, aux-loss, regularization, norm/width/depth,
+  the goal head + aux-λ₂ head + central critic, soft-λ₂ target. So the build that remains is the **cognition
+  layer** (roles/tools/compass) + a few message/reward knobs + recurrence.
+
+**Staged experiment plan** (`ctde_v0/EXPERIMENTS.md`): **I1** role-picker × mechanism × anti-overlap (8 cfg —
+the make-or-break huddle test) → **I2** explorer/relay tools × compass → **F** backbone OFAT (agg, mp_rounds,
+recurrence, content — the estimator-derived levers) → **S** scale. ≈33 cfg × 3 seeds ≈ 100 runs, matching the
+EXPERIMENT_PLAN envelope; each stage gates the next.
+
+**Changes.** New `FiedlerValueEstimation/` study (RESULTS/FINDINGS). New `ctde_v0/` agent + sweep harness +
+`EXPERIMENTS.md`. This JOURNEY entry. **Next.** I1 modules building; preliminary `mechanism × mp_rounds` CTDE
+sweep running on balthar; then the I1 roles+anti-overlap sweep (sharded, parallel). Mix winners → I2 → F → S.
