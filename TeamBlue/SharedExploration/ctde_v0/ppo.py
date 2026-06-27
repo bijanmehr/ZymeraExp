@@ -143,6 +143,13 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     reset_key, scan_key = jax.random.split(key)
     obs0, state0 = env.reset(reset_key)
 
+    # Recurrence: a per-agent hidden state h (N,W) is carried THROUGH the episode scan
+    # (reset to zeros at episode start). It is always part of the carry (a stable carry
+    # pytree); on the feedforward path actor() returns the zero passthrough so h stays
+    # zeros and contributes nothing (the trajectory pytree is byte-unchanged either way,
+    # since h lives in the CARRY, not the per-step outputs).
+    h0 = actor.init_hidden(state0.n_agents)                          # (N,W) episode-start
+
     use_roles = cfg.role_picker == "expl_relay"
     adaptive = cfg.mission_safety.mechanism in ("lagrangian", "pid_lagrangian")
     # conn_signal (I1c) is ORTHOGONAL to mechanism: it only changes WHAT shortfall
@@ -151,12 +158,15 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     local_signal = cfg.mission_safety.conn_signal == "local_edge_margin"
 
     def body(carry, _):
-        state, obs, k = carry
+        state, obs, h, k = carry
         k, ak, rk, sk = jax.random.split(k, 4)
 
         adj_off = _eu.kb_adjacency(state.body.position, cfg)          # (N,N) KB graph
-        goal_logits, role_logits, value_agent, l2_hat, _z = actor(
-            obs, adj_off, inference=True
+        # Feed the carried hidden h in and get the step's NEW hidden out (h_next). On
+        # the feedforward path h_next is the zero passthrough (h stays zeros all
+        # episode); on the recurrent path it is GRUCell(z, h), carried to the next step.
+        goal_logits, role_logits, value_agent, l2_hat, _z, h_next = actor(
+            obs, adj_off, h=h, inference=True
         )
         central = env.central_obs(state)                              # (Cg,H,W)
         v_team = critic(central, inference=True)                      # ()
@@ -235,10 +245,10 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             # violation; only present on the local_edge_margin path so the
             # global_lambda2 trajectory pytree is byte-unchanged from I1b).
             per_step["margin_step"] = margin.mean()                    # ()
-        return (state_next, obs_next, k), per_step
+        return (state_next, obs_next, h_next, k), per_step
 
-    (state_T, _obs_T, _), traj = jax.lax.scan(
-        body, (state0, obs0, scan_key), xs=None, length=cfg.world.horizon
+    (state_T, _obs_T, _h_T, _), traj = jax.lax.scan(
+        body, (state0, obs0, h0, scan_key), xs=None, length=cfg.world.horizon
     )
     central_T = env.central_obs(state_T)
     traj["v_last"] = critic(central_T, inference=True)               # () GAE bootstrap
@@ -309,30 +319,98 @@ def _clipped_pg(logp, old_logp, adv_norm, clip):
     return -jnp.minimum(unclipped, clipped).mean()
 
 
+def _actor_forward_ff(actor, obs, adj, key):
+    """Feedforward actor forward over a FLAT minibatch (M rows). vmap the actor per
+    row (h=None -> the zero passthrough, never used); returns (goal_logits (M,N,K),
+    role_logits (M,N,R), l2_hat (M,N), feat (M,N,W)). Byte-identical to the
+    pre-recurrence forward (the actor's feedforward branch reads z directly)."""
+    M = obs.shape[0]
+    akeys = jax.random.split(key, M)
+
+    def fwd(o, a, kk):
+        g, r, _v, l2, feat, _h = actor(o, a, key=kk, inference=False)
+        return g, r, l2, feat
+    return jax.vmap(fwd)(obs, adj, akeys)
+
+
+def _actor_forward_recurrent(actor, obs, adj, key):
+    """Recurrent actor forward over a minibatch of EPISODES (obs (B,T,N,C,H,W)).
+
+    For each episode independently, run a ``lax.scan`` over the T steps that RE-FOLDS
+    the hidden state under the CURRENT params from zeros — exactly reproducing the
+    rollout's recurrence (BPTT through the trajectory). The heads read the recomputed
+    per-step hidden, so the stored sampled goals/roles get current-policy logits with
+    the right temporal context. Returns the SAME tuple as the feedforward forward but
+    flattened to (B*T, ...) so the rest of the loss is shape-identical:
+    (goal_logits (M,N,K), role_logits (M,N,R), l2_hat (M,N), feat (M,N,W)), M = B*T.
+
+    Each episode is one INDEPENDENT sequence (h resets per episode); minibatching over
+    episodes (not flattened steps) is what keeps the 100-step sequences intact for the
+    scan. Per-step dropout keys are derived deterministically (split per (episode,t))."""
+    B, T = obs.shape[0], obs.shape[1]
+    N = obs.shape[2]
+    h0 = actor.init_hidden(N)                                       # (N,W) per-episode start
+    ep_keys = jax.random.split(key, B)                             # one key per episode
+
+    def per_episode(obs_e, adj_e, ek):
+        # obs_e (T,N,C,H,W), adj_e (T,N,N); scan the recurrence over the T steps.
+        step_keys = jax.random.split(ek, T)                       # (T,) per-step dropout keys
+
+        def step(h, inp):
+            o_t, a_t, kk = inp
+            g, r, _v, l2, feat, h_next = actor(o_t, a_t, h=h, key=kk, inference=False)
+            return h_next, (g, r, l2, feat)
+
+        _hT, outs = jax.lax.scan(step, h0, (obs_e, adj_e, step_keys))
+        return outs                                               # each (T,N,...)
+
+    g, r, l2, feat = jax.vmap(per_episode)(obs, adj, ep_keys)      # each (B,T,N,...)
+    # flatten (B,T,...) -> (B*T,...) so the downstream loss sees the same M-row layout.
+    flat = lambda x: x.reshape((B * T,) + x.shape[2:])
+    return flat(g), flat(r), flat(l2), flat(feat)
+
+
 def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
     """Total loss = PPO(goal) [+ PPO(role)] + vf*value + beta*aux + degreeReg
     - ent*(goal entropy [+ role entropy]). The role terms are added ONLY when
-    ``role_picker == 'expl_relay'`` (off -> identical to v0)."""
-    obs = batch["obs"]                 # (M,N,C,H,W)
-    adj = batch["adj"]                 # (M,N,N) KB graph
-    central = batch["central"]         # (M,Cg,H,W)
-    goal = batch["goal"]               # (M,N) sampled goal index
-    old_logp = batch["goal_logp"]      # (M,N)
-    gmask = batch["goal_mask"]         # (M,N,K)
-    role = batch["role"]               # (M,N) sampled role index
-    old_role_logp = batch["role_logp"] # (M,N)
-    adv = batch["adv"]                 # (M,) team advantage
-    ret = batch["ret"]                 # (M,) team return
-    true_l2 = batch["true_l2"]         # (M,) aux target
-    degree = batch["degree"]           # (M,N) per-node comm degree
+    ``role_picker == 'expl_relay'`` (off -> identical to v0).
 
+    Recurrence: with ``backbone.recurrence == 'recurrent'`` the minibatch arrives as
+    a batch of EPISODES (leading (B,T)); the actor is re-applied along each trajectory
+    via a per-episode scan (``_actor_forward_recurrent``) so the per-step hidden is
+    recomputed under the current params, then everything is flattened to (M=B*T) and
+    the rest of the loss is shape-identical to the feedforward path. The feedforward
+    path keeps the flat (M,...) minibatch and the per-row vmap forward EXACTLY as
+    before (byte-unchanged)."""
+    recurrent = cfg.backbone.recurrence == "recurrent"
+    obs = batch["obs"]                 # FF: (M,N,C,H,W) | REC: (B,T,N,C,H,W)
+    adj = batch["adj"]                 # FF: (M,N,N)     | REC: (B,T,N,N)
     use_roles = cfg.role_picker == "expl_relay"
-    M = obs.shape[0]
-    akeys = jax.random.split(key, M)
-    # actor forward over the minibatch (dropout active in training).
-    def fwd(o, a, kk):
-        return actor(o, a, key=kk, inference=False)
-    goal_logits, role_logits, _v_agent, l2_hat, _z = jax.vmap(fwd)(obs, adj, akeys)
+
+    if recurrent:
+        # actor forward along each episode (BPTT scan), flattened to (M=B*T,...). The
+        # per-step targets/old-logps/adv arrive (B,T,...) and are flattened the SAME way.
+        goal_logits, role_logits, l2_hat, _z = _actor_forward_recurrent(
+            actor, obs, adj, key)
+        B, T = obs.shape[0], obs.shape[1]
+        _f = lambda x: x.reshape((B * T,) + x.shape[2:])
+        central = _f(batch["central"]); goal = _f(batch["goal"])
+        old_logp = _f(batch["goal_logp"]); gmask = _f(batch["goal_mask"])
+        role = _f(batch["role"]); old_role_logp = _f(batch["role_logp"])
+        adv = _f(batch["adv"]); ret = _f(batch["ret"])
+        true_l2 = _f(batch["true_l2"]); degree = _f(batch["degree"])
+    else:
+        central = batch["central"]         # (M,Cg,H,W)
+        goal = batch["goal"]               # (M,N) sampled goal index
+        old_logp = batch["goal_logp"]      # (M,N)
+        gmask = batch["goal_mask"]         # (M,N,K)
+        role = batch["role"]               # (M,N) sampled role index
+        old_role_logp = batch["role_logp"] # (M,N)
+        adv = batch["adv"]                 # (M,) team advantage
+        ret = batch["ret"]                 # (M,) team return
+        true_l2 = batch["true_l2"]         # (M,) aux target
+        degree = batch["degree"]           # (M,N) per-node comm degree
+        goal_logits, role_logits, l2_hat, _z = _actor_forward_ff(actor, obs, adj, key)
     # goal_logits (M,N,K); apply the SAME mask used at sample time.
     masked = jnp.where(gmask, goal_logits, _NEG)
     logp_all = jax.nn.log_softmax(masked, axis=-1)                  # (M,N,K)
@@ -466,7 +544,8 @@ def init_state(env, cfg: CTDEConfig, key) -> TrainState:
     actor = Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
                   dropout=cfg.regularization.dropout, key=ka,
                   explorer_tool=cfg.action_head.explorer_tool,
-                  compass=cfg.action_head.compass)
+                  compass=cfg.action_head.compass,
+                  recurrence=cfg.backbone.recurrence)
     critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
                     cfg.regularization.dropout, key=kc)
     opt = make_optimizer(cfg)
@@ -519,25 +598,29 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
 
     # The KB adjacency the actor consumed at rollout time is stored in the traj
     # ("adj"), so the loss replays the actor on exactly the same comm graph.
-    flat = {
-        "obs": _flatten_BT(traj["obs"]),
-        "adj": _flatten_BT(traj["adj"]),
-        "central": _flatten_BT(traj["central"]),
-        "goal": _flatten_BT(traj["goal"]),
-        "goal_logp": _flatten_BT(traj["goal_logp"]),
-        "goal_mask": _flatten_BT(traj["goal_mask"]),
-        "role": _flatten_BT(traj["role"]),
-        "role_logp": _flatten_BT(traj["role_logp"]),
-        "adv": _flatten_BT(adv),
-        "ret": _flatten_BT(ret),
-        "true_l2": _flatten_BT(traj["true_l2"]),
-        "degree": _flatten_BT(traj["degree"]),
-    }
-    M = flat["obs"].shape[0]
+    #
+    # Recurrence changes ONLY how the minibatch axis is built. Feedforward (default):
+    # flatten (B,T)->M and shuffle/minibatch over the M independent steps EXACTLY as
+    # before (byte-unchanged). Recurrent: KEEP the (B,T,...) episode structure and
+    # shuffle/minibatch over EPISODES (B) so each 100-step sequence stays intact for
+    # the per-episode BPTT scan in loss_fn (the hidden resets per episode, so episodes
+    # are the independent unit — never mix steps across episodes). The minibatch slicer
+    # (_update_epoch) is identical in both cases; only the indexed leading axis differs
+    # (M flat rows vs B episodes), and loss_fn detects which by the leading rank.
+    fields = ("obs", "adj", "central", "goal", "goal_logp", "goal_mask",
+              "role", "role_logp", "true_l2", "degree")
+    if cfg.backbone.recurrence == "recurrent":
+        flat = {k: traj[k] for k in fields}          # keep (B,T,...) — minibatch episodes
+        flat["adv"], flat["ret"] = adv, ret          # (B,T) per-episode advantage/return
+        nperm = flat["obs"].shape[0]                 # B episodes
+    else:
+        flat = {k: _flatten_BT(traj[k]) for k in fields}   # (B*T,...) flat steps
+        flat["adv"], flat["ret"] = _flatten_BT(adv), _flatten_BT(ret)
+        nperm = flat["obs"].shape[0]                 # M = B*T steps
 
     def one_epoch(carry, ek):
         pkey, lkey = jax.random.split(ek)
-        perm = jax.random.permutation(pkey, M)
+        perm = jax.random.permutation(pkey, nperm)
         carry, metrics = _update_epoch(carry, flat, perm, lkey, cfg, opt)
         return carry, metrics
 

@@ -56,6 +56,14 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
     p.add_argument("--mp-rounds", type=int, default=2)
     p.add_argument("--agg", choices=["mean", "max", "multihead"], default="max")
     p.add_argument("--norm", choices=["layer", "none"], default="layer")
+    p.add_argument("--recurrence", choices=["feedforward", "recurrent"],
+                   default="feedforward",
+                   help="per-agent temporal memory (the recurrence axis): "
+                        "feedforward=heads read the per-step belief (v0, byte-unchanged); "
+                        "recurrent=a GRU carries a per-agent hidden state across the "
+                        "100-step episode so the agent remembers its trajectory/coverage "
+                        "history (heads read the hidden). Threads through the rollout "
+                        "scan AND the PPO loss (BPTT, minibatched over episodes).")
     # action head
     p.add_argument("--goal-k", type=int, default=9)
     p.add_argument("--stride", type=int, default=3)
@@ -147,7 +155,7 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool]:
         world=World(grid=args.grid, n_agents=args.n_agents, comm_r=args.comm_r,
                     horizon=args.horizon),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
-                          agg=args.agg, norm=args.norm),
+                          agg=args.agg, norm=args.norm, recurrence=args.recurrence),
         action_head=dataclasses.replace(CTDEConfig().action_head, K=args.goal_k,
                                         stride=args.stride,
                                         explorer_tool=args.explorer_tool,

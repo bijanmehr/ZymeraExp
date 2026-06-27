@@ -530,31 +530,51 @@ class Actor(eqx.Module):
     The (post-compass) belief ``z`` is returned so the trainer can compute the degree
     regularizer.
 
-    Init note: the ``compass`` key is derived via ``jax.random.fold_in`` (NOT by
-    widening the ``split``) so the backbone / goal / role / frontier / aux / value
-    keys are byte-IDENTICAL to the pre-compass actor — an actor built with
-    ``compass='off'`` is bit-for-bit the same network as before this module existed.
+    Recurrence (the ``recurrence`` axis): a per-agent ``gru`` (``eqx.nn.GRUCell``,
+    W -> W) is ALWAYS built (stable param surface) but only USED when
+    ``recurrence == 'recurrent'``. In that mode each step folds the (post-compass)
+    belief ``z`` into a carried hidden state ``h`` — ``h_next = GRUCell(z, h)`` per
+    agent (vmap over N) — and EVERY head (goal / role / λ̂₂ / value, incl. the
+    frontier/compass tools' belief input) reads ``h_next`` INSTEAD of ``z``, so the
+    agent remembers its own trajectory / coverage history across the episode. The
+    incoming hidden ``h`` is threaded by the caller (the rollout scan carry; reset to
+    zeros at each episode start, and recomputed under the current params along the
+    trajectory in the PPO loss). With ``recurrence == 'feedforward'`` (default) the
+    GRU is never traced, the heads read ``z`` exactly as before, and ``h_next`` is the
+    zero passthrough — so the actor forward is BYTE-IDENTICAL to the pre-recurrence
+    actor (the ``gru`` params just sit unused).
+
+    Init note: both the ``compass`` AND the ``gru`` keys are derived via
+    ``jax.random.fold_in`` (NOT by widening the ``split``) so the backbone / goal /
+    role / frontier / aux / value keys are byte-IDENTICAL to the pre-recurrence actor
+    — an actor built with ``compass='off'`` / ``recurrence='feedforward'`` is
+    bit-for-bit the same network as before these modules existed.
     """
     backbone: Backbone
     goal_head: eqx.nn.Linear
     role_head: eqx.nn.Linear
     frontier_attn: FrontierAttn
     compass: Compass
+    gru: eqx.nn.GRUCell
     aux_head: eqx.nn.Linear
     value_head: eqx.nn.Linear
     K: int = eqx.field(static=True)
     n_roles: int = eqx.field(static=True)
     explorer_tool: str = eqx.field(static=True)
     compass_on: bool = eqx.field(static=True)
+    recurrent: bool = eqx.field(static=True)
+    width: int = eqx.field(static=True)
 
     def __init__(self, in_ch: int, K: int, *, backbone_cfg, dropout: float, key,
                  n_roles: int = 2, explorer_tool: str = "goal_head",
-                 compass: str = "off"):
+                 compass: str = "off", recurrence: str = "feedforward"):
         kb, kg, kr, kf, ka, kv = jax.random.split(key, 6)
-        # Derive the compass key by folding a fixed constant into the ORIGINAL key,
-        # so the six keys above are unchanged -> compass='off' is byte-identical to
-        # the pre-compass actor (split(key,7) would have perturbed all six).
+        # Derive the compass / gru keys by folding fixed constants into the ORIGINAL
+        # key, so the six keys above are unchanged -> compass='off' /
+        # recurrence='feedforward' is byte-identical to the pre-module actor
+        # (split(key,7+) would have perturbed all six).
         kcomp = jax.random.fold_in(key, 0xC0)
+        kgru = jax.random.fold_in(key, 0x60)
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
@@ -564,14 +584,24 @@ class Actor(eqx.Module):
         self.role_head = eqx.nn.Linear(W, n_roles, key=kr)
         self.frontier_attn = FrontierAttn(W, key=kf)
         self.compass = Compass(W, K, key=kcomp)
+        # per-agent recurrent cell over the belief width (W -> W); always built so the
+        # param tree is invariant to the recurrence knob, only USED when recurrent.
+        self.gru = eqx.nn.GRUCell(W, W, key=kgru)
         self.aux_head = eqx.nn.Linear(W, 1, key=ka)
         self.value_head = eqx.nn.Linear(W, 1, key=kv)
         self.K = int(K)
         self.n_roles = int(n_roles)
         self.explorer_tool = str(explorer_tool)
         self.compass_on = (str(compass) == "on")
+        self.recurrent = (str(recurrence) == "recurrent")
+        self.width = int(W)
 
-    def __call__(self, obs, adj_off, *, key=None, inference: bool = False):
+    def init_hidden(self, n: int) -> jax.Array:
+        """Zero per-agent hidden state ``(N, W)`` — the episode-start carry for the
+        recurrent path (and the inert passthrough returned by the feedforward path)."""
+        return jnp.zeros((n, self.width), dtype=jnp.float32)
+
+    def __call__(self, obs, adj_off, *, h=None, key=None, inference: bool = False):
         z = self.backbone(obs, adj_off, key=key, inference=inference)   # (N,W)
         # Compass directional feature: ADD the gather/explore navigation term to the
         # belief BEFORE any head, so every head (goal / role / λ̂₂ / value) reads the
@@ -580,17 +610,30 @@ class Actor(eqx.Module):
         # actor (the `compass` params just sit unused, built for a stable param surface).
         if self.compass_on:
             z = z + self.compass(obs, z)                                # (N,W) z'
-        goal_logits = jax.vmap(self.goal_head)(z)                       # (N,K)
+        # Recurrence: fold the (post-compass) belief into the carried hidden state and
+        # let EVERY head read that hidden instead of z, so the agent remembers its own
+        # trajectory across the 100-step episode. `recurrent` is STATIC, so when off
+        # this branch is never traced, `feat` stays z, and `h_next` is the zero
+        # passthrough -> the whole forward is byte-identical to the pre-recurrence actor.
+        n = z.shape[0]
+        h_in = self.init_hidden(n) if h is None else h                  # (N,W) carry
+        if self.recurrent:
+            h_next = jax.vmap(self.gru)(z, h_in)                        # (N,W) per-agent GRU
+            feat = h_next                                              # heads read the hidden
+        else:
+            h_next = self.init_hidden(n)                              # inert zero passthrough
+            feat = z                                                  # heads read the belief (v0)
+        goal_logits = jax.vmap(self.goal_head)(feat)                   # (N,K)
         # L4 "disperse" tool: add the frontier-attention bias ONLY when selected.
         # `explorer_tool` is a STATIC string, so at "goal_head" this branch never
         # runs and `goal_logits` is byte-identical to the pre-tool actor; the
         # `frontier_attn` params just sit unused (built for a stable param surface).
         if self.explorer_tool == "frontier_attn":
-            goal_logits = goal_logits + self.frontier_attn(obs, z, self.K)  # (N,K)
-        role_logits = jax.vmap(self.role_head)(z)                       # (N,R)
-        value = jax.vmap(self.value_head)(z)[:, 0]                      # (N,)
-        lambda2_hat = jax.vmap(self.aux_head)(z)[:, 0]                  # (N,)
-        return goal_logits, role_logits, value, lambda2_hat, z
+            goal_logits = goal_logits + self.frontier_attn(obs, feat, self.K)  # (N,K)
+        role_logits = jax.vmap(self.role_head)(feat)                   # (N,R)
+        value = jax.vmap(self.value_head)(feat)[:, 0]                  # (N,)
+        lambda2_hat = jax.vmap(self.aux_head)(feat)[:, 0]             # (N,)
+        return goal_logits, role_logits, value, lambda2_hat, feat, h_next
 
 
 # =============================================================================

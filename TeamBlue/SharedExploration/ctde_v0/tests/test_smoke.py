@@ -95,7 +95,7 @@ def test_actor_backbone_forward():
     adj = env_utils.kb_adjacency(state.body.position, cfg)
     actor = Actor(env.obs.obs_channels, cfg.action_head.K,
                   backbone_cfg=cfg.backbone, dropout=0.0, key=jax.random.PRNGKey(2))
-    goal_logits, role_logits, value, l2_hat, z = actor(obs, adj, inference=True)
+    goal_logits, role_logits, value, l2_hat, z, _h = actor(obs, adj, inference=True)
     assert goal_logits.shape == (cfg.world.n_agents, cfg.action_head.K)
     assert role_logits.shape == (cfg.world.n_agents, actor.n_roles)
     assert value.shape == (cfg.world.n_agents,)
@@ -114,7 +114,7 @@ def test_aggregators_all_run():
         bb = dataclasses.replace(cfg0.backbone, agg=agg)
         actor = Actor(env.obs.obs_channels, cfg0.action_head.K,
                       backbone_cfg=bb, dropout=0.0, key=jax.random.PRNGKey(3))
-        _, _, _, _, z = actor(obs, adj, inference=True)
+        _, _, _, _, z, _h = actor(obs, adj, inference=True)
         assert jnp.isfinite(z).all(), agg
 
 
@@ -203,7 +203,7 @@ def test_explorer_tool_goal_head_byte_unchanged():
     adj = env_utils.kb_adjacency(state.body.position, cfg)
     actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
                   dropout=0.0, key=jax.random.PRNGKey(2), explorer_tool="goal_head")
-    goal_logits, *_rest, z = actor(obs, adj, inference=True)
+    goal_logits, _rl, _v, _l2, z, _h = actor(obs, adj, inference=True)
     goal_only = jax.vmap(actor.goal_head)(z)               # goal head with NO tool
     assert bool(jnp.array_equal(goal_logits, goal_only)), "goal_head path changed"
 
@@ -444,7 +444,7 @@ def test_compass_off_byte_unchanged():
     adj = env_utils.kb_adjacency(state.body.position, cfg)
     actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
                   dropout=0.0, key=jax.random.PRNGKey(2), compass="off")
-    goal_logits, role_logits, value, l2_hat, z = actor(obs, adj, inference=True)
+    goal_logits, role_logits, value, l2_hat, z, _h = actor(obs, adj, inference=True)
     z_raw = actor.backbone(obs, adj, inference=True)       # belief with NO compass term
     assert bool(jnp.array_equal(z, z_raw)), "z changed when compass off"
     # every head equals its raw-belief readout (no compass anywhere).
@@ -488,7 +488,7 @@ def test_compass_on_shifts_belief_and_train_step():
     adj = env_utils.kb_adjacency(state.body.position, cfg)
     actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
                   dropout=0.0, key=jax.random.PRNGKey(2), compass="on")
-    _, _, _, _, z = actor(obs, adj, inference=True)
+    _, _, _, _, z, _h = actor(obs, adj, inference=True)
     z_raw = actor.backbone(obs, adj, inference=True)
     assert not bool(jnp.array_equal(z, z_raw)), "compass=on did not shift z"
     # a full PPO iter runs and the compass submodule actually moves.
@@ -526,12 +526,233 @@ def test_defaults_byte_unchanged_full_actor():
     adj = env_utils.kb_adjacency(state.body.position, cfg)
     actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
                   dropout=0.0, key=jax.random.PRNGKey(2))   # all-default tools
-    goal_logits, role_logits, value, l2_hat, z = actor(obs, adj, inference=True)
+    goal_logits, role_logits, value, l2_hat, z, _h = actor(obs, adj, inference=True)
     z_raw = actor.backbone(obs, adj, inference=True)
     assert bool(jnp.array_equal(z, z_raw))                  # compass off -> z untouched
     assert bool(jnp.array_equal(goal_logits, jax.vmap(actor.goal_head)(z_raw)))  # no frontier
     assert bool(jnp.array_equal(value, jax.vmap(actor.value_head)(z_raw)[:, 0]))
     assert bool(jnp.array_equal(l2_hat, jax.vmap(actor.aux_head)(z_raw)[:, 0]))
+
+
+# ---- recurrence axis (feedforward | recurrent) ------------------------------
+#
+# The GRU is ALWAYS built (stable param surface) and only USED when
+# recurrence='recurrent'; the hidden threads through BOTH the rollout scan AND the
+# PPO loss (recomputed along each trajectory via a per-episode BPTT scan). Tests:
+#  (a) param-surface stable + feedforward forward byte-unchanged + key-identity;
+#  (b) recurrent: h changes within an episode and resets at episode start; a few PPO
+#      iters run end-to-end (ctrl_valid=100%, loss finite) and the GRU takes a step;
+#  (c) the recurrent forward IN THE LOSS reproduces the rollout's logits (consistency);
+#  (d) REGRESSION: recurrence='feedforward' leaves the rollout + update byte-identical.
+
+
+def test_recurrence_config_roundtrip():
+    """The recurrence axis round-trips through the config tree and defaults to v0."""
+    import dataclasses
+    cfg = _tiny_cfg()
+    assert cfg.backbone.recurrence == "feedforward"            # the default
+    d = cfg.to_dict()
+    assert d["backbone"]["recurrence"] == "feedforward"
+    cfg2 = _tiny_cfg(backbone=dataclasses.replace(_tiny_cfg().backbone,
+                                                  recurrence="recurrent"))
+    d2 = cfg2.to_dict()
+    assert d2["backbone"]["recurrence"] == "recurrent"
+    assert from_dict(d2).to_dict() == d2
+
+
+def test_recurrence_param_surface_stable_and_key_identical():
+    """The gru submodule is ALWAYS built (stable param tree) regardless of the
+    recurrence knob, AND a feedforward actor shares EVERY non-gru parameter bit-for-bit
+    with a recurrent actor of the same key (the gru key is fold_in-derived, so the
+    backbone / goal / role / frontier / compass / aux / value keys are unchanged — a
+    feedforward actor is the pre-recurrence network exactly)."""
+    import dataclasses
+    import equinox as eqx
+    cfg = _tiny_cfg()
+    bb_re = dataclasses.replace(cfg.backbone, recurrence="recurrent")
+    a_ff = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                 key=jax.random.PRNGKey(0), recurrence="feedforward")
+    a_re = Actor(5, cfg.action_head.K, backbone_cfg=bb_re, dropout=0.0,
+                 key=jax.random.PRNGKey(0), recurrence="recurrent")
+
+    def leaves(m):
+        return jax.tree_util.tree_leaves(eqx.filter(m, eqx.is_array))
+    for name in ("backbone", "goal_head", "role_head", "frontier_attn", "compass",
+                 "aux_head", "value_head"):
+        lo, ln = leaves(getattr(a_ff, name)), leaves(getattr(a_re, name))
+        assert lo and all(bool(jnp.array_equal(x, y)) for x, y in zip(lo, ln)), name
+    # the gru param surface itself is present and identical between the two.
+    s_ff = [p.shape for p in leaves(a_ff.gru)]
+    s_re = [p.shape for p in leaves(a_re.gru)]
+    assert s_ff == s_re and len(s_ff) > 0
+
+
+def test_recurrence_feedforward_byte_unchanged_forward():
+    """REGRESSION: recurrence='feedforward' (DEFAULT) leaves the actor forward byte-
+    identical — the heads read the belief z directly (feat == backbone(obs)), the GRU
+    never contributes, and the returned hidden is the zero passthrough."""
+    cfg = _tiny_cfg()
+    assert cfg.backbone.recurrence == "feedforward"            # the default
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2), recurrence="feedforward")
+    goal_logits, role_logits, value, l2_hat, feat, h = actor(obs, adj, inference=True)
+    z_raw = actor.backbone(obs, adj, inference=True)           # belief, no GRU
+    assert bool(jnp.array_equal(feat, z_raw)), "feat changed when feedforward"
+    assert bool((h == 0.0).all()), "feedforward hidden is not the zero passthrough"
+    # every head equals its raw-belief readout (the GRU touched nothing).
+    assert bool(jnp.array_equal(goal_logits, jax.vmap(actor.goal_head)(z_raw)))
+    assert bool(jnp.array_equal(role_logits, jax.vmap(actor.role_head)(z_raw)))
+    assert bool(jnp.array_equal(value, jax.vmap(actor.value_head)(z_raw)[:, 0]))
+    assert bool(jnp.array_equal(l2_hat, jax.vmap(actor.aux_head)(z_raw)[:, 0]))
+
+
+def test_recurrent_hidden_changes_and_resets():
+    """Recurrent: the carried hidden h evolves step-to-step within an episode (so the
+    heads see a different feature each step even on identical obs) and RESETS to the
+    same value at episode start (feeding the zero init reproduces step-1's hidden)."""
+    import dataclasses
+    cfg = _tiny_cfg(backbone=dataclasses.replace(
+        _tiny_cfg().backbone, recurrence="recurrent"))
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2), recurrence="recurrent")
+    h0 = actor.init_hidden(state.n_agents)                     # (N,W) episode start zeros
+    assert bool((h0 == 0.0).all())
+    g1, _, _, _, _, h1 = actor(obs, adj, h=h0, inference=True)
+    g2, _, _, _, _, h2 = actor(obs, adj, h=h1, inference=True)  # SAME obs, carried h1
+    assert bool((h1 != h0).any()), "hidden did not update on step 1"
+    assert bool((h2 != h1).any()), "hidden did not evolve step-to-step"
+    # because the heads read the hidden, identical obs gives DIFFERENT logits as h moves.
+    assert bool((g2 != g1).any()), "logits independent of the carried hidden"
+    # episode reset: feeding the zero init again reproduces step-1's hidden EXACTLY.
+    _, _, _, _, _, h1b = actor(obs, adj, h=actor.init_hidden(state.n_agents),
+                               inference=True)
+    assert bool(jnp.array_equal(h1, h1b)), "hidden did not reset at episode start"
+
+
+def test_recurrent_train_step_runs_and_grus_step():
+    """Recurrent: a PPO iter with recurrence='recurrent' runs end-to-end — the
+    controller still emits 100% valid moves, the loss is finite, and the GRU itself
+    takes a gradient step (BPTT through the trajectory actually flows into it)."""
+    import dataclasses
+    import equinox as eqx
+    cfg = _tiny_cfg(backbone=dataclasses.replace(
+        _tiny_cfg().backbone, recurrence="recurrent"))
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    new_state, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"]) and jnp.isfinite(logs["policy_loss"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0              # only valid moves emitted
+    # the GRU took a gradient step (BPTT reached it through the per-episode loss scan).
+    g0 = jax.tree_util.tree_leaves(eqx.filter(state.actor.gru, eqx.is_array))
+    g1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor.gru, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(g0, g1)), "gru unchanged"
+
+
+def test_recurrent_loss_forward_reproduces_rollout_logits():
+    """CONSISTENCY (the crux): the recurrent forward used IN THE LOSS reproduces the
+    rollout's per-step logits for the same params/obs. Collect a rollout, then re-run
+    ``_actor_forward_recurrent`` over the stored (B,T) obs/adj and confirm the masked
+    log-prob of the SAMPLED goals equals the stored ``goal_logp`` — the per-episode
+    BPTT scan re-folds the hidden EXACTLY as the rollout scan did (deterministic at
+    dropout=0), so the clipped-PPO ratio starts at exactly 1 as it must."""
+    import dataclasses
+    cfg = _tiny_cfg(backbone=dataclasses.replace(
+        _tiny_cfg().backbone, recurrence="recurrent"))
+    env = env_utils.build_env(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    key = jax.random.PRNGKey(6)
+    traj = ppo.collect(env, state.actor, state.critic, cfg, stencil, key, jnp.float32(0.0))
+    obs_bt, adj_bt = traj["obs"], traj["adj"]                 # (B,T,N,...)
+    goal_bt, gmask_bt, logp_bt = traj["goal"], traj["goal_mask"], traj["goal_logp"]
+    B, T = obs_bt.shape[0], obs_bt.shape[1]
+    # the loss's recurrent forward (dropout off -> deterministic, key irrelevant).
+    g, _r, _l2, _feat = ppo._actor_forward_recurrent(
+        state.actor, obs_bt, adj_bt, jax.random.PRNGKey(0))
+    g = g.reshape(B, T, *g.shape[1:])                         # (B,T,N,K)
+    masked = jnp.where(gmask_bt, g, ppo._NEG)
+    logp_all = jax.nn.log_softmax(masked, axis=-1)
+    logp = jnp.take_along_axis(logp_all, goal_bt[..., None], axis=-1)[..., 0]  # (B,T,N)
+    assert bool(jnp.allclose(logp, logp_bt, atol=1e-5)), (
+        float(jnp.max(jnp.abs(logp - logp_bt))))
+    # the PPO ratio exp(logp - old_logp) is therefore ~1 everywhere at the first epoch.
+    assert bool(jnp.allclose(jnp.exp(logp - logp_bt), 1.0, atol=1e-4))
+
+
+def test_recurrent_minibatches_over_episodes_intact():
+    """The recurrent path minibatches over EPISODES (keeps each T-step sequence intact
+    for the BPTT scan), NOT over flattened steps. With B rollouts and ``minibatches``
+    chunks each minibatch is a block of whole episodes shaped (mb_B, T, ...); the loss
+    runs and is finite (a flattened-step minibatch would have broken the (B,T) scan)."""
+    import dataclasses
+    cfg = _tiny_cfg(
+        world=World(grid=8, n_agents=3, comm_r=3, horizon=6),
+        backbone=dataclasses.replace(_tiny_cfg().backbone, recurrence="recurrent"),
+        trainer=Trainer(minibatches=2, ppo_epochs=2),
+        rollouts_per_iter=4,                                  # B=4 episodes, 2 minibatches
+    )
+    env = env_utils.build_env(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    key = jax.random.PRNGKey(6)
+    traj = ppo.collect(env, state.actor, state.critic, cfg, stencil, key, jnp.float32(0.0))
+    adv, ret = ppo.compute_advantages(traj, cfg)
+    # build the recurrent minibatch the way train_step does: KEEP (B,T,...), take the
+    # first half of the episodes as one minibatch and run loss_fn over the SEQUENCES.
+    B = traj["obs"].shape[0]
+    mb = B // cfg.trainer.minibatches
+    sl = slice(0, mb)
+    fields = ("obs", "adj", "central", "goal", "goal_logp", "goal_mask",
+              "role", "role_logp", "true_l2", "degree")
+    batch = {k: traj[k][sl] for k in fields}
+    batch["adv"], batch["ret"] = adv[sl], ret[sl]
+    assert batch["obs"].ndim == 6                             # (mb_B, T, N, C, H, W) intact
+    assert batch["obs"].shape[0] == mb and batch["obs"].shape[1] == cfg.world.horizon
+    total, metrics = ppo.loss_fn(state.actor, state.critic, batch, cfg,
+                                 jax.random.PRNGKey(7))
+    assert bool(jnp.isfinite(total))
+    assert all(bool(jnp.isfinite(v)) for v in metrics.values())
+
+
+def test_recurrence_feedforward_train_step_byte_unchanged():
+    """REGRESSION (the update): recurrence='feedforward' (DEFAULT) leaves the WHOLE PPO
+    step byte-identical — the rollout trajectory carries no extra keys (hidden lives in
+    the scan carry only) and the actor/critic after one train_step match a run done with
+    an explicitly feedforward config, bit-for-bit (the GRU never contributes anywhere)."""
+    import dataclasses
+    import equinox as eqx
+    cfg_def = _tiny_cfg()
+    assert cfg_def.backbone.recurrence == "feedforward"       # the default
+    cfg_exp = _tiny_cfg(backbone=dataclasses.replace(
+        _tiny_cfg().backbone, recurrence="feedforward"))
+    env = env_utils.build_env(cfg_def)
+    stencil = ppo.make_stencil(cfg_def)
+    # (i) the rollout pytree carries NO recurrence-specific keys (hidden is carry-only).
+    st = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    traj = ppo.collect(env, st.actor, st.critic, cfg_def, stencil, jax.random.PRNGKey(6),
+                       jnp.float32(0.0))
+    assert "hidden" not in traj and "h" not in traj           # trajectory untouched
+    # (ii) a full train_step under the default and under an explicit feedforward config
+    #      produce bit-identical actor/critic params (the feedforward path is unchanged).
+    opt = ppo.make_optimizer(cfg_def)
+    s_def = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    s_exp = ppo.init_state(env, cfg_exp, jax.random.PRNGKey(5))
+    n_def, _ = ppo.train_step(env, s_def, cfg_def, jax.random.PRNGKey(6), opt, stencil)
+    n_exp, _ = ppo.train_step(env, s_exp, cfg_exp, jax.random.PRNGKey(6), opt, stencil)
+    la = jax.tree_util.tree_leaves(eqx.filter(n_def.actor, eqx.is_array))
+    lb = jax.tree_util.tree_leaves(eqx.filter(n_exp.actor, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(la, lb)), "actor diverged"
+    lc = jax.tree_util.tree_leaves(eqx.filter(n_def.critic, eqx.is_array))
+    ld = jax.tree_util.tree_leaves(eqx.filter(n_exp.critic, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(lc, ld)), "critic diverged"
 
 
 # ---- controller: only valid moves ------------------------------------------
@@ -1030,6 +1251,14 @@ if __name__ == "__main__":
     test_compass_on_shifts_belief_and_train_step()
     test_compass_config_roundtrip()
     test_defaults_byte_unchanged_full_actor()
+    test_recurrence_config_roundtrip()
+    test_recurrence_param_surface_stable_and_key_identical()
+    test_recurrence_feedforward_byte_unchanged_forward()
+    test_recurrent_hidden_changes_and_resets()
+    test_recurrent_train_step_runs_and_grus_step()
+    test_recurrent_loss_forward_reproduces_rollout_logits()
+    test_recurrent_minibatches_over_episodes_intact()
+    test_recurrence_feedforward_train_step_byte_unchanged()
     test_controller_emits_only_valid_moves()
     test_collision_mask_never_blocks_stay_and_stays_valid()
     test_collision_mask_forbids_occupied_cells()

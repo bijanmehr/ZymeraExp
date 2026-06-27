@@ -58,6 +58,18 @@ class Backbone:
     * ``agg``       — neighbour aggregator: "mean" | "max" (default) | "multihead".
                       NORMALIZED / size-invariant by construction (never raw-sum).
     * ``heads``     — attention heads when agg == "multihead".
+    * ``recurrence``— per-agent temporal memory over the belief (the recurrence axis):
+        - "feedforward" (default): the heads read the per-step belief z directly — v0
+          behaviour, byte-unchanged. The GRU is still BUILT (stable param surface) but
+          never used.
+        - "recurrent": an ``eqx.nn.GRUCell`` (W -> W) carries a per-agent hidden state
+          ``h`` ACROSS the 100-step episode (``h_t = GRUCell(z_t, h_{t-1})``, reset to
+          zeros at episode start); EVERY head reads ``h_t`` instead of ``z_t`` so the
+          agent remembers its own trajectory / coverage history (relevant to dispersal
+          OVER TIME). The hidden threads through BOTH the rollout (scan carry) and the
+          PPO loss (recomputed along each trajectory under the current params, BPTT via
+          a per-episode scan; the recurrent path minibatches over EPISODES, keeping each
+          100-step sequence intact). Width = ``width`` (the belief dim).
     """
     type: str = "lpac"
     depth: int = 2
@@ -66,6 +78,7 @@ class Backbone:
     norm: str = "layer"
     agg: str = "max"
     heads: int = 4
+    recurrence: str = "feedforward"   # {"feedforward", "recurrent"}
 
 
 @dataclass(frozen=True)
