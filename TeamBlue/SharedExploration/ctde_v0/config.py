@@ -43,6 +43,12 @@ class World:
     n_obstacles: int = 0
     spawn_radius: int | None = 2   # ClusterSpawn radius; None -> scatter spawn
     horizon: int = 100
+    # terrain: "open" (default) -> OpenTerrain. "rooms" -> zymera Rooms(`rooms`, door_w=1):
+    #   equal-width rooms split by full-height walls, ONE door per wall (corridors /
+    #   chokepoints; doors keep the free cells connected so the cluster spawn still works).
+    #   "walls" -> RandomWalls(`n_obstacles`) (scattered). Wired in env_utils.build_env.
+    terrain: str = "open"          # {"open", "rooms", "walls"}
+    rooms: int = 3                 # number of rooms when terrain == "rooms"
 
 
 @dataclass(frozen=True)
@@ -401,6 +407,13 @@ class CTDEConfig:
     #   modes instead of all piling into one. Decentralized + learned (NOT a global auction).
     congestion: str = "off"          # {"off", "on"}
     congestion_weight: float = 0.5   # weight on the per-agent same-skill-crowding penalty
+    # explore_infogain: "on" ADDS a per-agent exploration bonus = (count of UNCOVERED, non-
+    #   wall cells within the agent's sensor range) -> rewards being where there is still
+    #   ground to learn (an "info-gain" drive), STATELESS so the coverage metric is
+    #   unchanged/comparable. "off" (default) -> byte-unchanged. (The "coverage-bump"
+    #   exploration incentive is just a larger ``Reward.w_coverage`` — no separate axis.)
+    explore_infogain: str = "off"    # {"off", "on"}
+    info_gain_weight: float = 0.1    # weight on the uncovered-in-sensor-range bonus
 
     # ---- run control --------------------------------------------------------
     scale: str = "16x16/4"            # human label for the rung

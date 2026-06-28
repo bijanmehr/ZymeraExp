@@ -198,13 +198,24 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                         "penalty (choosing a skill in-range neighbours also chose costs you).")
     p.add_argument("--congestion-weight", type=float, default=0.5,
                    help="weight on the same-skill-crowding penalty (--congestion on)")
+    # obstacle terrain + exploration incentives (the obstacle-world reruns)
+    p.add_argument("--terrain", choices=["open", "rooms", "walls"], default="open",
+                   help="open (default) | rooms (corridors/chokepoints, doors keep free "
+                        "cells connected) | walls (RandomWalls via --n-obstacles)")
+    p.add_argument("--rooms", type=int, default=3, help="number of rooms when --terrain rooms")
+    p.add_argument("--n-obstacles", type=int, default=0, help="RandomWalls count (--terrain walls)")
+    p.add_argument("--explore-infogain", choices=["off", "on"], default="off",
+                   help="on=add a per-agent exploration bonus (count of uncovered cells in "
+                        "sensor range). The 'coverage-bump' incentive is just --w-coverage 3.")
+    p.add_argument("--info-gain-weight", type=float, default=0.1)
     args = p.parse_args(argv)
 
     ckpt_path = (os.path.join(args.run_dir, "model.eqx")
                  if (args.run_dir and args.ckpt) else None)
     cfg = CTDEConfig(
         world=World(grid=args.grid, n_agents=args.n_agents, comm_r=args.comm_r,
-                    horizon=args.horizon),
+                    horizon=args.horizon, terrain=args.terrain, rooms=args.rooms,
+                    n_obstacles=args.n_obstacles),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm,
                           message_content=args.message_content,
@@ -242,6 +253,8 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         flock=args.flock,
         congestion=args.congestion,
         congestion_weight=args.congestion_weight,
+        explore_infogain=args.explore_infogain,
+        info_gain_weight=args.info_gain_weight,
         scale=f"{args.grid}x{args.grid}/{args.n_agents}",
         iters=args.iters, rollouts_per_iter=args.rollouts, seed=args.seed,
         ckpt_path=ckpt_path,

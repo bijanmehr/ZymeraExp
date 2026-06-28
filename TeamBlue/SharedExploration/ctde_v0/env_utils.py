@@ -59,6 +59,18 @@ def build_env(cfg: CTDEConfig):
     )
     comm_r = int(env.channel.topology.radius)
     assert comm_r == w.comm_r, (comm_r, w.comm_r)
+    # Obstacle terrain (default "open" -> the recipe's OpenTerrain, unchanged). "rooms" ->
+    # zymera Rooms (corridors / chokepoints; doors keep free cells connected so the cluster
+    # spawn still works). "walls" already handled by n_obstacles -> RandomWalls in the recipe.
+    if w.terrain == "rooms":
+        from zymera.env import GridEnv
+        from zymera.worldgen import Rooms
+        # rebuild with the SAME recipe components, swapping only the terrain (env.replace
+        # re-runs the comm-coverage recipe, which has no terrain arg).
+        env = GridEnv(grid_h=env.grid_h, grid_w=env.grid_w, n_agents=env.n_agents,
+                      cover_r=env.cover_r, terrain=Rooms(rooms=int(w.rooms), door_w=1),
+                      spawn=env.spawn, dynamics=env.dynamics, channel=env.channel,
+                      obs=env.obs, mission=env.mission)
     return env
 
 
@@ -102,6 +114,12 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
     # so the branch is skipped and the reward is byte-unchanged).
     if congestion_penalty is not None:
         out = out - cfg.congestion_weight * congestion_penalty
+    # Exploration info-gain bonus (explore_infogain == "on"): ADD a per-agent count of
+    # UNCOVERED, non-wall cells within the agent's sensor range — "you're somewhere with
+    # ground still to learn". Stateless (reads the current world only), so the coverage
+    # metric is unchanged. off (default) -> branch skipped, reward byte-unchanged.
+    if cfg.explore_infogain == "on":
+        out = out + cfg.info_gain_weight * sense_frontier_bonus(world, cfg)
     # Anti-overlap (Increment-1): penalize cells my footprint shares with a
     # teammate THIS step (same_step_overlap) -> rewards non-redundant coverage.
     # Only present when build_env appended the 0-weight 'overlap' probe term.
@@ -281,6 +299,23 @@ def skill_congestion(skill_idx: jax.Array, position: jax.Array,
 # =============================================================================
 # Coverage metric (campaign definition)
 # =============================================================================
+
+
+def sense_frontier_bonus(world, cfg: CTDEConfig) -> jax.Array:
+    """(N,) float32 — the exploration "info-gain" bonus: per agent, the count of UNCOVERED,
+    non-wall cells within Chebyshev ``sense_r`` of the agent. Rewards being where there is
+    still ground to learn (drives agents toward the frontier) WITHOUT changing the coverage
+    metric (it reads only the current world). Pure JAX (vmap/scan/jit-safe)."""
+    pos = world.body.position                                        # (N,2)
+    sr = int(cfg.world.sense_r)
+    h, w = world.wall.shape
+    free_unc = ((~world.covered) & (~world.wall)).astype(jnp.float32)  # (H,W) uncovered free
+    rows = jnp.arange(h, dtype=jnp.int32)                            # (H,)
+    cols = jnp.arange(w, dtype=jnp.int32)                            # (W,)
+    dr = jnp.abs(rows[None, :] - pos[:, 0, None]) <= sr              # (N,H)
+    dc = jnp.abs(cols[None, :] - pos[:, 1, None]) <= sr              # (N,W)
+    in_range = (dr[:, :, None] & dc[:, None, :]).astype(jnp.float32)  # (N,H,W) cheby<=sr
+    return (in_range * free_unc[None]).sum(axis=(1, 2))             # (N,) uncovered-in-view
 
 
 def coverage_fraction_free(world, cfg: CTDEConfig) -> jax.Array:
