@@ -184,6 +184,20 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                         "that many independent sub-actors over a fixed team partition "
                         "(2=explorer/relay halves). Warm-start replicates a single "
                         "bootstrap into the groups. Requires --critic-mode central.")
+    # skills + selector (the two-level cognition)
+    p.add_argument("--selector", choices=["off", "on"], default="off",
+                   help="off (default)=v0 goal/role head (byte-unchanged); on=the learned "
+                        "selector over the skill library {disperse,flock,hold} (hierarchical "
+                        "skill+offset policy).")
+    p.add_argument("--flock", choices=["scripted", "learned"], default="scripted",
+                   help="the flock (connectivity-repair) skill flavor the selector calls: "
+                        "scripted (weakest-link repair, no params) | learned (a head off z). "
+                        "Only used with --selector on.")
+    p.add_argument("--congestion", choices=["off", "on"], default="off",
+                   help="off (default)=no anti-collapse price; on=the free-market congestion "
+                        "penalty (choosing a skill in-range neighbours also chose costs you).")
+    p.add_argument("--congestion-weight", type=float, default=0.5,
+                   help="weight on the same-skill-crowding penalty (--congestion on)")
     args = p.parse_args(argv)
 
     ckpt_path = (os.path.join(args.run_dir, "model.eqx")
@@ -224,6 +238,10 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         critic_mode=args.critic_mode,
         diversity_residual=args.diversity_residual,
         fork_groups=args.fork_groups,
+        selector=args.selector,
+        flock=args.flock,
+        congestion=args.congestion,
+        congestion_weight=args.congestion_weight,
         scale=f"{args.grid}x{args.grid}/{args.n_agents}",
         iters=args.iters, rollouts_per_iter=args.rollouts, seed=args.seed,
         ckpt_path=ckpt_path,
@@ -244,6 +262,8 @@ def _log(it, logs):
         f"conn.5={logs.get('connectivity_real', 0.0)*100:5.1f}%  "
         f"snd={logs.get('snd', 0.0):.3f}  "
         f"role={logs.get('role_div', 0.0):.3f}  "
+        f"red={logs.get('redundancy', 0.0):.2f}  "
+        f"top={logs.get('top_agent_share', 0.0)*100:4.1f}%  "
         f"meanλ2={logs['mean_lambda2']:.3f}  "
         f"aux_acc={logs['aux_acc']*100:5.1f}%  "
         f"(med_rel={logs['median_rel_l2']:.3f})  "

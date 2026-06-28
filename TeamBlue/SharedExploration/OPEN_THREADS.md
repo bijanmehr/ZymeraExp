@@ -60,9 +60,13 @@ The fixed spec (locked, never drifts): **comm_r = 5 everywhere · density-pinned
   oracle ceiling). Same env + same scorecard. Be *competitive* nominal, *decisively best* adversarial.
   → task #56.
 - **Scripted auction + shared-map** as both baselines AND red-team attack surfaces (members of the panel).
-- **2-level cognition architecture — make it concrete + expandable.** L1 (control) is just plumbing →
-  we effectively have 2 levels. **Rename the role-picker to something general and let it evolve.** This
-  is your explicit next deep-dive after the batch.
+- **2-level cognition architecture — DESIGNED 2026-06-28 → `COGNITION_DESIGN.md`.** Capabilities (rich
+  always-on substrate: GNN belief + λ₂ aux head + A\*) vs a small behavioral **menu {disperse · flock ·
+  hold}** the selector toggles; the selector is a *general unnamed-mode* picker (roles emerge); uniqueness
+  lives in **individuated ES-evolved selectors over shared skills**; **anti-collapse = 3 forces** (SND/role_div
+  diversity pressure · individuation · the **free-market congestion price** — learned/local, not a scripted
+  auction); **ES evolves selectors + gradient trains skills/perception, side by side** (MERL/feudal). The
+  gather/disperse rhythm is an emergent *prediction to test*, not hardcoded. → **experiment design is next.**
 
 ---
 

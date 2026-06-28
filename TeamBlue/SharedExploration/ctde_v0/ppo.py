@@ -285,6 +285,17 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     else:
         central_T = env.central_obs(state_T)
         traj["v_last"] = critic(central_T, inference=True)           # () GAE bootstrap
+
+    # per-agent coverage attribution at the FINAL state (divide-vs-flood diagnostic):
+    # how many FREE cells each agent has covered with its own footprint (seen_by), and
+    # the team total — the derived redundancy / top-agent share are computed in
+    # train_step. This is the "cells each agent opts on" metric (replaces a single-agent
+    # run: the top agent's share being small IS the 'can't solo the mission alone' proof).
+    free_T = ~state_T.wall                                           # (H,W) free cells
+    cells_i = (state_T.seen_by & free_T[None]).sum(axis=(1, 2))      # (N,) per-agent cells
+    traj["cells_per_agent"] = cells_i.astype(jnp.float32)            # (N,)
+    traj["team_covered_cells"] = jnp.maximum(
+        (state_T.covered & free_T).sum(), 1).astype(jnp.float32)     # () team total
     return traj
 
 
@@ -876,6 +887,16 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     snd = jax.vmap(jax.vmap(_pairwise_tv_mean))(gp).mean()           # mean over B,T
     role_div = jax.vmap(_pairwise_tv_mean)(gp.mean(axis=1)).mean()   # mean over B of time-avg
 
+    # per-agent coverage (divide-vs-flood): redundancy = Σ_i cells_i / team-covered
+    # (1 = perfect division of labour, →N = everyone covers the same ground = flood);
+    # top_share = max_i cells_i / team-covered (the top agent's fraction — small = no
+    # single agent can solo the mission); mean cells per agent for scale.
+    cpa = traj["cells_per_agent"]                                    # (B,N)
+    team_cov = traj["team_covered_cells"]                            # (B,)
+    redundancy = (cpa.sum(-1) / team_cov).mean()                     # () in [1, N]
+    top_agent_share = (cpa.max(-1) / team_cov).mean()               # () top agent fraction
+    mean_cells_per_agent = cpa.mean()                               # () avg cells/agent
+
     # aux λ₂ accuracy = 1 - median rel-err (l2_hat vs true_l2) over CONNECTED steps
     l2_true_bt = traj["true_l2"]                       # (B,T)
     l2_hat_bt = traj["l2_hat"].mean(axis=-1)           # (B,T) mean over agents
@@ -900,6 +921,9 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
         "connectivity_real": connectivity_real,
         "snd": snd,
         "role_div": role_div,
+        "redundancy": redundancy,
+        "top_agent_share": top_agent_share,
+        "mean_cells_per_agent": mean_cells_per_agent,
         "mean_lambda2": mean_lambda2,
         "aux_loss": jnp.mean(last_metrics["aux_loss"]),
         "aux_acc": aux_acc,

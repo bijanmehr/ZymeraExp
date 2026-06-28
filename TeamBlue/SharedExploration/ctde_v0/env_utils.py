@@ -68,7 +68,8 @@ def build_env(cfg: CTDEConfig):
 
 
 def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
-                   lambda2_penalty: jax.Array | None = None) -> jax.Array:
+                   lambda2_penalty: jax.Array | None = None,
+                   congestion_penalty: jax.Array | None = None) -> jax.Array:
     """(N,) scalar reward from the env's unweighted per-term (N,) magnitudes.
 
     base_i = w_cov*coverage_i + w_conn*connectivity_i + w_coll*collision_i
@@ -96,6 +97,11 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
     )
     if lambda2_penalty is not None:
         out = out - r.soft_lambda_penalty * lambda2_penalty
+    # Free-market congestion price (selector + congestion on): a per-agent same-skill
+    # crowding penalty computed in the rollout from the sampled skills (None otherwise,
+    # so the branch is skipped and the reward is byte-unchanged).
+    if congestion_penalty is not None:
+        out = out - cfg.congestion_weight * congestion_penalty
     # Anti-overlap (Increment-1): penalize cells my footprint shares with a
     # teammate THIS step (same_step_overlap) -> rewards non-redundant coverage.
     # Only present when build_env appended the 0-weight 'overlap' probe term.
@@ -250,6 +256,26 @@ def degree_stats(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     graph — the per-node statistic the SizeShiftReg-style regularizer watches.
     """
     return kb_adjacency(position, cfg).sum(-1).astype(jnp.float32)
+
+
+def skill_congestion(skill_idx: jax.Array, position: jax.Array,
+                     cfg: CTDEConfig) -> jax.Array:
+    """(N,) float32 — the FREE-MARKET congestion price: for each agent, the number of its
+    IN-RANGE neighbours that chose the SAME skill this step.
+
+    Choosing a crowded skill (one many neighbours also picked) costs more, so the team
+    spreads across the skill library instead of collapsing into one mode — the decentralized,
+    learned-against anti-collapse force (the price is subtracted from the reward in
+    :func:`compose_reward`, weighted by ``congestion_weight``). It is LOCAL (reads only the
+    comm neighbourhood) and emergent — NOT a global auction. Pure JAX (vmap/scan/jit-safe):
+
+      adj_ij   = in-range neighbour (Chebyshev ≤ comm_r, i ≠ j; ``kb_adjacency``)
+      same_ij  = skill_i == skill_j
+      price_i  = Σ_j adj_ij · same_ij                 (same-skill neighbour count)
+    """
+    adj = kb_adjacency(position, cfg)                                # (N,N) in-range, diag 0
+    same = skill_idx[:, None] == skill_idx[None, :]                  # (N,N) same skill
+    return (adj & same).sum(-1).astype(jnp.float32)                 # (N,) crowding price
 
 
 # =============================================================================

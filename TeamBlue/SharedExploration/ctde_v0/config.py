@@ -383,6 +383,25 @@ class CTDEConfig:
     #   shared. Requires ``critic_mode == 'central'`` (grouped decentral value unsupported).
     fork_groups: int = 1
 
+    # ---- Skills + selector — the two-level cognition (a learned selector over a small
+    #      skill library) ---------------------------------------------------------------
+    # selector: "off" (default) = the v0 single goal/role head (byte-unchanged). "on" = the
+    #   generalized mode-selector — a categorical head over the skill library
+    #   {disperse, flock, hold}; the chosen skill emits logits over the K goal-offsets, the
+    #   offset is sampled from those, and the fixed L1 controller executes it. Skill AND
+    #   offset are both PPO actions (hierarchical). Supersedes role_picker when on.
+    selector: str = "off"            # {"off", "on"}
+    # flock: which flavor of the connectivity-repair flock skill the selector calls.
+    #   "scripted" (default) = the weakest-link-repair primitive (no params); "learned" = a
+    #   small learned head off the belief. Only consulted when selector == "on".
+    flock: str = "scripted"          # {"scripted", "learned"}
+    # congestion: the FREE-MARKET anti-collapse price. "off" (default) = none. "on" = a
+    #   per-agent reward penalty for choosing a skill that in-range neighbours ALSO chose
+    #   (local same-skill crowding lowers that skill's value), so the team spreads across
+    #   modes instead of all piling into one. Decentralized + learned (NOT a global auction).
+    congestion: str = "off"          # {"off", "on"}
+    congestion_weight: float = 0.5   # weight on the per-agent same-skill-crowding penalty
+
     # ---- run control --------------------------------------------------------
     scale: str = "16x16/4"            # human label for the rung
     iters: int = 50                  # PPO iterations
