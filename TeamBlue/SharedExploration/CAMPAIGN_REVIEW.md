@@ -148,3 +148,57 @@ value **λ₂** of the comm graph.
 idea-space, and — critically — discovered that a silent spec choice (comm_r per rung) had made connectivity
 free, so the actual 90/90 problem is still open. The qualitative story (disperse=lever, dispersal=wall,
 gather=next) holds; the quantitative + connectivity claims await the fixed-spec, real-bar re-runs.*
+
+---
+
+## 6. The A/B arm batch (2026-06-27/28) — which lever cracks coverage-at-scale
+
+Four arms attacking the 32²/10 coverage wall, all on the LOCKED honest spec (comm_r=5 every rung, hard
+collision-mask, soft/learned connectivity, frontier-attn explorer, 100-step horizon, 3 seeds, density-pinned
+ladder 16→24→32). Launcher `ctde_v0/run_ab_overnight.py`; on balthar (`XLA_PYTHON_CLIENT_PREALLOCATE=false`,
+jobs=3, tmux `ab`).
+
+- **base** — the shared frontier-attn explorer (reference + fork bootstrap).
+- **armA** — a *training* strategy: curriculum (warm-start ladder) + σ-noise + a **DTE tail** (decentralized
+  critic at the top rung).
+- **B-fork** — an *architecture*: 2 groups with SEPARATE params (`GroupedActor`); shared CTDE critic.
+- **B-dico** — an *architecture*: one shared policy + a mean-zero per-agent identity residual.
+
+### Results (partial — 23/39 runs; coverage %, conn = λ₂>0.5)
+
+| arm | 16²/4 (3 seeds) | 24²/6 | 32²/10 | role-div |
+|---|---|---|---|---|
+| base | ~59 | ~66 | 41 | 0.05–0.15 |
+| armA | ~65 | 70 | 47 | 0.06–0.12 (lowest spread) |
+| **B-fork** | **~73** | 64 | 50 | **0.11–0.17 (highest)** |
+| **B-dico** | **~73** | ~65 | **61 (seed1)** | 0.07–0.14 |
+| armA-DTE | — | — | **8 (collapsed)** | 0.04 |
+
+Connectivity sat at **90–100% on the strict λ₂>0.5 bar everywhere** — every arm, every rung.
+
+### What it supports
+1. **Every arm beats base on coverage** (+6–14 pts @16²). The mechanisms help.
+2. **The diversity/architecture arms (B-fork, B-dico) lead — most at scale.** At 32²/10 they reach 50–61% vs
+   base's 41%; B-dico's seed1 hit **61%**, the best big-rung result so far.
+3. **The DTE tail COLLAPSED at 32²/10 (8% coverage, 100% connectivity = the huddle).** Dropping the central
+   critic at the hard rung returns it straight to the local optimum → **the CTDE central critic is
+   load-bearing at scale.** (Validates the cognition design's "keep CTDE for the executor; only the selector
+   goes to ES.")
+4. **Connectivity is NOT the bottleneck — coverage-at-scale is.** Soft connectivity + the clustered start
+   hold 90–100% everywhere; the wall is coverage (~50–61% @32²), still short of 90.
+5. **C0 confirmed — specialization emerges.** B-fork shows the highest persistent role differentiation;
+   separated/individuated agents genuinely divide labour, most at scale. → green light for the selector-over-
+   skills path.
+
+### Honest caveats
+- **32²/10 is single-seed-per-arm (different seeds)** → the cross-arm 32² ranking is PRELIMINARY (B-dico 61%
+  is seed1; the others seed0). The 16² numbers (3 seeds, tight) are the solid ones.
+- Still running (23/39); big-rung seeds incomplete.
+- **More diversity ≠ automatically more coverage** (B-fork is the MOST diverse but only edges armA). *Useful*
+  (task-grounded) diversity is what matters, not free-floating behavioural spread.
+
+### What it changes
+The premise for the **two-level cognition** is now empirically supported (specialization helps + emerges;
+CTDE is load-bearing). Design converged → `COGNITION_DESIGN.md`. Next: the **selector over a small skill
+library** {disperse, flock, hold} — the adaptive, grown-up version of B-fork — with **ES on the selector +
+CTDE on the executor**, swept over flock {scripted,learned} × congestion {off,on} (+ the fixed-world N-sweep).

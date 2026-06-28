@@ -538,3 +538,38 @@ dated correction box (cap at 2 learned levels; connectivity = constraint; roles/
 — §0′ flat-baseline + falsification test inserted as the next step; Phase 2′ marked conditional. `IDEAS.md` —
 ES / QD / hierarchy / curriculum verdicts updated with their key citations. **Next.** Run the §0′ falsification
 test; let the emergence result decide whether any added structure is earned.
+
+---
+
+## 2026-06-28 — the A/B arm batch + the two-level cognition turn
+
+**Ran (balthar, overnight).** A 4-arm batch attacking the 32²/10 coverage wall on the locked honest spec
+(comm_r=5 fixed, collision-mask on, soft connectivity, frontier-attn, 100 steps, 3 seeds, ladder 16→24→32):
+**base · armA** (curriculum + σ-noise + DTE tail) **· B-fork** (2 separate-param groups) **· B-dico**
+(per-agent identity residual). Launcher `ctde_v0/run_ab_overnight.py`; `XLA_PYTHON_CLIENT_PREALLOCATE=false`,
+jobs=3, tmux `ab`.
+
+**Results (partial, 23/39).** Every arm beats base (+6–14 @16²). Diversity arms (B-fork/B-dico) lead, most
+at scale — 32²/10: **B-dico 61% (seed1), B-fork 50, armA 47, base 41**. **The DTE tail COLLAPSED at 32²
+(8%, 100% conn = the huddle)** → the CTDE central critic is load-bearing at scale. Connectivity 90–100% on
+the strict λ₂>0.5 bar everywhere → coverage-at-scale is the wall, not connectivity. **C0 confirmed:
+specialization emerges** (B-fork highest role-div). Full writeup: `CAMPAIGN_REVIEW.md` §6. Honest caveat: the
+32² rung is single-seed-per-arm so the cross-arm 32² ranking is preliminary; the 16² (3-seed) numbers are solid.
+
+**Designed + converged → `COGNITION_DESIGN.md`.** The **two-level cognition**: a general selector over a small
+skill *menu* {disperse, flock, hold} (capabilities like SLAM / λ₂-estimation / A* are always-on *substrate*,
+NOT menu items — that's what keeps the menu small); uniqueness lives in the **selector** (individuated,
+ES-evolved); the **free-market congestion price** (local same-skill crowding) is the anti-collapse force;
+**ES evolves the selector + CTDE-gradient trains the executor** (MERL/feudal — same centralized-training
+principle as CTDE, disjoint params, so they compose). Locked setup: weak = can't-solo, vision 3×3, memory = KB,
+connectivity success = **giant-component** (team in one piece), numbers test = ladder + **fixed-world N-sweep**.
+
+**Built (gated; scaffolding committed d0cc9ba).** Per-agent coverage metric (redundancy + top-agent share =
+the can't-solo number), config/CLI axes (`--selector/--flock/--congestion`), the free-market congestion price,
+the flock skill (scripted + learned), the 2×2 launcher. Then — via **parallel subagents** — the **gradient
+selector core** (hierarchical skill+offset policy in nets+ppo, **89 tests green**) and the **ES coexistence
+trainer** `es.py` (OpenAI-ES/CEM + the MERL interleave skeleton, 6 tests). Selector-off stays byte-unchanged.
+
+**Next.** Integrate selector + ES (wire ES fitness/sync onto `actor.selector_head`), run the 2×2
+(flock × congestion) sweep + the N-sweep, and try task-grounded individuation variants on the selector
+(graph-position role, diversity-as-a-loss).

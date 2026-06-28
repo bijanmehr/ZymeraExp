@@ -21,21 +21,26 @@ trivial 1e-3 floor. Still open.
 
 ---
 
-## ⚙ NOW — building tonight (overnight balthar batch)
+## ⚙ NOW — the selector core, and the A/B batch results (2026-06-28)
 The fixed spec (locked, never drifts): **comm_r = 5 everywhere · density-pinned ladder
-10²/2→16²/4→24²/6→32²/10 · hard collision-mask on · connectivity soft/learned · 3 seeds**.
+16²/4→24²/6→32²/10 · hard collision-mask · soft/learned connectivity · 100 steps · 3 seeds**.
 
-- **Yardstick metrics** — real conn bar (λ₂>0.5) + behavioural diversity (SND) + role-distinctness
-  (role_div). ✅ *built (increment 1)* — these are also the common scorecard for the baseline panel.
-- **Arm A** — curriculum + randomness + DTE tail: climb the ladder warm-starting each rung, inject
-  σ-noise to break symmetry, then switch the centralized critic → decentralized (does dropping the
-  central crutch unlock specialization?).
-- **Arm B-fork** — 2 groups (explorer/relay) with *separate* params on a shared backbone+critic;
-  specialization emerges + is measured (between-group role_div).
-- **Arm B-dico** — one shared policy + a small per-agent residual sized to a target behavioural
-  diversity (DiCo-style); diversity *without* fully splitting.
+**A/B batch — RAN (balthar, partial 23/39; full writeup `CAMPAIGN_REVIEW.md` §6):**
+- **Every arm beats base** on coverage; the **diversity arms (B-fork, B-dico) lead, most at scale**
+  (32²/10: B-dico **61%** s1 · B-fork 50 · armA 47 · base 41). **C0 confirmed — specialization emerges.**
+- **The DTE tail COLLAPSED at 32² (8%, 100% conn = huddle)** → **the CTDE central critic is load-bearing
+  at scale** (→ keep CTDE for the executor; only the selector goes to ES).
+- **Connectivity 90–100% (strict λ₂>0.5) everywhere** → coverage-at-scale is the wall, not connectivity.
+- Caveat: 32² is single-seed-per-arm → cross-arm 32² ranking preliminary; the 16² (3-seed) numbers are solid.
 
-→ tracked as tasks #49–#55. Deploy is the **last** step (one clean push, GPU-smoke per arm, then tmux).
+**The selector core — BUILT (89 tests green), being integrated:**
+- the learned **selector over {disperse, flock, hold}** (hierarchical skill+offset policy) + the **flock**
+  skill (scripted + learned) + the **free-market congestion** price + per-agent coverage metric. Gated;
+  selector-off byte-unchanged. The **ES coexistence** trainer (`es.py`, OpenAI-ES/CEM + MERL) is built too.
+- → **next:** wire ES↔selector (`actor.selector_head`), run the **2×2 flock×congestion** sweep + the
+  **fixed-world N-sweep**, try task-grounded individuation (graph-position role, diversity-as-a-loss).
+
+→ tracked as tasks #49–#62. Design: `COGNITION_DESIGN.md`.
 
 ---
 
