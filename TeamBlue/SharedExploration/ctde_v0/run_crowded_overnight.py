@@ -91,13 +91,18 @@ class Unit:
         return c
 
 
-def _build_units(out, seeds):
+def _build_units(out, seeds, max_grid=32):
+    """Curriculum chains. ``max_grid`` caps the ladder (e.g. 24 → run only 16²/24²,
+    deferring the memory-heavy 32² rungs); the warm-start chain still links across
+    launches because a later full-ladder run finds the 24² model.eqx and continues."""
     units = []
     for s in seeds:
         for aid in _ARM_IDS:
             for eid in _EXPLORE_IDS:
                 prev = None
                 for (g, n) in _LADDER:
+                    if g > max_grid:
+                        continue
                     extra = _ARMS[aid] + _EXPLORES[eid]
                     run_dir = os.path.join(out, f"seed{s}", f"{aid}_{eid}", f"{g}x{g}x{n}")
                     uid = f"s{s}/{aid}_{eid}/{g}x{g}x{n}"
@@ -117,12 +122,14 @@ def main(argv=None):
     p.add_argument("--rollouts", type=int, default=16, help="episodes per iter")
     p.add_argument("--jobs", type=int, default=2,
                    help="max concurrent train_ctde subprocesses (memory-bound: ~3 @32/10)")
+    p.add_argument("--max-grid", type=int, default=32,
+                   help="cap the ladder at this grid size (e.g. 24 defers the 32² rungs)")
     p.add_argument("--dry-run", action="store_true", help="print the plan, launch nothing")
     args = p.parse_args(argv)
 
     out = args.out if os.path.isabs(args.out) else os.path.join(_PKG_PARENT, args.out)
     seeds = list(range(args.seeds))
-    units = _build_units(out, seeds)
+    units = _build_units(out, seeds, max_grid=args.max_grid)
 
     print(f"=== crowded-map curriculum batch: {len(units)} runs "
           f"({len(_ARM_IDS)} arms × {len(_EXPLORE_IDS)} explore × {len(_LADDER)} rungs "
