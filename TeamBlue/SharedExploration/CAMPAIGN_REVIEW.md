@@ -202,3 +202,59 @@ The premise for the **two-level cognition** is now empirically supported (specia
 CTDE is load-bearing). Design converged → `COGNITION_DESIGN.md`. Next: the **selector over a small skill
 library** {disperse, flock, hold} — the adaptive, grown-up version of B-fork — with **ES on the selector +
 CTDE on the executor**, swept over flock {scripted,learned} × congestion {off,on} (+ the fixed-world N-sweep).
+
+---
+
+## §7 — Obstacle reruns (finished) + the crowded-obstacle curriculum batch (2026-06-28 cont.)
+
+### 7a · Obstacle batch — FINISHED (50/54; 4 r32 OOM-casualties)
+Full factorial **ARM {role,base,sel} × BARRIER {off,on} × EXPLORE {eoff,ebump,einfo} × WORLD {o16-open,
+r24-rooms, r32-rooms}**, fresh (no warm-start), 1500 iters, fixed honest spec. The **r24 (24² rooms)
+barrier verdict** (the question the rooms runs existed to answer):
+
+| arm (24² rooms) | barrier OFF (cov / conn) | barrier ON (cov / conn) |
+|---|---|---|
+| role + bump | **32.7 / 88** | 23.0 / 100 |
+| role + plain | 26.3 / 92 | 11.7 / 100 |
+| base + bump | 28.9 / 92 | 6.1 / 100 |
+| sel + bump | 23.7 / 94 | 10.8 / 100 |
+
+**Verdicts (now confirmed across open AND corridors):**
+1. **The connectivity barrier is the WRONG tool — refuted even in corridors.** Barrier-OFF already holds
+   88–98% connectivity; barrier-ON pays **half the coverage** for the last ~10 pts it didn't need. (The lit
+   review explains *why*: a fixed penalty coefficient is brittle — fix = a learned Lagrangian. See `STRATEGY`/
+   `OPEN_THREADS` VALIDATED.)
+2. **`einfo` (info-gain bonus) reward-hacks everywhere (~1%)** — rewards proximity-to-uncovered, maximized by
+   NOT covering. **`ebump` (coverage ×3) wins. role ≥ base ≥ sel.**
+3. Rooms cap coverage low (~33% even trained) — chokepoints are hard in 100 steps.
+
+### 7b · Connectivity-safe crowded terrains (`ctde_v0/terrains.py`)
+`ConnectedClutter` · `Pillars` · `MixedCluttRooms` · `RandomCrowded` (per-reset mixture). A fixed-iteration
+**BFS flood-fill from a central seed walls off every unreachable cell** → free space is *constructed* to be
+one connected component (JAX-traceable, runs in the jitted reset; coverage well-posed, spawn safe). 10 tests,
+suite **105 green**. Committed `0a80fed` (deployed to balthar by rsync, NOT pushed to main).
+
+### 7c · Crowded curriculum batch — RAN (10/12)
+16→24→32 warm-start on `terrain=crowded_mix`, ARM {role,base} × EXPLORE {eoff,ebump}, density ~15%/rung.
+**Trained-vs-zero-shot on identical eval maps (role+bump):**
+
+| map | 24² zero-shot → TRAINED | 32² zero-shot → TRAINED |
+|---|---|---|
+| clutter light | 35.9 → 37.0 (+1) | 24.8 → 22.0 (−3) |
+| clutter heavy | 17.3 → **28.5 (+11)** | 14.9 → 17.1 (+2) |
+| pillars | 28.6 → **41.3 (+13)** | 30.2 → 28.5 (−2) |
+| mixed | 21.0 → 25.3 (+4) | 10.3 → 12.6 (+2) |
+
+**role vs base @32² crowded (both trained):** pillars 28.5 vs 22.8 (**+5.7**), heavy clutter 17.1 vs 13.3
+(**+3.8**), light/mixed ≈ tie.
+
+**What it supports / changes:**
+1. **Training-on-crowded HELPS at 24² (+11–13 hard maps) but WASHES at 32² (±3).** The crowded skill the
+   curriculum learns **doesn't transfer up to 32²** → weak scale-transfer of the harder regime. *This is the
+   lit-review's central open question, answered "weakly" — and the strongest evidence yet that 32² is the wall.*
+2. **role > base on crowded, most on the hard maps** — the explorer/relay split keeps paying off under clutter.
+3. **Crowded 32²/10 tops out ~12–28% — far from 90/90.**
+
+**Honest caveats:** single map per terrain (before/after is same-map/fair, but one sample); 1 seed; `role_eoff/32`
++ `base_eoff/32` flaked on a simultaneous-compile OOM (re-runnable jobs 1). **Next:** barrier → learned-λ (RCPO);
+more iters on the 32² rung (under-training test); multi-map eval. Gallery: `report/index.html` (41 runs, 7 cats).

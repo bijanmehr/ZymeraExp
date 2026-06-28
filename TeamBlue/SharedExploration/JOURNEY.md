@@ -573,3 +573,65 @@ trainer** `es.py` (OpenAI-ES/CEM + the MERL interleave skeleton, 6 tests). Selec
 **Next.** Integrate selector + ES (wire ES fitness/sync onto `actor.selector_head`), run the 2×2
 (flock × congestion) sweep + the N-sweep, and try task-grounded individuation variants on the selector
 (graph-position role, diversity-as-a-loss).
+
+---
+
+## 2026-06-28 (cont.) — obstacle verdicts land · connectivity-safe crowded terrains · the curriculum batch · the interactive gallery · deep-research lit review
+
+**Obstacle batch — FINISHED (50/54; 4 r32 OOM-casualties).** The full-factorial ARM×BARRIER×EXPLORE×WORLD
+reruns completed o16 (18/18, open) + r24 (18/18, rooms) + r32 (14/18, rooms). **Verdicts, now confirmed
+across open AND corridors:**
+- **The connectivity barrier is the wrong tool — REFUTED even in corridors.** r24 rooms: barrier-OFF already
+  holds 88–98% connectivity; barrier-ON buys the last ~10 pts by sacrificing **half** the coverage (role+bump
+  32.7→23.0, base+bump 28.9→6.1). Same as open. (→ the lit review explains *why*: a *fixed* penalty
+  coefficient is brittle; the fix is a *learned* Lagrangian.)
+- **`einfo` (naive info-gain bonus) reward-hacks everywhere** (~1% — agents hover by uncovered cells without
+  covering). **`ebump` (coverage-bump ×3) wins. role ≥ base ≥ sel** persists at 32² rooms.
+- Rooms cap coverage low (~33% even trained) — chokepoints are hard in 100 steps.
+
+**Connectivity-safe crowded terrains — BUILT (`ctde_v0/terrains.py`; 10 tests, full suite 105 green).**
+`ConnectedClutter` · `Pillars` · `MixedCluttRooms` · `RandomCrowded` (per-reset mixture). Key trick: a
+fixed-iteration **BFS flood-fill from a central seed walls off every unreachable cell**, so the free space is
+*constructed* to be one connected component — JAX-traceable (runs in the jitted reset) → coverage stays
+well-posed (100% reachable), spawn always has free cells. Wired through `config.World` · `env_utils.build_env`
+· the `train_ctde` CLI (`--terrain clutter/pillars/mixed/crowded_mix`, `--pillar-*`). Committed locally
+**`0a80fed`**; deployed to balthar by **rsync (NOT pushed to main)**.
+
+**Crowded curriculum batch — RAN (balthar, 10/12).** `run_crowded_overnight.py`: 16→24→32 warm-start on
+`terrain=crowded_mix`, ARM {role,base} × EXPLORE {eoff,ebump}, density ~15%/rung. Ran *behind* the obstacle
+batch (GPU contention; queued via a memory watcher, auto-resumed when obstacle freed). **Findings:**
+- **Training-on-crowded HELPS at 24² (+11–13 on hard maps: heavy clutter 17→28, pillars 29→41) but WASHES at
+  32² (±3).** The crowded skill doesn't transfer up to 32² → **weak scale-transfer of the harder regime**
+  (under-training at the hardest rung and/or the 100-step floor). *Exactly the lit-review open question,
+  answered "weakly."*
+- **role > base on crowded, most at the hard maps** (32²: pillars +5.7, heavy clutter +3.8; light/mixed ≈tie).
+- **Crowded 32²/10 tops out ~12–28% — far from 90/90.** Cluttered 32² in 100 steps is genuinely hard.
+- 2 arms (`role_eoff/32`, `base_eoff/32`) flaked on a simultaneous-compile OOM (jobs 2, two 32² at once);
+  re-runnable at jobs 1.
+
+**The interactive gallery — BUILT + maintained (`ctde_v0/make_report.py`, `report/index.html`).** Self-contained
+canvas viewer (play/scrub · sense region · comm radius · dashed comm links · covered cells · agents colored by
+skill/role), now **manifest-driven**: categories + per-run descriptions + final coverage + a **render-time
+world-override** (drop any policy into any terrain zero-shot). **41 runs across 7 categories** (A/B · cognition
+· crowding-sweep · obstacle reward/barrier · corridors · **crowded zero-shot** · **crowded TRAINED** — the
+before/after on identical maps). A/B GIFs re-rendered from a worktree at their training commit (arch drift).
+
+**Deep-research lit review — RAN (107 agents, 2.3M tokens; harness hard-verified 2/11 families, 6 open on a
+schema bug).** Gist: **(1) the LPAC weight-shared GNN spine IS the validated size-invariant coverage backbone —
+keep it** (enabler = shared filter taps + permutation-equivariance, not depth); but coverage backbones are all
+connectivity-blind → our gap. **(2) the connectivity BARRIER is the wrong tool — swap the fixed penalty for a
+learned-Lagrangian constraint (RCPO/CPO)**; fixed coefficients are brittle across scale (Tessler ICLR'19),
+which *predicts* both our barrier-hurts-coverage AND its failure across the ladder. Li 2022 (CPO on λ₂)
+quantifies the trade is real (conn 0.1→0.75 at the cost of task success) → **90/90 simultaneously is the
+defensible gap. Novelty = the conjunction** (connectivity-constrained + scale-invariant + hierarchical-role +
+adversarial-resilience); closest threat = the LPAC follow-on *"Constrained Learning for Decentralized
+Multi-Objective Coverage Control"* (read it). Caveat: verified refs are off-distribution (LPAC = 900–1500-step
+imitation from a clairvoyant expert, not our PPO/ES + 100 steps).
+
+**Also.** ES coexistence run finished (round 79, es_best ~227, grad_cov matured 25%→57%) but `run_es.py` saves
+only history, **no `model.eqx`** → not gallery-able as-is (add a final model-save next time).
+
+**Next.** (a) **barrier → learned-λ (RCPO) connectivity constraint** — the lit-review's #1 actionable; (b)
+test the 32²-under-training hypothesis (more iters on the hardest rung); (c) re-run the 2 OOM'd `eoff/32` arms
+at jobs 1; (d) re-run verification on the 6 open lit-review families; (e) multi-map eval to firm up the
+24²-helps / 32²-washes pattern. **Push `0a80fed` to main when ready** (balthar's on rsync'd code).

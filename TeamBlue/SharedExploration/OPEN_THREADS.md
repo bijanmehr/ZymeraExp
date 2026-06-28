@@ -5,7 +5,7 @@ detail — deep dives live in `STRATEGY.md` (verdicts + citations), `EXPERIMENT_
 `CAMPAIGN_REVIEW.md` (what we've actually run + the honest numbers), `JOURNEY.md` (the daily log),
 `IDEAS.md` (raw idea dump). When a thread here gets resolved, move it to VALIDATED and point at the doc.
 
-_Last gathered: 2026-06-27._
+_Last gathered: 2026-06-28._
 
 ---
 
@@ -17,7 +17,8 @@ have no defense; that's the whole point. Everything below is substrate for this.
 
 **The headline target:** ≥90% coverage **AND** ≥90% connectivity *simultaneously*, at **32×32 / 10
 agents**, within a **100-step** budget — graded on the **real** connectivity bar (λ₂ > 0.5), not the
-trivial 1e-3 floor. Still open.
+trivial 1e-3 floor. **Still open** — and on CROWDED 32² it's far off (~12–28% coverage trained; clutter at
+scale in 100 steps is genuinely hard).
 
 ---
 
@@ -42,9 +43,33 @@ The fixed spec (locked, never drifts): **comm_r = 5 everywhere · density-pinned
 
 → tracked as tasks #49–#62. Design: `COGNITION_DESIGN.md`.
 
+**Obstacle + crowded reruns — RAN (balthar; 2026-06-28 cont., `JOURNEY.md`):**
+- **Obstacle batch FINISHED (50/54).** **Connectivity barrier REFUTED even in corridors** (r24 rooms:
+  barrier-ON sacrifices half the coverage for ~+10 pts conn that barrier-OFF's 88–98% didn't need).
+  **`einfo` reward-hacks (~1%), `ebump` wins, role ≥ base ≥ sel** — confirmed at 32² too.
+- **Connectivity-safe crowded terrains BUILT** (`ctde_v0/terrains.py`: ConnectedClutter · Pillars ·
+  MixedCluttRooms · RandomCrowded; BFS flood-fill *constructs* a single connected free component, JAX-traceable;
+  10 tests, suite 105 green). `--terrain clutter/pillars/mixed/crowded_mix`. Committed `0a80fed` (NOT pushed).
+- **Crowded curriculum batch RAN (10/12).** **Training-on-crowded helps at 24² (+11–13 hard maps) but WASHES
+  at 32² (±3)** → weak scale-transfer of the harder regime (the lit-review open Q, answered "weakly").
+  **role > base on crowded** (32²: pillars +5.7, heavy clutter +3.8).
+- **Interactive gallery** (`report/index.html`, `ctde_v0/make_report.py`) — **41 runs, 7 categories**,
+  manifest-driven (categories + descriptions + render-time world-override); crowded zero-shot vs TRAINED
+  before/after. → **keep refreshed as new checkpoints land.**
+
 ---
 
 ## ✓ VALIDATED — verdicts in, don't re-litigate (see STRATEGY.md)
+- **Connectivity = a CONSTRAINT, not a reward penalty (barrier → learned-Lagrangian).** Empirically the
+  exp-barrier penalty HURTS coverage in open AND corridors; the lit review (Tessler RCPO ICLR'19) explains why
+  — a *fixed* penalty coefficient is brittle and can't hold across the 16²→32² scale ladder. **Fix = RCPO/CPO
+  with an auto-tuned multiplier** (Li 2022 = CPO on a λ₂<0 cost). Don't re-try fixed-weight barriers. (#4/#9.)
+- **LPAC-style weight-shared GNN spine = the size-invariance enabler — keep it.** Scale-transfer comes from
+  shared filter taps + permutation-equivariance (LPAC, VGAI N=50→75), NOT depth/capacity. Caveat: every
+  verified coverage backbone is connectivity-blind → that's exactly our gap, and **the conjunction**
+  (connectivity-constrained + scale-invariant + hierarchical-role + adversarial-resilience) is the defensible
+  novelty (no single paper does all four). Closest threat: LPAC follow-on *"Constrained Learning for
+  Decentralized Multi-Objective Coverage Control"* — read directly. (#2/#5/#6.)
 - **Shared map / blackboard / pheromone** — classical baseline that, in its honest decentralized form,
   *is* our GNN belief idealized; superseded as a *policy* by learned GNN/LPAC; the literal blackboard
   smuggles in global comms. **Value to us = baseline + clean red-team attack surface** (poison the
