@@ -46,9 +46,15 @@ class World:
     # terrain: "open" (default) -> OpenTerrain. "rooms" -> zymera Rooms(`rooms`, door_w=1):
     #   equal-width rooms split by full-height walls, ONE door per wall (corridors /
     #   chokepoints; doors keep the free cells connected so the cluster spawn still works).
-    #   "walls" -> RandomWalls(`n_obstacles`) (scattered). Wired in env_utils.build_env.
-    terrain: str = "open"          # {"open", "rooms", "walls"}
-    rooms: int = 3                 # number of rooms when terrain == "rooms"
+    #   "walls" -> RandomWalls(`n_obstacles`) (scattered). The CROWDED, connectivity-safe
+    #   set (ctde_v0.terrains, free space guaranteed one component): "clutter" ->
+    #   ConnectedClutter(`n_obstacles`); "pillars" -> Pillars(`pillar_spacing`, `pillar_size`);
+    #   "mixed" -> MixedCluttRooms(`rooms`, `n_obstacles`); "crowded_mix" -> RandomCrowded
+    #   (per-reset draw over clutter/pillars/mixed — the training distribution). In build_env.
+    terrain: str = "open"          # {open,rooms,walls,clutter,pillars,mixed,crowded_mix}
+    rooms: int = 3                 # number of rooms when terrain in {"rooms","mixed"}
+    pillar_spacing: int = 4        # lattice period when terrain == "pillars"
+    pillar_size: int = 2           # obstacle-block size when terrain == "pillars"
 
 
 @dataclass(frozen=True)

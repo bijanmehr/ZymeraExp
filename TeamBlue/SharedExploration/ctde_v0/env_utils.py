@@ -62,13 +62,32 @@ def build_env(cfg: CTDEConfig):
     # Obstacle terrain (default "open" -> the recipe's OpenTerrain, unchanged). "rooms" ->
     # zymera Rooms (corridors / chokepoints; doors keep free cells connected so the cluster
     # spawn still works). "walls" already handled by n_obstacles -> RandomWalls in the recipe.
+    # Build the terrain object for the non-default styles (None -> keep recipe terrain:
+    # "open"=OpenTerrain, "walls"=recipe RandomWalls via n_obstacles). The crowded set
+    # (clutter/pillars/mixed) is connectivity-safe — free space stays one component.
+    terrain_obj = None
     if w.terrain == "rooms":
-        from zymera.env import GridEnv
         from zymera.worldgen import Rooms
+        terrain_obj = Rooms(rooms=int(w.rooms), door_w=1)
+    elif w.terrain == "clutter":
+        from .terrains import ConnectedClutter
+        terrain_obj = ConnectedClutter(n_obstacles=int(w.n_obstacles))
+    elif w.terrain == "pillars":
+        from .terrains import Pillars
+        terrain_obj = Pillars(spacing=int(w.pillar_spacing), size=int(w.pillar_size))
+    elif w.terrain == "mixed":
+        from .terrains import MixedCluttRooms
+        terrain_obj = MixedCluttRooms(rooms=int(w.rooms), n_obstacles=int(w.n_obstacles))
+    elif w.terrain == "crowded_mix":
+        from .terrains import default_crowded_mix
+        terrain_obj = default_crowded_mix(w.n_obstacles, w.pillar_spacing,
+                                          w.pillar_size, w.rooms)
+    if terrain_obj is not None:
+        from zymera.env import GridEnv
         # rebuild with the SAME recipe components, swapping only the terrain (env.replace
         # re-runs the comm-coverage recipe, which has no terrain arg).
         env = GridEnv(grid_h=env.grid_h, grid_w=env.grid_w, n_agents=env.n_agents,
-                      cover_r=env.cover_r, terrain=Rooms(rooms=int(w.rooms), door_w=1),
+                      cover_r=env.cover_r, terrain=terrain_obj,
                       spawn=env.spawn, dynamics=env.dynamics, channel=env.channel,
                       obs=env.obs, mission=env.mission)
     return env

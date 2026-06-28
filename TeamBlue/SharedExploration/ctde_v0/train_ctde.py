@@ -199,11 +199,18 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
     p.add_argument("--congestion-weight", type=float, default=0.5,
                    help="weight on the same-skill-crowding penalty (--congestion on)")
     # obstacle terrain + exploration incentives (the obstacle-world reruns)
-    p.add_argument("--terrain", choices=["open", "rooms", "walls"], default="open",
-                   help="open (default) | rooms (corridors/chokepoints, doors keep free "
-                        "cells connected) | walls (RandomWalls via --n-obstacles)")
-    p.add_argument("--rooms", type=int, default=3, help="number of rooms when --terrain rooms")
-    p.add_argument("--n-obstacles", type=int, default=0, help="RandomWalls count (--terrain walls)")
+    p.add_argument("--terrain",
+                   choices=["open", "rooms", "walls", "clutter", "pillars", "mixed", "crowded_mix"],
+                   default="open",
+                   help="open | rooms | walls (RandomWalls) | CONNECTIVITY-SAFE crowded set: "
+                        "clutter (ConnectedClutter via --n-obstacles) | pillars (lattice via "
+                        "--pillar-spacing/--pillar-size) | mixed (rooms+clutter) | crowded_mix "
+                        "(per-reset draw over all three — the training distribution)")
+    p.add_argument("--rooms", type=int, default=3, help="rooms when --terrain rooms/mixed/crowded_mix")
+    p.add_argument("--n-obstacles", type=int, default=0,
+                   help="obstacle count for --terrain walls/clutter/mixed/crowded_mix")
+    p.add_argument("--pillar-spacing", type=int, default=4, help="lattice period (--terrain pillars)")
+    p.add_argument("--pillar-size", type=int, default=2, help="block size (--terrain pillars)")
     p.add_argument("--explore-infogain", choices=["off", "on"], default="off",
                    help="on=add a per-agent exploration bonus (count of uncovered cells in "
                         "sensor range). The 'coverage-bump' incentive is just --w-coverage 3.")
@@ -215,7 +222,8 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
     cfg = CTDEConfig(
         world=World(grid=args.grid, n_agents=args.n_agents, comm_r=args.comm_r,
                     horizon=args.horizon, terrain=args.terrain, rooms=args.rooms,
-                    n_obstacles=args.n_obstacles),
+                    n_obstacles=args.n_obstacles, pillar_spacing=args.pillar_spacing,
+                    pillar_size=args.pillar_size),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm,
                           message_content=args.message_content,
