@@ -979,6 +979,259 @@ def test_message_content_learned_train_step_byte_unchanged():
     assert all(bool(jnp.array_equal(a, b)) for a, b in zip(la, lb)), "actor diverged"
 
 
+# ---- selector axis (the hierarchical 3-skill mode-picker: off | on) ---------
+#
+# selector='off' (default) = the v0 single goal/role head, byte-unchanged. 'on' = a
+# learned SELECTOR over {0=disperse, 1=flock, 2=hold}: a categorical PPO action off the
+# belief picks a skill, that skill emits (N,K) goal-offset logits, the offset is the second
+# PPO action (replacing the goal-head sample), routed through the fixed L1 controller. The
+# selector_head + a learned flock_head are ALWAYS built (stable param surface) and only
+# USED via skill_forward. Tests: (a) off byte-unchanged (forward + train_step) + param
+# surface / key-identity; (b) on runs a train_step (finite loss, 100% valid moves) for BOTH
+# flock flavors and congestion on/off; (c) skill_forward shapes + the selector takes a step.
+
+
+def _selector_cfg(**over):
+    """A tiny selector-on cfg on 10×10/4 (room for the 3 skills to differ)."""
+    import dataclasses
+    base = _tiny_cfg(world=World(grid=10, n_agents=4, comm_r=5, horizon=6),
+                     selector="on")
+    return dataclasses.replace(base, **over) if over else base
+
+
+def test_selector_off_byte_unchanged_forward():
+    """Regression: selector='off' (DEFAULT) leaves the actor forward byte-identical — the
+    goal logits equal goal_head(z) EXACTLY (skill_forward is never called; the selector_head
+    / flock_head params just sit unused), exactly like the explorer_tool default test."""
+    cfg = _tiny_cfg()
+    assert cfg.selector == "off"                           # the default
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(2), selector="off")
+    goal_logits, _rl, _v, _l2, z, _h = actor(obs, adj, inference=True)
+    goal_only = jax.vmap(actor.goal_head)(z)               # goal head with NO selector
+    assert bool(jnp.array_equal(goal_logits, goal_only)), "selector off changed the forward"
+
+
+def test_selector_param_surface_stable_and_key_identical():
+    """The selector_head + flock_head are ALWAYS built (stable param tree) regardless of the
+    selector knob, AND a selector='off' actor shares EVERY non-selector parameter bit-for-bit
+    with a selector='on' actor of the same key (the selector keys are fold_in-derived, so the
+    backbone / goal / role / frontier / compass / gru / aux / value keys are unchanged)."""
+    import equinox as eqx
+    cfg = _tiny_cfg()
+    a_off = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                  key=jax.random.PRNGKey(0), selector="off")
+    a_on = Actor(5, cfg.action_head.K, backbone_cfg=cfg.backbone, dropout=0.0,
+                 key=jax.random.PRNGKey(0), selector="on")
+
+    def leaves(m):
+        return jax.tree_util.tree_leaves(eqx.filter(m, eqx.is_array))
+    for name in ("backbone", "goal_head", "role_head", "frontier_attn", "compass",
+                 "goal_residual", "gru", "aux_head", "value_head"):
+        lo, ln = leaves(getattr(a_off, name)), leaves(getattr(a_on, name))
+        assert lo and all(bool(jnp.array_equal(x, y)) for x, y in zip(lo, ln)), name
+    # the selector_head + flock_head param surfaces are present and identical between the two.
+    for name in ("selector_head", "flock_head"):
+        s_off = [p.shape for p in leaves(getattr(a_off, name))]
+        s_on = [p.shape for p in leaves(getattr(a_on, name))]
+        assert s_off == s_on and len(s_off) > 0, name
+
+
+def test_selector_off_train_step_byte_unchanged():
+    """REGRESSION (the update + trajectory): selector='off' (DEFAULT) leaves the WHOLE PPO
+    step byte-identical — the rollout trajectory carries NO selector keys (skill / skill_logp
+    / position) and a full train_step under the default matches one under an explicit
+    selector='off' config bit-for-bit (the selector path is never traced)."""
+    import dataclasses
+    import equinox as eqx
+    cfg_def = _tiny_cfg()
+    assert cfg_def.selector == "off"
+    cfg_exp = dataclasses.replace(_tiny_cfg(), selector="off")
+    env = env_utils.build_env(cfg_def)
+    stencil = ppo.make_stencil(cfg_def)
+    # (i) the rollout pytree carries NO selector-specific keys.
+    st = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    traj = ppo.collect(env, st.actor, st.critic, cfg_def, stencil, jax.random.PRNGKey(6),
+                       jnp.float32(0.0))
+    assert "skill" not in traj and "skill_logp" not in traj and "position" not in traj
+    # (ii) a full train_step under the default and under an explicit off config match.
+    opt = ppo.make_optimizer(cfg_def)
+    s_def = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    s_exp = ppo.init_state(env, cfg_exp, jax.random.PRNGKey(5))
+    n_def, _ = ppo.train_step(env, s_def, cfg_def, jax.random.PRNGKey(6), opt, stencil)
+    n_exp, _ = ppo.train_step(env, s_exp, cfg_exp, jax.random.PRNGKey(6), opt, stencil)
+    la = jax.tree_util.tree_leaves(eqx.filter(n_def.actor, eqx.is_array))
+    lb = jax.tree_util.tree_leaves(eqx.filter(n_exp.actor, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(la, lb)), "actor diverged"
+
+
+def test_selector_config_roundtrip():
+    """A non-default selector / flock / congestion round-trips through the config tree and
+    the defaults reproduce v0 (selector=off, flock=scripted, congestion=off)."""
+    import dataclasses
+    cfg = _tiny_cfg()
+    assert (cfg.selector, cfg.flock, cfg.congestion) == ("off", "scripted", "off")
+    cfg2 = dataclasses.replace(cfg, selector="on", flock="learned", congestion="on",
+                               congestion_weight=0.25)
+    d = cfg2.to_dict()
+    assert (d["selector"], d["flock"], d["congestion"], d["congestion_weight"]) == (
+        "on", "learned", "on", 0.25)
+    assert from_dict(d).to_dict() == d
+
+
+def test_skill_forward_shapes_and_skills_differ():
+    """skill_forward returns the right shapes — skill_logits (N,3), offset_logits (3,N,K),
+    feat (N,W), h_next (N,W) — and the three skills produce DISTINCT offset-logit rows (the
+    disperse / flock / hold skills are genuinely different behaviours, not a shared head)."""
+    cfg = _selector_cfg()
+    K = cfg.action_head.K
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    actor = ppo._make_actor(env.obs.obs_channels, cfg, jax.random.PRNGKey(2))
+    sl, ol, feat, h = actor.skill_forward(obs, adj, state.body.position, inference=True)
+    N, W = cfg.world.n_agents, cfg.backbone.width
+    assert sl.shape == (N, 3) and ol.shape == (3, N, K)
+    assert feat.shape == (N, W) and h.shape == (N, W)
+    assert bool(jnp.isfinite(sl).all()) and bool(jnp.isfinite(ol).all())
+    # the three skills are distinct (disperse vs flock vs hold differ on this layout).
+    assert not bool(jnp.allclose(ol[0], ol[1])), "disperse == flock"
+    assert not bool(jnp.allclose(ol[0], ol[2])), "disperse == hold"
+    assert not bool(jnp.allclose(ol[1], ol[2])), "flock == hold"
+
+
+def test_hold_skill_stays_when_anchored_reconnects_when_isolating():
+    """The HOLD skill's argmax offset is 'here' (index 0 = STAY) for a well-anchored agent
+    (soft-degree >= the hold floor) and the reconnect direction (toward the NEAREST other
+    agent) for an about-to-isolate agent (soft-degree < floor). Mirrors relay_hold_move but
+    as goal-offset logits. Layout (comm_r=5, sharp=2, floor=1.0): a0,a1,a2 form a tight
+    mutually-adjacent TRIANGLE (each has two in-range neighbours -> soft-degree ~2 >> floor,
+    so all three HOLD); a3 sits far away (isolated, soft-degree ~0 < floor) so its row
+    RECONNECTS toward its nearest neighbour (a0, up-left = NW)."""
+    cfg = _selector_cfg(world=World(grid=20, n_agents=4, comm_r=5, horizon=6))
+    K = cfg.action_head.K
+    actor = ppo._make_actor(5, cfg, jax.random.PRNGKey(0))
+    # a0,a1,a2 a mutually-adjacent triangle (soft-degree ~2 >> floor 1.0); a3 isolated.
+    pos = jnp.array([[5, 5], [5, 6], [6, 5], [18, 18]], dtype=jnp.int32)
+    deg = ctrl._local_conn_score(pos, cfg.world.comm_r, cfg.connectivity.lambda2_sharp)
+    assert bool((deg[:3] >= 1.0).all()) and float(deg[3]) < 1.0, deg   # premise of the test
+    hold = actor._hold_logits(pos)                          # (N,K)
+    assert hold.shape == (4, K)
+    here = 0
+    assert int(jnp.argmax(hold[0])) == here, hold[0]        # anchored a0 holds (STAY)
+    assert int(jnp.argmax(hold[1])) == here, hold[1]        # anchored a1 holds (STAY)
+    assert int(jnp.argmax(hold[2])) == here, hold[2]        # anchored a2 holds (STAY)
+    # a3 is isolated (nearest is a0 at (5,5); bearing from (18,18) is up-left = NW).
+    nw = int(jnp.argmax(nets._compass_unit_dirs(K)
+                        @ jnp.asarray([-1.0, -1.0]) / jnp.sqrt(2.0)))
+    assert int(jnp.argmax(hold[3])) == nw, hold[3]          # isolating a3 reconnects toward nbr
+
+
+def _selector_train_step(cfg):
+    """Run one ppo.train_step on a selector cfg; return (new_state, state, logs)."""
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    new_state, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    return new_state, state, logs
+
+
+def test_selector_train_step_both_flock_flavors():
+    """selector='on' runs a full PPO iter for BOTH flock flavors (scripted | learned): the
+    loss is finite, the controller emits 100% valid moves, every skill-usage fraction is
+    logged, and the selector_head ITSELF takes a gradient step (the mode-picker learns)."""
+    import equinox as eqx
+    for flavor in ("scripted", "learned"):
+        cfg = _selector_cfg(flock=flavor)
+        new_state, state, logs = _selector_train_step(cfg)
+        assert jnp.isfinite(logs["ep_reward"]) and jnp.isfinite(logs["policy_loss"]), flavor
+        assert float(logs["ctrl_valid_frac"]) == 1.0, flavor       # only valid moves
+        # the per-skill usage fractions are logged and sum to 1 (every agent-step picks one).
+        fr = [float(logs[f"skill_frac_{n}"]) for n in ("disperse", "flock", "hold")]
+        assert abs(sum(fr) - 1.0) < 1e-4, (flavor, fr)
+        assert jnp.isfinite(logs["skill_usage_entropy"])
+        # the SELECTOR head took a gradient step (the skill-PG flowed into it).
+        s0 = jax.tree_util.tree_leaves(eqx.filter(state.actor.selector_head, eqx.is_array))
+        s1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor.selector_head, eqx.is_array))
+        assert any(not jnp.allclose(a, b) for a, b in zip(s0, s1)), f"selector unchanged ({flavor})"
+
+
+def test_selector_train_step_congestion_on_off():
+    """selector='on' runs a full PPO iter with the free-market congestion price ON and OFF,
+    for both flock flavors: finite loss + 100% valid moves either way (the congestion penalty
+    is an additive reward term computed from the sampled skills, not a routing change)."""
+    for congestion in ("off", "on"):
+        for flavor in ("scripted", "learned"):
+            cfg = _selector_cfg(flock=flavor, congestion=congestion)
+            _ns, _st, logs = _selector_train_step(cfg)
+            tag = (congestion, flavor)
+            assert jnp.isfinite(logs["ep_reward"]), tag
+            assert jnp.isfinite(logs["policy_loss"]), tag
+            assert float(logs["ctrl_valid_frac"]) == 1.0, tag       # only valid moves
+
+
+def test_selector_recurrent_train_step():
+    """selector='on' composes with recurrence='recurrent': a full PPO iter runs end-to-end
+    (the per-episode BPTT scan re-folds the hidden AND re-runs skill_forward), the loss is
+    finite, the controller stays 100% valid, and the selector head takes a gradient step."""
+    import dataclasses
+    import equinox as eqx
+    cfg = _selector_cfg(backbone=dataclasses.replace(
+        _tiny_cfg().backbone, recurrence="recurrent"))
+    new_state, state, logs = _selector_train_step(cfg)
+    assert jnp.isfinite(logs["ep_reward"]) and jnp.isfinite(logs["policy_loss"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0
+    s0 = jax.tree_util.tree_leaves(eqx.filter(state.actor.selector_head, eqx.is_array))
+    s1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor.selector_head, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(s0, s1)), "selector unchanged (recurrent)"
+
+
+def test_selector_loss_forward_reproduces_rollout_goal_logp():
+    """CONSISTENCY: the selector forward used IN THE LOSS reproduces the rollout's goal
+    log-probs for the same params/obs — gathering the SELECTED skill's offset-logits and
+    masking gives back the stored goal_logp, so the clipped-PPO ratio for the offset action
+    starts at exactly 1 (as it must on the first epoch). The scripted flavor is deterministic
+    at dropout=0, so the loss-time skill_forward matches the rollout-time one exactly."""
+    cfg = _selector_cfg(flock="scripted")
+    env = env_utils.build_env(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    key = jax.random.PRNGKey(6)
+    traj = ppo.collect(env, state.actor, state.critic, cfg, stencil, key, jnp.float32(0.0))
+    obs, adj, pos = traj["obs"], traj["adj"], traj["position"]   # (B,T,...)
+    skill, gmask, goal, logp_bt = (traj["skill"], traj["goal_mask"], traj["goal"],
+                                   traj["goal_logp"])
+    B, T = obs.shape[0], obs.shape[1]
+    _f = lambda x: x.reshape((B * T,) + x.shape[2:])
+    # the loss's FF selector forward (dropout off -> deterministic, key irrelevant).
+    sl, ol, _l2, _feat = ppo._actor_skill_forward_ff(
+        state.actor, _f(obs), _f(adj), _f(pos), jax.random.PRNGKey(0))
+    # gather the SELECTED skill's offset-logits exactly as loss_fn does, mask, log-softmax.
+    g = jnp.take_along_axis(ol, _f(skill)[:, None, :, None], axis=1)[:, 0]  # (M,N,K)
+    masked = jnp.where(_f(gmask), g, ppo._NEG)
+    logp_all = jax.nn.log_softmax(masked, axis=-1)
+    logp = jnp.take_along_axis(logp_all, _f(goal)[..., None], axis=-1)[..., 0]  # (M,N)
+    assert bool(jnp.allclose(logp, _f(logp_bt), atol=1e-5)), (
+        float(jnp.max(jnp.abs(logp - _f(logp_bt)))))
+
+
+def test_selector_full_train_loop_logs_skill_usage():
+    """ppo.train carries the selector through the jitted loop and logs the per-skill usage
+    fractions + mode-usage entropy each iteration (the history is self-describing)."""
+    cfg = _selector_cfg(iters=2)
+    env = env_utils.build_env(cfg)
+    _state, history = ppo.train(env, cfg)
+    assert len(history) == 2
+    for h in history:
+        assert all(f"skill_frac_{n}" in h for n in ("disperse", "flock", "hold"))
+        assert "skill_usage_entropy" in h and jnp.isfinite(h["skill_usage_entropy"])
+        assert jnp.isfinite(h["skill_entropy"])
+
+
 # ---- controller: only valid moves ------------------------------------------
 
 def test_controller_emits_only_valid_moves():
@@ -1731,6 +1984,17 @@ if __name__ == "__main__":
     test_message_content_learned_param_tree_byte_identical()
     test_message_content_learned_forward_byte_unchanged()
     test_message_content_learned_train_step_byte_unchanged()
+    test_selector_off_byte_unchanged_forward()
+    test_selector_param_surface_stable_and_key_identical()
+    test_selector_off_train_step_byte_unchanged()
+    test_selector_config_roundtrip()
+    test_skill_forward_shapes_and_skills_differ()
+    test_hold_skill_stays_when_anchored_reconnects_when_isolating()
+    test_selector_train_step_both_flock_flavors()
+    test_selector_train_step_congestion_on_off()
+    test_selector_recurrent_train_step()
+    test_selector_loss_forward_reproduces_rollout_goal_logp()
+    test_selector_full_train_loop_logs_skill_usage()
     test_controller_emits_only_valid_moves()
     test_collision_mask_never_blocks_stay_and_stays_valid()
     test_collision_mask_forbids_occupied_cells()

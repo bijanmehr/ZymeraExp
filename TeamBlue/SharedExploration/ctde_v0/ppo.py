@@ -151,6 +151,15 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     h0 = actor.init_hidden(state0.n_agents)                          # (N,W) episode-start
 
     use_roles = cfg.role_picker == "expl_relay"
+    # selector (the hierarchical mode-picker) SUPERSEDES the role picker: when on, the actor
+    # runs `skill_forward` -> a skill m is sampled off the belief (a categorical PPO action),
+    # the chosen skill's (N,K) offset-logits are gathered, the offset is sampled (the second
+    # PPO action, stored as `goal`/`goal_logp`/`goal_mask` so the rest of the pipeline is
+    # reused), and ALL skills route through `_goal_to_move` with role_idx=None (no relay
+    # bypass). STATIC, so when off this whole branch is never traced and the trace pytree is
+    # byte-identical to v0 (selector adds `skill`/`skill_logp` only when on).
+    use_selector = cfg.selector == "on"
+    use_congestion = use_selector and cfg.congestion == "on"
     adaptive = cfg.mission_safety.mechanism in ("lagrangian", "pid_lagrangian")
     # conn_signal (I1c) is ORTHOGONAL to mechanism: it only changes WHAT shortfall
     # the soft_lambda / adaptive penalty reads. "global_lambda2" (default) = the I1b
@@ -170,16 +179,41 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         state, obs, h, k = carry
         k, ak, rk, sk = jax.random.split(k, 4)
 
+        # selector-skill sampling key: derived from the (otherwise-unused-when-selector-on)
+        # role key `rk` via fold_in, so the MAIN key stream (k/ak/rk/sk) is untouched and
+        # the off-path RNG draw is byte-identical to v0 (no extra split consumed).
+        ck = jax.random.fold_in(rk, 0x5E1)
         adj_off = _eu.kb_adjacency(state.body.position, cfg)          # (N,N) KB graph
         # normalized sender->receiver distance for the non-default message_content modes;
         # None for 'learned' (the backbone ignores it -> byte-identical to v0).
         dist = _eu.kb_distance(state.body.position, cfg) if edge_msg else None  # (N,N)|None
+        n = state.n_agents
         # Feed the carried hidden h in and get the step's NEW hidden out (h_next). On
         # the feedforward path h_next is the zero passthrough (h stays zeros all
         # episode); on the recurrent path it is GRUCell(z, h), carried to the next step.
-        goal_logits, role_logits, value_agent, l2_hat, _z, h_next = actor(
-            obs, adj_off, dist=dist, h=h, inference=True
-        )
+        if use_selector:
+            # Hierarchical SELECTOR (supersedes role_picker): pick a skill m off the belief,
+            # then take that skill's (N,K) offset-logits as THIS step's goal_logits. The
+            # value/aux still come from the actor's heads (read off the same belief), so the
+            # critic / aux-λ₂ wiring is unchanged. `role_logits` is unused here (selector
+            # replaces roles) but kept for the shared value/aux read below.
+            skill_logits, offset_logits, feat, h_next = actor.skill_forward(
+                obs, adj_off, state.body.position, dist=dist, h=h, inference=True)
+            skill = jax.random.categorical(ck, skill_logits, axis=-1)     # (N,) chosen skill m
+            skill_logp = jnp.take_along_axis(
+                jax.nn.log_softmax(skill_logits, axis=-1), skill[:, None], axis=-1
+            )[:, 0]                                                       # (N,) skill log-prob
+            # gather the CHOSEN skill's offset-logits: offset_logits (3,N,K) -> (N,K).
+            goal_logits = jnp.take_along_axis(
+                offset_logits, skill[None, :, None], axis=0)[0]           # (N,K)
+            value_agent = jax.vmap(actor.value_head)(feat)[:, 0]          # (N,) per-agent value
+            l2_hat = jax.vmap(actor.aux_head)(feat)[:, 0]                # (N,) local λ̂₂
+        else:
+            goal_logits, role_logits, value_agent, l2_hat, _z, h_next = actor(
+                obs, adj_off, dist=dist, h=h, inference=True
+            )
+            skill = jnp.zeros((n,), jnp.int32)                          # inert (selector off)
+            skill_logp = jnp.zeros((n,), jnp.float32)
         central = env.central_obs(state)                              # (Cg,H,W)
         # central is stored regardless (byte-stable traj pytree); the central critic is
         # only READ in central mode. In decentral the team value is the actor's own
@@ -197,9 +231,11 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         # role_div = persistent spread of time-averaged behaviour). Diagnostic only.
         goal_probs = jax.nn.softmax(masked_logits, axis=-1)           # (N,K)
 
-        # role picker (L3): sample a role per agent when enabled, else all-explorer.
-        n = state.n_agents
-        if use_roles:
+        # role picker (L3): sample a role per agent when enabled, else all-explorer. The
+        # selector supersedes roles, so when it is on every agent routes as an explorer
+        # (role_idx=None -> the greedy L1 controller, NO relay bypass — all skills route
+        # the same way through _goal_to_move).
+        if use_roles and not use_selector:
             role = jax.random.categorical(rk, role_logits, axis=-1)   # (N,)
             role_logp = jnp.take_along_axis(
                 jax.nn.log_softmax(role_logits, axis=-1), role[:, None], axis=-1
@@ -208,7 +244,7 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         else:
             role = jnp.zeros((n,), jnp.int32)                         # explorer
             role_logp = jnp.zeros((n,), jnp.float32)
-            role_idx = None                                          # v0 routing
+            role_idx = None                                          # v0 routing (+ selector)
 
         move, move_valid = _goal_to_move(env, state, goal, stencil, role_idx, cfg)
         obs_next, state_next, _rew, done, info = env.step(state, move, sk)
@@ -243,7 +279,16 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         else:
             l2_penalty = None
 
-        rew_agent = _eu.compose_reward(info["reward_terms"], state_next, cfg, l2_penalty)
+        # free-market congestion price (selector + congestion on): a per-agent penalty for
+        # choosing a skill many in-range neighbours ALSO chose (local same-skill crowding),
+        # so the team spreads across modes instead of collapsing into one. Computed from the
+        # sampled `skill` at the NEXT position (parallels true_l2 / margin); None otherwise
+        # so the compose_reward branch is skipped and the reward is byte-unchanged.
+        congestion_penalty = (
+            _eu.skill_congestion(skill, state_next.body.position, cfg)
+            if use_congestion else None)                              # (N,)|None
+        rew_agent = _eu.compose_reward(info["reward_terms"], state_next, cfg, l2_penalty,
+                                       congestion_penalty=congestion_penalty)
         rew_team = rew_agent.mean()                                   # () centralized target
         cov = _eu.coverage_fraction_free(state_next, cfg)            # ()
         degree = _eu.degree_stats(state.body.position, cfg)         # (N,)
@@ -259,6 +304,15 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             "goal_probs": goal_probs,
             "done": done.any().astype(jnp.float32),
         }
+        if use_selector:
+            # the sampled skill + its log-prob (parallel to role/role_logp) — the SELECTOR
+            # PPO action replayed in the loss. Only present when the selector is on, so the
+            # v0 / off-path trajectory pytree is byte-unchanged. `position` is stored too so
+            # the loss can rebuild the scripted-flock / hold skills (which read the agent
+            # cells, not the belief) on EXACTLY the rollout geometry (parallels "adj").
+            per_step["skill"] = skill                                  # (N,)
+            per_step["skill_logp"] = skill_logp                       # (N,)
+            per_step["position"] = state.body.position               # (N,2)
         if local_signal:
             # per-step aggregate margin shortfall (mean over agents) — the dual reads
             # its rollout-mean as the violation (the local counterpart of the true-λ₂
@@ -440,6 +494,65 @@ def _actor_forward_recurrent(actor, obs, adj, key, dist=None):
     return flat(g), flat(r), flat(l2), flat(feat)
 
 
+def _actor_skill_forward_ff(actor, obs, adj, pos, key, dist=None):
+    """Feedforward SELECTOR forward over a FLAT minibatch (M rows) — the selector
+    counterpart of :func:`_actor_forward_ff`. vmap ``actor.skill_forward`` per row
+    (h=None -> the zero passthrough), threading the per-row agent ``pos`` (M,N,2) the
+    scripted-flock / hold skills read. Returns ``(skill_logits (M,N,3),
+    offset_logits (M,3,N,K), l2_hat (M,N), feat (M,N,W))`` so the loss can (a) add the
+    skill clipped-PG and (b) source the offset log-prob from the SELECTED skill.
+
+    ``dist`` (M,N,N) is the per-row comm-graph distance (replayed like ``adj``); None for
+    the default 'learned' mode (ignored by the backbone)."""
+    M = obs.shape[0]
+    akeys = jax.random.split(key, M)
+
+    def fwd(o, a, p, d, kk):
+        sl, ol, feat, _h = actor.skill_forward(o, a, p, dist=d, key=kk, inference=False)
+        l2 = jax.vmap(actor.aux_head)(feat)[:, 0]                    # (N,) local λ̂₂
+        return sl, ol, l2, feat
+    if dist is None:
+        return jax.vmap(lambda o, a, p, kk: fwd(o, a, p, None, kk))(obs, adj, pos, akeys)
+    return jax.vmap(fwd)(obs, adj, pos, dist, akeys)
+
+
+def _actor_skill_forward_recurrent(actor, obs, adj, pos, key, dist=None):
+    """Recurrent SELECTOR forward over a minibatch of EPISODES — the selector counterpart
+    of :func:`_actor_forward_recurrent`. For each episode, scan over the T steps re-folding
+    the hidden under the CURRENT params from zeros (BPTT), running ``actor.skill_forward``
+    each step so the stored sampled skill/offset get current-policy logits with the right
+    temporal context. ``pos`` (B,T,N,2) is the per-step agent cells the scripted skills read.
+    Returns the SAME tuple as the FF selector forward, flattened to (M=B*T,...):
+    ``(skill_logits (M,N,3), offset_logits (M,3,N,K), l2_hat (M,N), feat (M,N,W))``.
+
+    ``dist`` (B,T,N,N) is the per-step comm-graph distance (replayed like ``adj``); None
+    for 'learned'."""
+    B, T = obs.shape[0], obs.shape[1]
+    N = obs.shape[2]
+    h0 = actor.init_hidden(N)                                       # (N,W) per-episode start
+    ep_keys = jax.random.split(key, B)
+    dist_e_all = dist if dist is not None else jnp.zeros((B, T, N, N), jnp.float32)
+    use_dist = dist is not None
+
+    def per_episode(obs_e, adj_e, pos_e, dist_e, ek):
+        step_keys = jax.random.split(ek, T)                       # (T,) per-step dropout keys
+
+        def step(h, inp):
+            o_t, a_t, p_t, d_t, kk = inp
+            d_in = d_t if use_dist else None
+            sl, ol, feat, h_next = actor.skill_forward(o_t, a_t, p_t, dist=d_in, h=h,
+                                                       key=kk, inference=False)
+            l2 = jax.vmap(actor.aux_head)(feat)[:, 0]              # (N,)
+            return h_next, (sl, ol, l2, feat)
+
+        _hT, outs = jax.lax.scan(step, h0, (obs_e, adj_e, pos_e, dist_e, step_keys))
+        return outs                                               # each (T,...)
+
+    sl, ol, l2, feat = jax.vmap(per_episode)(obs, adj, pos, dist_e_all, ep_keys)
+    flat = lambda x: x.reshape((B * T,) + x.shape[2:])
+    return flat(sl), flat(ol), flat(l2), flat(feat)
+
+
 def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
     """Total loss = PPO(goal) [+ PPO(role)] + vf*value + beta*aux + degreeReg
     - ent*(goal entropy [+ role entropy]). The role terms are added ONLY when
@@ -451,27 +564,52 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
     recomputed under the current params, then everything is flattened to (M=B*T) and
     the rest of the loss is shape-identical to the feedforward path. The feedforward
     path keeps the flat (M,...) minibatch and the per-row vmap forward EXACTLY as
-    before (byte-unchanged)."""
+    before (byte-unchanged).
+
+    Selector (``selector == 'on'``): a NEW gated path mirroring the goal+role two-action
+    PPO math EXACTLY, only the second action is the SKILL (over {disperse,flock,hold})
+    rather than the role. The forward is the selector variant
+    (``_actor_skill_forward_{ff,recurrent}``) which returns the per-step skill-logits AND
+    all three skills' (N,K) offset-logits; the loss (a) sources the OFFSET log-prob from the
+    SELECTED skill's offset-logits (gather per the stored ``skill``) — so the clipped-PPO
+    ratio for the goal action starts at exactly 1 — and (b) adds the SKILL clipped-PG +
+    entropy (a clone of the role-PG block). Roles are off when the selector is on
+    (selector supersedes the role picker). With ``selector == 'off'`` (default) this whole
+    branch is dead and the loss is byte-identical to v0."""
     recurrent = cfg.backbone.recurrence == "recurrent"
+    use_selector = cfg.selector == "on"
     obs = batch["obs"]                 # FF: (M,N,C,H,W) | REC: (B,T,N,C,H,W)
     adj = batch["adj"]                 # FF: (M,N,N)     | REC: (B,T,N,N)
     # the non-default message_content modes stored the per-step comm-graph distance in the
     # trajectory ("dist"); replay it alongside adj. None for 'learned' -> ignored forward.
     dist = batch.get("dist")           # FF: (M,N,N) | REC: (B,T,N,N) | None (learned)
-    use_roles = cfg.role_picker == "expl_relay"
+    # the selector path stored per-step agent positions (for the scripted flock / hold
+    # skills) and the sampled skill + its log-prob. None on the off-path (never read).
+    pos = batch.get("position")        # FF: (M,N,2) | REC: (B,T,N,2) | None (selector off)
+    use_roles = cfg.role_picker == "expl_relay" and not use_selector
+    # the selector logits / offset-logits / sampled-skill produced by the forward, gated.
+    skill_logits = offset_logits = None
 
     if recurrent:
-        # actor forward along each episode (BPTT scan), flattened to (M=B*T,...). The
-        # per-step targets/old-logps/adv arrive (B,T,...) and are flattened the SAME way.
-        goal_logits, role_logits, l2_hat, _z = _actor_forward_recurrent(
-            actor, obs, adj, key, dist)
         B, T = obs.shape[0], obs.shape[1]
         _f = lambda x: x.reshape((B * T,) + x.shape[2:])
+        if use_selector:
+            # selector forward along each episode (BPTT scan), flattened to (M=B*T,...).
+            skill_logits, offset_logits, l2_hat, _z = _actor_skill_forward_recurrent(
+                actor, obs, adj, pos, key, dist)
+            role_logits = None
+        else:
+            # actor forward along each episode (BPTT scan), flattened to (M=B*T,...). The
+            # per-step targets/old-logps/adv arrive (B,T,...) and are flattened the SAME way.
+            goal_logits, role_logits, l2_hat, _z = _actor_forward_recurrent(
+                actor, obs, adj, key, dist)
         central = _f(batch["central"]); goal = _f(batch["goal"])
         old_logp = _f(batch["goal_logp"]); gmask = _f(batch["goal_mask"])
         role = _f(batch["role"]); old_role_logp = _f(batch["role_logp"])
         adv = _f(batch["adv"]); ret = _f(batch["ret"])
         true_l2 = _f(batch["true_l2"]); degree = _f(batch["degree"])
+        if use_selector:
+            skill = _f(batch["skill"]); old_skill_logp = _f(batch["skill_logp"])
     else:
         central = batch["central"]         # (M,Cg,H,W)
         goal = batch["goal"]               # (M,N) sampled goal index
@@ -483,8 +621,21 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         ret = batch["ret"]                 # (M,) team return
         true_l2 = batch["true_l2"]         # (M,) aux target
         degree = batch["degree"]           # (M,N) per-node comm degree
-        goal_logits, role_logits, l2_hat, _z = _actor_forward_ff(
-            actor, obs, adj, key, dist)
+        if use_selector:
+            skill = batch["skill"]             # (M,N) sampled skill index
+            old_skill_logp = batch["skill_logp"]  # (M,N)
+            skill_logits, offset_logits, l2_hat, _z = _actor_skill_forward_ff(
+                actor, obs, adj, pos, key, dist)
+            role_logits = None
+        else:
+            goal_logits, role_logits, l2_hat, _z = _actor_forward_ff(
+                actor, obs, adj, key, dist)
+    # Selector: this step's goal_logits ARE the SELECTED skill's offset-logits — gather
+    # offset_logits (M,3,N,K) at the stored skill (M,N) -> (M,N,K). The offset log-prob /
+    # mask / PG below are then IDENTICAL to v0 (the goal action math is reused verbatim).
+    if use_selector:
+        goal_logits = jnp.take_along_axis(
+            offset_logits, skill[:, None, :, None], axis=1)[:, 0]    # (M,N,K)
     # goal_logits (M,N,K); apply the SAME mask used at sample time.
     masked = jnp.where(gmask, goal_logits, _NEG)
     logp_all = jax.nn.log_softmax(masked, axis=-1)                  # (M,N,K)
@@ -512,6 +663,23 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         role_pg = jnp.zeros(())
         role_ent = jnp.zeros(())
 
+    # SELECTOR policy head (the second PPO action when on; supersedes the role head). This
+    # is a verbatim clone of the role-PG block above — a clipped-PG + entropy on the
+    # categorical skill choice, sharing the same team advantage — only the logits/old-logp
+    # come from the selector. Added to policy_loss + entropy bonus exactly like the role.
+    if use_selector:
+        skill_logp_all = jax.nn.log_softmax(skill_logits, axis=-1)  # (M,N,3)
+        skill_logp = jnp.take_along_axis(
+            skill_logp_all, skill[..., None], axis=-1)[..., 0]      # (M,N)
+        skill_probs = jnp.exp(skill_logp_all)
+        skill_entropy = -(skill_probs * skill_logp_all).sum(-1)     # (M,N)
+        skill_pg = _clipped_pg(skill_logp, old_skill_logp, adv_norm, clip)
+        policy_loss = policy_loss + skill_pg
+        skill_ent = skill_entropy.mean()
+    else:
+        skill_pg = jnp.zeros(())
+        skill_ent = jnp.zeros(())
+
     if cfg.critic_mode == "decentral":
         # DTE: team value = the actor's own per-agent value head (mean over agents); the
         # centralized critic is NOT read here (zero-grad in this mode). ``_z`` is the
@@ -537,12 +705,14 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         + cfg.loss.vf_coef * value_loss
         + cfg.loss.aux_beta * aux_loss
         + reg.degree_reg * degree_reg
-        - reg.entropy_coef * (ent + role_ent)
+        - reg.entropy_coef * (ent + role_ent + skill_ent)
     )
     metrics = {
         "policy_loss": policy_loss, "goal_pg": goal_pg, "role_pg": role_pg,
+        "skill_pg": skill_pg,
         "value_loss": value_loss, "aux_loss": aux_loss,
-        "entropy": ent, "role_entropy": role_ent, "degree_reg": degree_reg,
+        "entropy": ent, "role_entropy": role_ent, "skill_entropy": skill_ent,
+        "degree_reg": degree_reg,
     }
     return total, metrics
 
@@ -628,7 +798,10 @@ def _make_actor(in_ch: int, cfg: CTDEConfig, key) -> Actor:
                  explorer_tool=cfg.action_head.explorer_tool,
                  compass=cfg.action_head.compass,
                  recurrence=cfg.backbone.recurrence,
-                 diversity_residual=cfg.diversity_residual)
+                 diversity_residual=cfg.diversity_residual,
+                 selector=cfg.selector, flock=cfg.flock,
+                 comm_r=cfg.world.comm_r,
+                 flock_sharp=cfg.connectivity.lambda2_sharp)
 
 
 def _fork_guard(cfg: CTDEConfig) -> None:
@@ -833,6 +1006,11 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     # minibatch it alongside "adj" (gated so the 'learned' field set is unchanged).
     if cfg.backbone.message_content != "learned":
         fields.append("dist")
+    # the selector carries the sampled skill + its log-prob + the per-step agent positions
+    # (for the scripted flock / hold skills); minibatch them too (gated so the off-path
+    # field set is byte-unchanged).
+    if cfg.selector == "on":
+        fields += ["skill", "skill_logp", "position"]
     if cfg.backbone.recurrence == "recurrent":
         flat = {k: traj[k] for k in fields}          # keep (B,T,...) — minibatch episodes
         flat["adv"], flat["ret"] = adv, ret          # (B,T) per-episode advantage/return
@@ -943,6 +1121,21 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
         "dual_lambda_next": dual.lam,
         "dual_violation": violation,
     }
+    # selector diagnostics (only when on; `cfg.selector` is static so the log key set is
+    # stable per config): the per-skill USAGE fraction over all agent-steps + the
+    # mode-usage entropy (mean over agents/steps of the per-agent selector entropy — high
+    # = the team keeps mixing modes, low = it collapsed onto one skill).
+    if cfg.selector == "on":
+        skill_bt = traj["skill"]                                     # (B,T,N) sampled skill
+        for m, name in ((0, "disperse"), (1, "flock"), (2, "hold")):
+            logs[f"skill_frac_{name}"] = (skill_bt == m).astype(jnp.float32).mean()
+        logs["skill_pg"] = jnp.mean(last_metrics["skill_pg"])
+        logs["skill_entropy"] = jnp.mean(last_metrics["skill_entropy"])
+        # mode-usage entropy from the realized skill choices (in nats), team-mean: how
+        # spread the SAMPLED skill distribution is across {disperse,flock,hold}.
+        counts = jnp.stack([(skill_bt == m).mean() for m in range(3)])  # (3,) usage probs
+        p = counts / jnp.maximum(counts.sum(), EPS)
+        logs["skill_usage_entropy"] = -(p * jnp.log(p + EPS)).sum()
     return state, logs
 
 

@@ -36,6 +36,11 @@ import jax
 import jax.numpy as jnp
 
 from . import controller as _ctrl
+# NOTE: ``flock`` is imported LAZILY (inside Actor.__init__ / Actor.skill_forward)
+# rather than at module top: ``ctde_v0.flock`` imports ``_compass_unit_dirs`` from
+# THIS module, so a top-level ``from .flock import ...`` would be a circular import
+# (flock loads before _compass_unit_dirs is defined here). The local imports run only
+# after both modules are fully defined, breaking the cycle.
 
 # Obs channel indices for the comm-coverage recipe's GridObs stack
 # ("known", "own_pos", "known_walls", "neighbors", "local_frontier"). The
@@ -702,11 +707,28 @@ class Actor(eqx.Module):
     zero passthrough — so the actor forward is BYTE-IDENTICAL to the pre-recurrence
     actor (the ``gru`` params just sit unused).
 
-    Init note: both the ``compass`` AND the ``gru`` keys are derived via
-    ``jax.random.fold_in`` (NOT by widening the ``split``) so the backbone / goal /
-    role / frontier / aux / value keys are byte-IDENTICAL to the pre-recurrence actor
-    — an actor built with ``compass='off'`` / ``recurrence='feedforward'`` is
-    bit-for-bit the same network as before these modules existed.
+    Selector (the ``selector`` axis): a hierarchical mode-picker over a 3-skill library
+    {0=disperse, 1=flock, 2=hold}. The ``selector_head`` (W -> 3) and a learned
+    ``flock_head`` (``FlockHead``, W -> K) are ALWAYS built (cheap, stable param surface,
+    fold_in-derived keys) but ONLY used by :meth:`skill_forward` — never by
+    :meth:`__call__`. When ``selector == 'on'`` the PPO trainer calls
+    :meth:`skill_forward` to (1) sample a skill m off the belief (a categorical PPO action),
+    (2) take skill m's ``(N,K)`` goal-offset logits, (3) sample the offset (the second PPO
+    action, replacing the goal-head sample), routed through the same fixed L1 controller.
+    The skills: disperse = ``goal_head + frontier_attn`` (the validated explorer); flock =
+    ``scripted_flock_logits`` or the learned ``flock_head`` per the ``flock`` flavor; hold =
+    a STAY scorer with a soft-degree reconnect fallback (:meth:`_hold_logits`). With
+    ``selector == 'off'`` (default) ``skill_forward`` is never called and the two extra
+    heads sit unused, so the actor — and every byte of :meth:`__call__` — is identical to
+    the pre-selector network. The selector SUPERSEDES the role picker (assume role_picker
+    off when selector on).
+
+    Init note: the ``compass`` / ``gru`` / ``goal_residual`` / ``selector_head`` /
+    ``flock_head`` keys are all derived via ``jax.random.fold_in`` (NOT by widening the
+    ``split``) so the backbone / goal / role / frontier / aux / value keys are
+    byte-IDENTICAL to the pre-recurrence actor — an actor built with ``compass='off'`` /
+    ``recurrence='feedforward'`` / ``selector='off'`` is bit-for-bit the same network as
+    before these modules existed.
     """
     backbone: Backbone
     goal_head: eqx.nn.Linear
@@ -715,6 +737,8 @@ class Actor(eqx.Module):
     compass: Compass
     goal_residual: GoalResidual
     gru: eqx.nn.GRUCell
+    selector_head: eqx.nn.Linear
+    flock_head: "FlockHead"
     aux_head: eqx.nn.Linear
     value_head: eqx.nn.Linear
     K: int = eqx.field(static=True)
@@ -723,20 +747,29 @@ class Actor(eqx.Module):
     compass_on: bool = eqx.field(static=True)
     diversity_on: bool = eqx.field(static=True)
     recurrent: bool = eqx.field(static=True)
+    selector_on: bool = eqx.field(static=True)
+    flock_flavor: str = eqx.field(static=True)
+    comm_r: float = eqx.field(static=True)
+    flock_sharp: float = eqx.field(static=True)
+    hold_floor: float = eqx.field(static=True)
     width: int = eqx.field(static=True)
 
     def __init__(self, in_ch: int, K: int, *, backbone_cfg, dropout: float, key,
                  n_roles: int = 2, explorer_tool: str = "goal_head",
                  compass: str = "off", recurrence: str = "feedforward",
-                 diversity_residual: str = "off"):
+                 diversity_residual: str = "off", selector: str = "off",
+                 flock: str = "scripted", comm_r: float = 5.0,
+                 flock_sharp: float = 2.0, hold_floor: float = 1.0):
         kb, kg, kr, kf, ka, kv = jax.random.split(key, 6)
-        # Derive the compass / gru / goal-residual keys by folding fixed constants into the
-        # ORIGINAL key, so the six keys above are unchanged -> compass='off' /
-        # recurrence='feedforward' / diversity_residual='off' is byte-identical to the
-        # pre-module actor (split(key,7+) would have perturbed all six).
+        # Derive the compass / gru / goal-residual / selector / flock keys by folding fixed
+        # constants into the ORIGINAL key, so the six keys above are unchanged -> compass='off'
+        # / recurrence='feedforward' / diversity_residual='off' / selector='off' is byte-
+        # identical to the pre-module actor (split(key,7+) would have perturbed all six).
         kcomp = jax.random.fold_in(key, 0xC0)
         kgru = jax.random.fold_in(key, 0x60)
         kres = jax.random.fold_in(key, 0xD1C0)
+        ksel = jax.random.fold_in(key, 0x5E1)        # selector head key (fold_in, not split)
+        kflk = jax.random.fold_in(key, 0xF10C)       # learned flock-head key (fold_in)
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
@@ -753,6 +786,16 @@ class Actor(eqx.Module):
         # per-agent recurrent cell over the belief width (W -> W); always built so the
         # param tree is invariant to the recurrence knob, only USED when recurrent.
         self.gru = eqx.nn.GRUCell(W, W, key=kgru)
+        # SELECTOR head (the L3 mode-picker over the 3-skill library {disperse,flock,hold})
+        # AND the learned FlockHead are ALWAYS built (cheap, stable param surface) — exactly
+        # like goal_residual / gru / compass — so the parameter tree is invariant to the
+        # ``selector`` / ``flock`` knobs; both are only USED via ``skill_forward`` when
+        # selector == 'on'. Their keys are fold_in-derived (above), so the backbone / goal /
+        # role / frontier / aux / value keys are UNCHANGED and a selector='off' actor is
+        # bit-for-bit the pre-selector network.
+        from .flock import FlockHead as _FlockHead   # lazy: breaks the nets<->flock cycle
+        self.selector_head = eqx.nn.Linear(W, 3, key=ksel)
+        self.flock_head = _FlockHead(W, K, key=kflk)
         self.aux_head = eqx.nn.Linear(W, 1, key=ka)
         self.value_head = eqx.nn.Linear(W, 1, key=kv)
         self.K = int(K)
@@ -761,6 +804,11 @@ class Actor(eqx.Module):
         self.compass_on = (str(compass) == "on")
         self.diversity_on = (str(diversity_residual) == "on")
         self.recurrent = (str(recurrence) == "recurrent")
+        self.selector_on = (str(selector) == "on")
+        self.flock_flavor = str(flock)
+        self.comm_r = float(comm_r)
+        self.flock_sharp = float(flock_sharp)
+        self.hold_floor = float(hold_floor)
         self.width = int(W)
 
     def init_hidden(self, n: int) -> jax.Array:
@@ -768,8 +816,16 @@ class Actor(eqx.Module):
         recurrent path (and the inert passthrough returned by the feedforward path)."""
         return jnp.zeros((n, self.width), dtype=jnp.float32)
 
-    def __call__(self, obs, adj_off, *, dist=None, h=None, key=None,
-                 inference: bool = False):
+    def _belief_and_hidden(self, obs, adj_off, dist, h, key, inference):
+        """Shared backbone -> (post-compass) belief -> (optional) recurrence step.
+
+        Returns ``(feat (N,W), h_next (N,W))`` — the per-agent feature EVERY head reads
+        (the post-compass belief ``z`` feedforward, or the GRU hidden when recurrent) and
+        the carried-out hidden. This is the EXACT sequence of operations the (pre-selector)
+        ``__call__`` ran inline; both ``__call__`` and :meth:`skill_forward` route through
+        it so they share one byte-identical backbone/compass/recurrence path (refactor only
+        — the ops, their order, and the param reads are unchanged, so the v0 forward stays
+        bit-for-bit the same)."""
         # ``dist`` (N,N) is the normalized sender->receiver distance the non-default
         # backbone message_content modes append to each comm message; the default
         # 'learned' backbone ignores it (so the forward is byte-identical to v0 whether
@@ -795,6 +851,11 @@ class Actor(eqx.Module):
         else:
             h_next = self.init_hidden(n)                              # inert zero passthrough
             feat = z                                                  # heads read the belief (v0)
+        return feat, h_next
+
+    def __call__(self, obs, adj_off, *, dist=None, h=None, key=None,
+                 inference: bool = False):
+        feat, h_next = self._belief_and_hidden(obs, adj_off, dist, h, key, inference)
         goal_logits = jax.vmap(self.goal_head)(feat)                   # (N,K)
         # L4 "disperse" tool: add the frontier-attention bias ONLY when selected.
         # `explorer_tool` is a STATIC string, so at "goal_head" this branch never
@@ -811,6 +872,121 @@ class Actor(eqx.Module):
         value = jax.vmap(self.value_head)(feat)[:, 0]                  # (N,)
         lambda2_hat = jax.vmap(self.aux_head)(feat)[:, 0]             # (N,)
         return goal_logits, role_logits, value, lambda2_hat, feat, h_next
+
+    # -------------------------------------------------------------------------
+    # SELECTOR (the L3 hierarchical mode-picker over the 3-skill library)
+    # -------------------------------------------------------------------------
+
+    def _hold_logits(self, position: jax.Array) -> jax.Array:
+        """(N, K) goal-offset logits for the HOLD skill — a STAY scorer with a
+        reconnect fallback (scale-invariant, pure-JAX, no Python branch on traced data).
+
+        Default behaviour: put a large logit on offset index 0 (the "here"/STAY goal),
+        so a well-anchored agent simply holds its post — the low-energy "keep the bridge
+        from where you stand" mode (the goal-offset analogue of
+        ``controller.relay_hold_move``).
+
+        Reconnect fallback: when the agent's soft-degree
+        (``controller._local_conn_score`` at ``comm_r`` / ``flock_sharp``) falls BELOW
+        ``hold_floor`` — i.e. it is about to isolate — the large logit moves OFF "here"
+        and ONTO the offset whose compass direction best aligns with the unit bearing to
+        the NEAREST in-range-or-not neighbour, so the agent steps to re-establish a link.
+        The reconnect direction is scored with the SAME soft-sector cosine the flock skill
+        / compass use (cosine of the unit bearing against ``_compass_unit_dirs``), so the
+        two repair behaviours agree. Per-agent the choice between STAY and reconnect is a
+        ``jnp.where`` on the (traced) soft-degree — never a Python branch — and only the
+        UNIT bearing + unit compass directions enter, so the skill transfers across the
+        scale ladder. An agent with NO other agent at all (degenerate, a single-agent team)
+        keeps the STAY row (zero bearing -> "here").
+
+        ``position`` (N,2). Returns (N,K) the additive-free ABSOLUTE offset logits (this
+        skill REPLACES, rather than biases, the offset distribution — STAY vs reconnect)."""
+        pos = position.astype(jnp.float32)                             # (N,2)
+        n = pos.shape[0]
+        K = self.K
+        big = 10.0                                                     # the dominant logit mass
+
+        # --- STAY row: a large logit on offset 0 ("here"), 0 elsewhere. ---
+        stay_row = jax.nn.one_hot(0, K, dtype=jnp.float32) * big       # (K,) on "here"
+        stay = jnp.broadcast_to(stay_row, (n, K))                      # (N,K)
+
+        # --- soft-degree (the same proxy the relay/hold controller reads). ---
+        deg = _ctrl._local_conn_score(pos, self.comm_r, self.flock_sharp)  # (N,) soft degree
+        below = deg < jnp.asarray(self.hold_floor, jnp.float32)        # (N,) about to isolate
+
+        # --- nearest neighbour bearing (for the reconnect direction). ---
+        diff = pos[None, :, :] - pos[:, None, :]                       # (N,N,2) i->j displacement
+        cheb = jnp.max(jnp.abs(diff), axis=-1)                         # (N,N) Chebyshev distance
+        eye = jnp.eye(n, dtype=bool)
+        far = jnp.where(eye, jnp.inf, cheb)                            # (N,N) self -> +inf
+        tgt = jnp.argmin(far, axis=-1)                                 # (N,) NEAREST other agent
+        has_other = (~eye).any(axis=-1)                               # (N,) any other agent exists
+        bearing = diff[jnp.arange(n), tgt]                            # (N,2) i->nearest displacement
+        bnorm = jnp.sqrt((bearing ** 2).sum(-1, keepdims=True))       # (N,1)
+        unit = bearing / jnp.maximum(bnorm, 1e-6)                     # (N,2) unit bearing
+        dirs = _compass_unit_dirs(K)                                   # (K,2) unit compass dirs (0->here)
+        cos = unit @ dirs.T                                           # (N,K) cosine alignment per offset
+        # the reconnect row puts the dominant logit on the BEST-aligned offset (argmax cos),
+        # via a soft (sharpened) one-hot so it stays differentiable / scale-free; a degenerate
+        # single-agent row (no other agent) falls back to the STAY row.
+        reconnect = big * jax.nn.softmax(self.flock_sharp * cos, axis=-1)  # (N,K) peaked on best dir
+        reconnect = jnp.where(has_other[:, None], reconnect, stay)    # (N,K) lone agent -> hold
+
+        # per-agent: HOLD (stay) unless below the floor, then RECONNECT.
+        return jnp.where(below[:, None], reconnect, stay).astype(jnp.float32)  # (N,K)
+
+    def skill_forward(self, obs, adj_off, position, *, dist=None, h=None, key=None,
+                      inference: bool = False):
+        """The hierarchical SELECTOR forward (used only when ``selector == 'on'``).
+
+        Runs the SAME backbone / compass / recurrence path as :meth:`__call__`
+        (:meth:`_belief_and_hidden`), then off the per-agent feature emits (1) the SELECTOR
+        head — a categorical over the 3-skill library {0=disperse, 1=flock, 2=hold} — and
+        (2) each skill's ``(N, K)`` goal-offset logits, stacked to ``(3, N, K)``:
+
+          * skill 0 — **disperse**: the validated explorer, ``goal_head(z) +
+            frontier_attn(obs, z, K)`` (the same disperse the ``explorer_tool='frontier_attn'``
+            path uses — frontier-positive by construction so it spreads the swarm).
+          * skill 1 — **flock**: the connectivity-repair skill —
+            ``flock.scripted_flock_logits(position, K, comm_r, flock_sharp)`` when
+            ``flock == 'scripted'`` (the weakest-link-repair primitive, no params) else the
+            learned ``self.flock_head(z)`` (a tiny belief-conditioned head). The flavor is a
+            STATIC field so only the selected branch is traced.
+          * skill 2 — **hold**: the STAY scorer with a reconnect fallback
+            (:meth:`_hold_logits`) — hold the post unless about to isolate, then step toward
+            the nearest neighbour.
+
+        The PPO trainer samples the skill m from the selector logits (one PPO action), gathers
+        skill m's ``(N, K)`` offset-logits, masks + samples the offset (the SECOND PPO action,
+        replacing the goal-head sample), and routes the offset-goal through the fixed L1
+        controller (``role_idx=None`` — ALL skills route the same greedy way; no relay bypass).
+
+        Args mirror :meth:`__call__` plus ``position`` (N,2) — the agent cells the scripted
+        flock / hold skills read for their geometry (the belief carries no absolute coordinate,
+        so the position is threaded explicitly, exactly like the controller's inputs).
+
+        Returns ``(skill_logits (N,3), offset_logits (3,N,K), feat (N,W), h_next (N,W))``.
+        SCALE-INVARIANT (every skill reads only the belief, normalized fractions, or unit
+        bearings / unit compass directions); pure JAX (vmap/scan/jit-safe). Does NOT touch
+        :meth:`__call__`."""
+        from .flock import scripted_flock_logits  # lazy: breaks the nets<->flock cycle
+        feat, h_next = self._belief_and_hidden(obs, adj_off, dist, h, key, inference)
+        skill_logits = jax.vmap(self.selector_head)(feat)              # (N,3) mode picker
+
+        # skill 0 — disperse: the validated frontier-biased explorer (goal_head + frontier).
+        disperse = jax.vmap(self.goal_head)(feat) + self.frontier_attn(obs, feat, self.K)  # (N,K)
+
+        # skill 1 — flock: scripted weakest-link repair OR the learned belief head (STATIC).
+        if self.flock_flavor == "learned":
+            flock = self.flock_head(feat)                              # (N,K) learned head
+        else:
+            flock = scripted_flock_logits(position, self.K, self.comm_r, self.flock_sharp)  # (N,K)
+
+        # skill 2 — hold: STAY (offset 0) unless about to isolate -> reconnect toward nbr.
+        hold = self._hold_logits(position)                            # (N,K)
+
+        offset_logits = jnp.stack([disperse, flock, hold], axis=0)    # (3,N,K)
+        return skill_logits, offset_logits, feat, h_next
 
 
 # =============================================================================
