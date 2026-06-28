@@ -14,6 +14,78 @@ training runs** (+ cheap transfer-evals), roughly **6–7 overnight batches** on
 
 ---
 
+## 0. ⛔ TRIED & SETTLED — DO NOT RE-RUN  *(read this first; 2026-06-27)*
+
+> ### Per-step connectivity guardrails do **NOT** break the scale huddle. This chapter is CLOSED.
+> The **entire family** is settled: hard **action-mask**, soft **global-λ₂** penalty, and **local
+> degree / edge-margin** — under **fixed / Lagrangian / PID** dual weighting. At the base scale (16²/4)
+> the connectivity signal is irrelevant (roles do the work); **at scale every one of them "succeeds"
+> only by HUDDLING** — a dense clump satisfies connectivity for free while coverage collapses.
+>
+> **KILLER DIAGNOSTIC (why it's structural, not a tuning miss):** at the huddle each agent's degree is
+> **≫ the target**, so the connectivity penalty is **≈ 0** and the dual **λ never moves** (measured:
+> `0.30 → 0.30`, violation `≈ 0.001`) — **the huddle SATISFIES the connectivity signal.** A per-step
+> connectivity mechanism is therefore **structurally inert**: it reads clumping as a *solution*, not a
+> problem, so it **cannot push the team apart**. Stronger weighting, smarter dual control (Lagrangian /
+> PID), and a more local signal (`local_edge_margin`) were **all tried** — none change the sign.
+>
+> ⇒ **DO NOT re-run per-step connectivity-mechanism sweeps at scale hoping they fix coverage.** The fix
+> must resolve coverage↔connectivity **in TIME** (disperse to cover, gather to share, repeat) — see the
+> new **Phase 2′ (L4 phase + delivered-coverage)** below, *not* a stronger per-step penalty.
+
+**Results ledger (exact, reproducible — `ctde_v0/` sweeps on balthar; full arc in `JOURNEY.md` 2026-06-27).**
+
+| # | Sweep | Setup | Result | Verdict |
+|---|---|---|---|---|
+| **1** | **I1 @ 16²/4** | `role_picker{off,expl_relay}` × `mechanism{action_mask,soft_lambda}` × `anti_overlap{off,on}` = **8 cfg, 1500 iters** | `role_expl_relay` ≈ **90.9 % cov / 100 % conn** (best `soft_lambda·ao_on`; split ≈84 % expl / 16 % relay). **Every** `role_off` cfg **HUDDLES @ 1.6–5.6 % cov** / 100 % conn. Mechanism & anti_overlap **2nd-order** (4 role-on cells span **89.6–90.9 %**). | **Roles are DECISIVE → KEEP.** Don't re-run the 16²/4 mechanism/anti-overlap sweep expecting differentiation. |
+| **2** | **Scale-transfer of the I1 winner** | `role_expl_relay` + global-λ₂ `soft_lambda`; `comm_r` per rung for mean degree ≈1.9 (**5→6→7**) | **16²/4 cov 90.9 % → 24²/6 ~53 % → 32²/10 ~16 %**, **ALL conn 100 %.** Held by HUDDLING: **mean λ₂ ~2.7 @32²** (dense clump, not a backbone); role-picker **abandons relays** (expl-frac → **99.5 % @32²**). Machinery healthy: **λ̂₂ aux ~81 %**, **controller 100 % valid**. | **The win does NOT transfer.** Coverage collapses with scale. |
+| **3** | **Local-edge-margin sweep** | `conn_signal=local_edge_margin`, `degree_target=1.0`, `collision_mask=on` × `mechanism{soft_lambda, lagrangian, pid_lagrangian}` × `{24²/6, 32²/10}` | **NO improvement.** Cov **24²/6 = 33 % / 18 % / 55 %**, **32²/10 = 15 % / 13 % / 16 %** (ties/worse vs 53 %/16 % baseline). All **conn 100 %**, **expl ~99 %**, **mean λ₂ even HIGHER (~4 @32²)**. **Lagrangian dual λ FLAT** (`0.30→0.30`, violation `≈0.001`). | **Local signal doesn't rescue it.** Confirms the diagnostic. |
+
+**What's KEPT vs CLOSED.** ✅ KEEP: **explorer/relay roles** (the proven huddle-fix at 16²/4). ⛔ CLOSED at
+scale: the **Phase-2 connectivity-mechanism × λ frontier** as a *coverage* fix (action-mask / soft-λ₂ /
+degree-floor / Lagrangian / PID). 🔜 NEW bet: **Phase 2′** — an **L4 disperse↔gather phase layer** +
+**delivered-coverage** objective + a **silent connectivity-floor barrier** (below).
+
+---
+
+## 0′. ⮕ NEXT STEP — the FLAT-BASELINE + FALSIFICATION TEST runs FIRST  *(2026-06-27; see `STRATEGY.md`)*
+
+> **Before building the L4 phase tower of Phase 2′, run the cheap test that decides whether the tower is even
+> needed.** The 7-search literature review (consolidated in **`STRATEGY.md`**) says the elaborate
+> strategy→role→skill→action brain is over-reach: hierarchy's benefit is *exploration, not structure*
+> (Nachum et al. 2019, arXiv:1909.10618), and roles/phases are the kind of thing that **emerges** rather than
+> something to hand-author. So the corrected first move is **not** "add L4" — it is **train a near-flat system
+> with the right objective and check whether labour-division + the disperse↔gather rhythm emerge on their own.**
+
+**The falsification run (do this before any added structure).** Train the **flat-ish system**:
+- **goal/region action head** (the keystone fix for the 1-step-move ceiling — the *one* temporal abstraction the
+  HRL evidence backs; Nachum et al. 2019, arXiv:1909.10618) over
+- a **size-invariant GNN backbone** (LPAC-style; Agarwal et al. 2025, arXiv:2401.04855), with
+- a **learned role latent** (ROMA-style readable latent, NOT a hand-built role layer; Wang et al. 2020,
+  arXiv:2003.08039), inside
+- the **hard connectivity shell** (action-mask safety envelope, *not* a brain level), under
+- the **delivered-coverage** objective (so a reason to gather *exists* without a per-step connectivity penalty),
+- at the **fixed honest spec** (density-pinned, connectivity binding at every rung, 100-step budget binding).
+
+**Then measure emergence as the outcome** (don't legislate it): redundancy curve bending toward 1,
+**MI(role;behavior)** rising (the role-diversity diagnostic of Hu et al. 2022, arXiv:2207.05683), a visible
+breathe-out/breathe-in.
+
+**The gate decides the whole "tower vs. emergence" question:**
+- **If roles + the disperse↔gather rhythm EMERGE → the 4-level brain is refuted as unnecessary** (and you have
+  a clean emergence result for the resiliency program). Proceed *without* the L4 phase head.
+- **If they DON'T emerge even with delivered-coverage → that is the earned evidence a thicker scaffold is
+  warranted** — and you'll know *which* level to add and *why*, instead of importing the human hierarchy on
+  faith.
+
+**Scale precedent for "flat + curriculum, not tower":** EPC (Long et al. 2020, arXiv:2003.10423) scales flat
+multi-agent policies by *evolutionary population curriculum*; LPAC (arXiv:2401.04855) gets zero-shot size
+transfer from a flat GNN — both without a strategy/skill tower. **This §0′ run supersedes "go straight to
+Phase 2′"; Phase 2′'s L4 layer is now *conditional* on this test failing.** (`STRATEGY.md` holds the full
+reference list and the reasoning.)
+
+---
+
 ## 1. Locked decisions (campaign invariants)
 
 - **Target:** **≥ 90 % coverage AND ≥ 90 % connectivity simultaneously** at **32×32 / 10 agents**, within a
@@ -76,10 +148,12 @@ The swept knobs map onto the modules in `agent_architecture.md`:
 | Perception (camera, local) | own-cell + sensing-radius mask | — |
 | KB (memory: own + neighbors + priors) | size-invariant belief | recurrence is part of backbone-type (Phase 1a) |
 | Comms (radio) | range-limited gossip | message type / gating (Phase 5, #2) |
-| **Role-picker (central, learned)** | the hub | — (its inputs change with KB/safety) |
-| Mission-safety (local) | consumes local λ̂₂ | enforcement mechanism (**Phase 2**) |
-| Goal (per role) | explorer / relay | exploration reward (**Phase 3**) |
+| **L4 phase layer (NEW, central)** 🔜 | `{disperse↔gather}` option, committed `k≈5–10` steps | **phase layer + commit-k (Phase 2′)** |
+| **Role-picker (central, learned)** | the hub, *within* the L4 phase | — (its inputs change with KB/safety) |
+| Mission-safety (local) | consumes local λ̂₂; **enforcement only today** | mechanism (**Phase 2 ⛔ settled**); **wiring as a brain INPUT = open build item (Phase 2′)** |
+| Goal (per role) | explorer / relay | exploration / **delivered-coverage** objective (**Phase 2′ / 3**) |
 | Role tools | λ₂-estimator (always on) | frontier-attention tool (Phase 5, #3); toolkits (Phase 5, #8) |
+| Reward (connectivity floor) | — | **Hyper-Singularity `barrier_*` — composes under L4 (Phase 2′)** 🔜 |
 | Backbone (shared encoder) | LPAC-style graph-net | type/size/MP-rounds/norm (**Phase 1a**) |
 | Trainer (the optimizer) | — | algorithm + core HPs (**Phase 1b**) |
 
@@ -97,15 +171,22 @@ The swept knobs map onto the modules in `agent_architecture.md`:
 | **Action representation** | {1-step move head (default), goal/frontier-pointer head (IR2)} | 1a′ | OFAT |
 | **Training algorithm** | {IPPO, MAPPO-CTDE, ES, MAP-Elites, MORL} | 1b | OFAT |
 | Trainer core HPs | per-trainer (lr / entropy / GAE-λ / clip · σ/pop · archive · scalarization) | 1b | OFAT / coarse |
-| **Connectivity mechanism** | {action-mask, Lagrangian-PPO, degree-floor·λ, λ₂-soft·λ} | 2 | mechanism × λ |
-| Trade-off λ (soft mechs only) | {0.1, 0.3, 1, 3} | 2 | grid (soft only) |
+| ~~**Connectivity mechanism**~~ ⛔ **SETTLED** | {action-mask, Lagrangian-PPO, degree-floor·λ, λ₂-soft·λ, **PID-Lagrangian**} | 2 | **DONE — fails at scale, do not re-run (§0)** |
+| ~~Trade-off λ (soft mechs only)~~ ⛔ | {0.1, 0.3, 1, 3} | 2 | **DONE — dual λ stays flat at the huddle (§0)** |
+| ~~Connectivity signal source~~ ⛔ | {global-λ₂, **local_edge_margin**} | 2 | **DONE — local signal doesn't rescue it (§0)** |
+| **L4 phase layer** 🔜 | {off, scripted-timing, learned} | **2′** | OFAT (timing first) |
+| **Phase commit k** 🔜 | {5, 8, 10} steps | **2′** | coarse |
+| **Objective** 🔜 | {coverage, **delivered-coverage** (`PersistantNetwork`)} | **2′** | OFAT |
+| **Barrier (conn-floor)** 🔜 | `barrier_weight` {0=off, >0} (+ `barrier_a/M/p/cap`) | **2′** | composes UNDER L4 (never alone) |
 | Exploration reward | {extrinsic, PBRS, coordinated-intrinsic, max-state-entropy} | 3 | OFAT |
 | Reward normalization | {raw, fractional/normalized} | 3 | OFAT |
 | Scale strategy | {single-point, multi-scale-joint, warm-start-ladder} | 4 | OFAT |
-| Idea ablations | {energy, multi-phase, comm-gating, frontier-attn, toolkits, diffusion} | 5 | +1 vs best |
+| Idea ablations | {energy, ~~multi-phase~~ (→ promoted to 2′), comm-gating, frontier-attn, toolkits, diffusion} | 5 | +1 vs best |
 
 The **coverage-only control point (~98 % cov / ~32 % conn)** is **not re-run** — it's the known incumbent
-from prior results that every Phase-2 mechanism must beat on the frontier.
+from prior results. **The Phase-2 connectivity-mechanism rows above are STRUCK THROUGH: tried & settled,
+fail at scale, do not re-run (§0).** The active frontier is now **Phase 2′** (L4 phase + delivered-coverage +
+barrier floor).
 
 ---
 
@@ -151,20 +232,83 @@ Run on the **foundation base-task** (§1: local-metric coverage↔connectivity +
   transfers across scale** (32²/10 zero-shot within a small margin of 16²/4). *If no architecture transfers,
   the LPAC / size-invariance bet is wrong — stop before Phases 2–5.*
 
-### Phase 2 · Connectivity mechanism + trade-off frontier  *(the core knob; Round-3-corroborated)*
-- **Hypothesis:** a connectivity mechanism driven by **local λ̂₂** lifts the ~32 % connectivity of pure
-  coverage toward 90 % without crashing coverage. **Round-3 corroborates strongly:** Li et al. (ICRA'22,
-  arXiv:2109.08536) hold **71–77 % connectivity** with an explicit **CMDP constraint on the same λ₂ signal**
-  while an unconstrained baseline collapses to **7–30 %** (worse as the team grows) — an explicit
-  *constraint*, not a soft reward, is what holds connectivity.
-- **Sweep:** {action-mask (no λ), Lagrangian-PPO (auto-λ), **PID-Lagrangian** (arXiv:2007.03964),
-  degree-floor × λ-grid, λ₂-soft × λ-grid}. ~12–14 configs. Traces the coverage↔connectivity **Pareto
-  frontier**. **PID-Lagrangian** is a near-free upgrade (KP=KD=0 recovers plain Lagrangian) that pre-empts
-  the **in-place-oscillation failure mode** Li et al. document for naive constraint-RL — start KP=KD=0, sweep
-  KP first.
-- **Gate G2:** the mechanism whose frontier dominates; does any reach **90/90 @ 32²/10**? Expect
-  **hard-mask-first + (PID-)Lagrangian backstop** to lead (mask beat soft degree-floor by ~20 pts coverage
-  in-house; Li et al. confirms hard-constraint > soft-reward).
+### Phase 2 · Connectivity mechanism + trade-off frontier  ⛔ **TRIED & SETTLED — FAILS AT SCALE, DO NOT RE-RUN**
+> **STATUS (2026-06-27): CLOSED as a coverage fix.** This whole phase was run (see §0 ledger, rows 2–3) and
+> **the connectivity mechanism is structurally inert at scale** — at the huddle degree ≫ target ⇒ penalty
+> ≈ 0 ⇒ dual λ flat (`0.30→0.30`) ⇒ **the huddle SATISFIES the connectivity signal and the mechanism cannot
+> push the team apart.** action-mask / soft-λ₂ / degree-floor / Lagrangian / PID **all** "hold" connectivity
+> only by **huddling** (mean λ₂ *rises* with scale), while coverage collapses **90.9 % → 53 % → 16 %**.
+> **Do NOT re-run mechanism × λ at scale hoping it fixes coverage.** Connectivity is now handled by the L4
+> phase rhythm + a silent barrier floor (**Phase 2′**), not a per-step penalty. *Retained below for the
+> record + the original hypothesis it falsified.*
+- **Original hypothesis (FALSIFIED at scale):** a connectivity mechanism driven by **local λ̂₂** lifts the
+  ~32 % connectivity of pure coverage toward 90 % without crashing coverage. **Round-3 corroborated the
+  *connectivity* half** — Li et al. (ICRA'22, arXiv:2109.08536) hold **71–77 % connectivity** with an
+  explicit **CMDP constraint on the same λ₂ signal** while an unconstrained baseline collapses to **7–30 %**.
+  **What our runs add:** holding connectivity was *never* the problem on the grid — **huddling holds it for
+  free**; the unsolved half is **coverage**, and a per-step connectivity constraint *cannot* recover it
+  (the huddle is feasible). Li et al. is multi-robot *navigation*, where clumping isn't a free connectivity
+  solution; on dense-grid coverage it is.
+- **Swept (DONE, do not repeat):** {action-mask (no λ), Lagrangian-PPO (auto-λ), **PID-Lagrangian**
+  (arXiv:2007.03964), degree-floor / **`local_edge_margin`** × λ} × {24²/6, 32²/10}. PID-Lagrangian *did*
+  pre-empt the in-place-oscillation failure mode — but with the dual λ flat there was nothing to control.
+- **Gate G2 — RESULT: FAILED.** No mechanism reaches 90/90 @ 32²/10; best is **~16 % coverage** (PID at 32²,
+  ties baseline). The expected "hard-mask-first + (PID-)Lagrangian backstop" lead **did not materialize at
+  scale** — the 16²/4-only advantage of mask is the 2nd-order effect from §0 row 1, which **vanishes** once
+  the huddle dominates. ⇒ **proceed to Phase 2′, not deeper into this phase.**
+
+### Phase 2′ · 🔜 NEW DIRECTION — L4 phase layer + delivered-coverage + barrier floor  *(the pivot; 2026-06-27)*
+> **⚠️ NOW CONDITIONAL on §0′ (2026-06-27).** Per the consolidated `STRATEGY.md` verdict, the **L4 phase head
+> is a hand-built brain level the evidence does not support** (hierarchy's benefit is exploration, not the
+> tower — Nachum et al. 2019, arXiv:1909.10618; phases EMERGE — Couzin et al. 2002). **Run the §0′
+> flat-baseline falsification test FIRST.** The **delivered-coverage objective and the barrier floor below
+> survive** (they make the rhythm *emerge* with no per-step penalty); the **explicit L4 phase head / discrete
+> skill library is only built if §0′ shows the rhythm does NOT emerge on its own.** Read this phase as the
+> contingency, not the default next step.
+
+**The lesson from Phase 2: stop fighting coverage↔connectivity per step — resolve it in TIME.** The team
+should **fan out to cover, regroup to share, repeat** — hold connectivity *periodically*, not every step, so
+the huddle stops being the optimum. Three composing pieces:
+
+- **(a) L4 brain layer — a strategy / mission-phase layer ABOVE the L3 role-picker (NEW top level).** L4
+  picks the **team PHASE `{disperse ↔ gather}`** (≡ explore ↔ deliver) as a **temporally-extended option —
+  committed for `k ≈ 5–10` steps, NOT per step.** L3 picks the **role** within the phase, L2 the **skill**,
+  L1 the **move** (the cognition stack is now **L4→L3→L2→L1**; see `agent_architecture.md`). Decentralized
+  per-agent, **cohering via the shared belief** — this is the **micro→macro bridge made an explicit module.**
+  **BUILD STAGED:** add the L4 phase head **on top of the existing role-picker**, keep gather/disperse
+  **SKILLS scripted FIRST (learn only the *timing* — the switch), grow learned-ness later.** **Do NOT train
+  4 learned levels at once.** *(This is idea #7 "multi-phase cycle" promoted from a Phase-5 carry-over to the
+  spine, and the temporally-extended-option fix for the in-place-oscillation / huddle failure mode.)*
+- **(b) Delivered-coverage objective — `PersistantNetwork` (already in the codebase).** Coverage counts
+  **only when in contact to share it.** This makes the **disperse→gather rhythm EMERGE from the objective,
+  with NO connectivity penalty** — clumping no longer scores (nothing new is delivered), and
+  spreading-without-returning no longer scores (nothing gets home). The cleanest huddle-killer: the reward
+  *itself* wants the breathing, so there is no per-step constraint for the team to satisfy-by-clumping.
+- **(c) Hyper-Singularity barrier reward — a SILENT connectivity FLOOR** (`reward.barrier_*`, config-knobbed,
+  being built now). Per-agent on nearest-neighbour distance, `f(x)=k·relu(x−a)²/(M−x)^p` **CAPPED finite
+  (RL-safe)**: **exactly 0 in the safe zone (`x < a`), an explosive-but-finite wall as a link nears the comm
+  edge `M`**, saturating at `barrier_cap`. Knobs: `barrier_weight=k` (0 ⇒ OFF), `barrier_a` (launch; default
+  `comm_r·0.6`), `barrier_M` (wall; default `comm_r`), `barrier_p`, `barrier_cap`. **It COMPOSES under the L4
+  breathing** as a floor the team can ride *out* to — **NOT a per-step pull inward — and is NEVER tested in
+  isolation** (alone it is itself a per-step signal and would re-huddle, exactly per §0).
+
+- **Mission-safety-as-brain-INPUT — OPEN BUILD ITEM.** Today `MissionSafety` is an **enforcement** mechanism
+  (action-mask / reward-penalty); it is **NOT wired as an explicit INPUT** to the role/phase brain — the role
+  head in `nets.py` conditions only on the belief `z`. `agent_architecture.md` *intends* mission-safety as an
+  input the role-picker ingests. **The L4/L3 brain must READ the connectivity-danger signal (λ̂₂ / barrier
+  proximity) to time gather vs disperse.** Close this before L4 can react to danger rather than only enforce.
+- **Hypothesis (2′):** an L4 disperse↔gather rhythm + delivered-coverage **breaks the scale huddle that no
+  per-step mechanism could** — coverage rises at 24²/6 and 32²/10 while connectivity is held *intermittently*
+  (and floored by the barrier), *without* a per-step connectivity penalty.
+- **Build/sweep order:** (1) scripted skills + **learned phase TIMING** only; (2) `PersistantNetwork`
+  delivered-coverage as the base-task, **no conn penalty**; (3) compose the **barrier underneath**
+  (`barrier_weight > 0`); (4) wire **mission-safety as an INPUT** to L4/L3; (5) grow learned-ness down the
+  stack one level at a time. New axes: **`phase_layer {off, scripted_timing, learned}`**, **phase commit
+  `k`**, **`objective {coverage, delivered_coverage}`**, **`barrier_weight`** (+ `barrier_a/M/p/cap`).
+- **Gate G2′:** the L4+delivered configuration whose coverage **rises with scale at 24²/6 and 32²/10** vs the
+  Phase-2 ceiling (≤16 % @32²) while connectivity stays high intermittently — *with no per-step connectivity
+  penalty.* If even the phase rhythm + delivered-coverage cannot lift scale coverage, that is a deeper finding
+  about the action/belief substrate (revisit the keystone goal-head / belief-plug-in), not another mechanism.
 
 ### Phase 3 · Exploration reward + scale-invariance
 - **Hypothesis:** a **scale-invariant, coordinated intrinsic** coverage reward holds 90/90 *and* survives
@@ -232,10 +376,22 @@ agent:                         # the composition under test (see agent_architect
   backbone: {type: gnn, depth: 3, width: 128, mp_rounds: 2, norm: layer}  # SWEPT in Phase 1a
   action_head: {kind: move, controller: null}     # SWEPT in Phase 1a′: move | goal_pointer (+ controller: astar)
   comms: {type: gossip, gating: none}
+  phase_layer: {kind: off, commit_k: 8}         # SWEPT in Phase 2′: off | scripted_timing | learned (L4 {disperse,gather})
   role_picker: central_learned
   tools: {explorer: frontier_default, relay: fiedler_local}
-  mission_safety: {mechanism: action_mask}      # SWEPT in Phase 2
-  reward: {kind: extrinsic, normalized: false}  # SWEPT in Phase 3
+  mission_safety:                               # mechanism = ENFORCEMENT (Phase 2, ⛔ settled at scale)
+    mechanism: action_mask                      #   action_mask | soft_lambda | lagrangian | pid_lagrangian
+    conn_signal: global_lambda2                 #   global_lambda2 | local_edge_margin  (⛔ both settled, §0)
+    as_brain_input: false                       # OPEN (Phase 2′): feed λ̂₂/barrier-proximity into L4/L3
+  reward:                                        # SWEPT in Phase 3 + Phase 2′
+    kind: extrinsic
+    objective: coverage                         # SWEPT in Phase 2′: coverage | delivered_coverage (PersistantNetwork)
+    normalized: false
+    barrier_weight: 0.0                          # SWEPT in Phase 2′: Hyper-Singularity conn-floor; 0 = off (composes UNDER L4)
+    barrier_a: null                              #   null -> comm_r*0.6   (launch; 0 below it)
+    barrier_M: null                              #   null -> comm_r       (wall / break range)
+    barrier_p: 2.0                               #   explosion power
+    barrier_cap: 50.0                            #   finite "almost-infinity" ceiling (RL-safe)
 
 connectivity:                  # the locked metric + agent signal
   estimator: fiedler_local_poweriter
@@ -279,11 +435,16 @@ whole spine.**
   adopt the *idea* (embeddings / action-subsets) but **not** their QMIX-mixer / pre-fixed-K (break
   scale-invariance) → Phase-5 slot 2.
 - **Energy (idea #1) deferred · diffusion (idea #11) dropped** — see Phase 5.
+- **Multi-phase cycle (idea #7) PROMOTED** (2026-06-27) from a Phase-5 carry-over to the **spine as Phase 2′**
+  — the L4 disperse↔gather layer is now the primary lever after per-step guardrails settled (§0).
 - **Cross-round note:** Li et al. needed **behaviour-cloning** to make the λ₂-constrained two-objective
   tractable → reinforces keeping our *optional* cheap-expert BC warm-start (Round-2) as insurance for the
   constrained case. Open: can hard-mask + PID-Lagrangian remove that need on a grid (we train from scratch)?
+  *(Moot for the connectivity fix — that path is settled-closed; relevant only if Phase 1's constrained
+  base-task needs it.)*
 
-**Plan status: FINAL across Phases 0–5.**
+**Plan status (2026-06-27): Phases 0–1 FINAL · Phase 2 SETTLED-CLOSED (per-step guardrails fail at scale,
+§0) · Phase 2′ NEW & ACTIVE (L4 phase + delivered-coverage + barrier) · Phases 3–5 unchanged.**
 
 ## 9. Open / to resolve before the relevant phase
 
@@ -293,6 +454,16 @@ whole spine.**
 - **comm_radius schedule** — fixed-absolute vs per-rung to hold comm-degree ~invariant (decide at Phase 0
   from the degree measurement; precondition for size-transfer).
 - **Mission-safety enforcement** beyond the Phase-2 mechanisms (its own discussion) — consumes local λ̂₂.
+  **⛔ As a *coverage-recovery* mechanism this is SETTLED-CLOSED (§0).** **OPEN, NEW (Phase 2′):** wire
+  mission-safety as an explicit **INPUT to the L4/L3 brain** (λ̂₂ / barrier-proximity → the phase/role head,
+  which today reads only the belief `z`) so the brain *times* gather/disperse on connectivity danger.
+- **L4 phase layer (Phase 2′, NEW)** — scripted-skills-first vs learned skills; phase-commit `k` (5/8/10);
+  the categorical `{disperse, gather}` head and its commit/timeout logic; whether timing is learned by PPO or
+  event-triggered on λ̂₂/barrier proximity.
+- **Hyper-Singularity barrier (Phase 2′, NEW)** — `barrier_a/M/p/cap` defaults vs swept; confirm it stays a
+  *silent floor under L4* (never run alone — it re-huddles, being a per-step signal).
+- **Delivered-coverage objective (Phase 2′, NEW)** — reuse `PersistantNetwork`; lock the "in-contact-to-count"
+  delivery rule + whether it fully replaces the connectivity reward term (intended: yes, no conn penalty).
 - **Sensing_radius / obstacle_density** — inherit `comm-coverage` recipe; confirm when the substrate is built
   (Phase 0).
 - Whether to also **grade on the local estimate** (purist decentralized framing) vs the true-λ₂ grader

@@ -391,3 +391,150 @@ EXPERIMENT_PLAN envelope; each stage gates the next.
 **Changes.** New `FiedlerValueEstimation/` study (RESULTS/FINDINGS). New `ctde_v0/` agent + sweep harness +
 `EXPERIMENTS.md`. This JOURNEY entry. **Next.** I1 modules building; preliminary `mechanism × mp_rounds` CTDE
 sweep running on balthar; then the I1 roles+anti-overlap sweep (sharded, parallel). Mix winners → I2 → F → S.
+
+---
+
+## 2026-06-27 — I1 roles WIN, but the win does NOT scale; per-step connectivity guardrails are SETTLED (closed) → pivot to L4 phase + barrier + delivered-coverage
+
+The make-or-break arc ran end to end: **roles break the huddle at 16²/4** → **the win collapses with
+scale** → **every per-step connectivity guardrail fails to fix it at scale, for a diagnosable structural
+reason** → **pivot to a strategy/phase layer (L4) + a connectivity-floor barrier + a delivered-coverage
+objective.** This entry is the ledger; the numbers below are the canonical "tried & settled" record.
+
+> ### 🛑 SETTLED — DO NOT RE-RUN: per-step connectivity guardrails do **not** break the scale huddle
+> **The whole family is closed:** hard **action-mask**, soft **global-λ₂** penalty, **local degree /
+> edge-margin** — under **fixed / Lagrangian / PID** dual weighting. None lift coverage at scale; all
+> "succeed" only by **huddling** (dense clump satisfies connectivity for free).
+> **KILLER DIAGNOSTIC:** at the huddle each agent's degree ≫ the target, so the connectivity penalty ≈ 0
+> and the dual λ never moves — **the huddle SATISFIES the connectivity signal.** A per-step connectivity
+> mechanism is therefore **structurally inert**: it reads clumping as a *solution*, not a problem, so it
+> cannot push the team apart. ⇒ **Do NOT re-run per-step connectivity-mechanism sweeps at scale hoping
+> they fix coverage. This chapter is CLOSED.** The fix has to resolve coverage↔connectivity **in TIME**
+> (breathe out / in), not with a stronger per-step penalty.
+
+**The results ledger (exact, reproducible — `ctde_v0/` sweeps on balthar).**
+
+1. **I1 sweep @ 16²/4** — `role_picker{off, expl_relay} × mechanism{action_mask, soft_lambda} ×
+   anti_overlap{off, on}` = **8 cfg, 1500 iters.** **ROLES break the huddle.**
+   - `role_expl_relay` ≈ **90.9 % coverage / 100 % connectivity** (best cell: `soft_lambda · ao_on`; role
+     split ≈ **84 % explorer / 16 % relay**).
+   - **Every** `role_off` config **HUDDLES** at **1.6–5.6 % coverage / 100 % conn.**
+   - **Mechanism** (action_mask vs soft_lambda) and **anti_overlap** are **2nd-order at this scale** — the
+     four role-on cells span just **89.6–90.9 %**. ⇒ **Roles are decisive; KEEP them.** *Don't re-run the
+     16²/4 mechanism/anti-overlap sweep expecting differentiation — there is none to find at this scale.*
+2. **Scale-transfer of the I1 winner** — `role_expl_relay` + global-λ₂ `soft_lambda`, `comm_r` set per rung
+   to hold mean degree ≈ 1.9 (**5 → 6 → 7**). **Coverage COLLAPSES with scale:**
+
+   | rung | coverage | connectivity | how connectivity is held |
+   |---|---|---|---|
+   | **16²/4** | **90.9 %** | 100 % | (the win) |
+   | **24²/6** | **~53 %** | 100 % | huddling |
+   | **32²/10** | **~16 %** | 100 % | huddling |
+
+   The win **does NOT transfer.** Connectivity is held by **HUDDLING**, not by a stretched backbone:
+   **mean λ₂ stays HIGH (~2.7 @ 32²/10)** = a dense clumped graph; and the role-picker **ABANDONS relays**
+   (**explorer-frac → 99.5 % @ 32²**). The machinery is healthy — **λ̂₂ aux ~81 %**, **controller 100 %
+   valid** — so this is not an estimator or controller bug; it is the **degenerate huddle optimum
+   re-asserting itself at scale**.
+3. **Local-edge-margin sweep** — `conn_signal=local_edge_margin`, `degree_target=1.0`, `collision_mask=on`,
+   × `mechanism{soft_lambda, lagrangian, pid_lagrangian}` × `{24²/6, 32²/10}`. **NO improvement** — a clean
+   confirmation that the *signal source* (local, per-agent, anticipatory) doesn't rescue it either:
+
+   | rung | soft_lambda | lagrangian | pid_lagrangian | global-λ₂ baseline |
+   |---|---|---|---|---|
+   | **24²/6** | 33 % | 18 % | **55 %** | ~53 % |
+   | **32²/10** | 15 % | 13 % | **16 %** | ~16 % |
+
+   All **conn 100 %**, **expl-frac ~99 %**, and **mean λ₂ even HIGHER (~4 @ 32²/10)** — i.e. *more* clumped.
+   Ties or loses vs the 53 % / 16 % global baseline. **The Lagrangian dual λ stayed FLAT** (e.g.
+   **0.30 → 0.30, violation ≈ 0.001**) — the smoking gun: there is **nothing for the dual to push against**
+   because the huddle already satisfies the constraint. This is the diagnostic in the box above, measured.
+
+**Why it's settled, restated.** Across all three sweeps the failure is the *same* and it is **structural,
+not a tuning miss**: a per-step connectivity signal (hard mask / soft global λ₂ / local degree-margin, under
+fixed / Lagrangian / PID) is **satisfied by clumping**, so at the huddle its gradient/penalty/dual-pressure
+is **≈ 0** and it cannot do the one thing we need — *push the team apart*. Stronger weighting, smarter dual
+control, and a more local signal were all tried; none change the sign of the problem. **Per-step
+connectivity mechanisms treat the huddle as a solution.** No more per-step-guardrail sweeps at scale.
+
+**The pivot — resolve coverage↔connectivity in TIME, not per step.**
+- **L4 brain layer (NEW top level) — a strategy / mission-phase layer ABOVE the L3 role-picker.** L4 picks
+  the **team PHASE {disperse ↔ gather}** (≡ explore ↔ deliver) as a **temporally-extended option** —
+  **commit ~5–10 steps**, *not* per step. L3 picks the **role** within the phase, L2 the **skill**, L1 the
+  **move**. The team **fans out to cover, regroups to share, repeats** — connectivity is held *periodically*,
+  not every step, so the huddle is no longer the optimum. Decentralized per-agent, **cohering via the shared
+  belief** — this makes the **micro→macro bridge an explicit module**. **Build STAGED:** add the L4 phase
+  head on top of the existing role-picker, keep gather/disperse **SKILLS scripted first (learn only the
+  *timing*)**, grow learned-ness later. **Do NOT train 4 learned levels at once.**
+- **Delivered-coverage objective** — coverage counts **only when in contact to share it** (the
+  relay / `PersistantNetwork` mission already exists in the codebase). This makes the **disperse→gather
+  rhythm EMERGE from the objective itself, with NO connectivity penalty** — the cleanest way to kill the
+  huddle, since clumping no longer scores and spreading-without-returning no longer scores.
+- **Hyper-Singularity barrier reward** (being built now as a config-knobbed term, `reward.barrier_*`) — a
+  per-agent wall on nearest-neighbour distance, `f(x) = k·relu(x−a)² / (M−x)^p` **CAPPED finite (RL-safe)**:
+  **0 in the safe zone, an explosive-but-finite wall as a link nears the comm edge `M`.** It is a **SILENT
+  connectivity FLOOR** that **composes under the L4 breathing** (a floor the team can ride out to, not a
+  per-step pull inward). **It is NOT tested in isolation** — alone it is itself a per-step signal and would
+  re-huddle; it only earns its keep *underneath* the L4 phase rhythm / delivered-coverage objective.
+- **Mission-safety-as-brain-INPUT gap (open build item).** Today the `MissionSafety` block is an
+  **enforcement mechanism** (action-mask / reward-penalty); it is **NOT wired as an explicit INPUT to the
+  role/phase brain** — the role head in `nets.py` conditions only on the belief `z`. `agent_architecture.md`
+  *intends* mission-safety as an input the role-picker ingests. **The L4/L3 brain should explicitly READ the
+  connectivity-danger signal (λ̂₂ / barrier proximity) to decide gather vs disperse.** Logged as open.
+
+**Good / bad.** Good: the I1 huddle test paid off exactly as designed — **roles are the proven huddle-fix at
+the base scale**, and we now have a *diagnosed, closed* dead-end (per-step guardrails) rather than an open
+question, which saves the whole Phase-2 mechanism×λ budget at scale. The diagnostic (flat dual λ, degree ≫
+target, mean λ₂ rising) is mechanistic, not vibes. Bad: the headline 90.9 % is a **16²/4-only** result — the
+real target (32²/10) sits at **16 %**; the scale wall is unbroken and the pivot is **unproven** (L4 timing +
+delivered-coverage are the new bet, not a settled win).
+
+**Changes.** `EXPERIMENT_PLAN.md` — Phase-2 mechanism×λ work marked **TRIED & SETTLED (fails at scale, do
+not re-run)** with the diagnostic + a prominent "don't redo" box; **L4 gather/disperse + delivered-coverage**
+inserted as the new phase; results ledger added. `agent_architecture.md` — **L4 strategy/phase layer** added
+above L3 (cognition table now L4→L3→L2→L1); mission-safety-as-INPUT gap documented; barrier added as the
+connectivity floor. `ctde_v0/EXPERIMENTS.md` + `IDEAS.md` — results recorded in the dials/ledger,
+connectivity-mechanism axes marked settled-at-scale, new axes (`barrier_weight`, L4 phase,
+delivered-coverage) added.
+
+**Next.**
+1. **Build the L4 phase head** on top of the role-picker — categorical `{disperse, gather}` option committed
+   for `k≈5–10` steps; **scripted gather/disperse skills first**, learn only the **switch timing**.
+2. **Wire the delivered-coverage objective** (reuse `PersistantNetwork`) as the L4 base-task — **no
+   connectivity penalty**; check the disperse→gather rhythm **emerges**.
+3. **Compose the barrier UNDER L4** (`barrier_weight > 0`) as the silent floor — never alone.
+4. **Close the mission-safety-as-INPUT gap:** feed λ̂₂ / barrier-proximity into the L4/L3 head so the brain
+   *reads* connectivity danger to time the phase.
+5. Only then grow learned-ness down the stack (scripted → learned skills), one level at a time.
+
+---
+
+## 2026-06-27 (cont.) — 7-search literature review → consolidated strategy pivot (`STRATEGY.md`)
+
+A 7-search literature review of every direction we'd been weighing (ES · QD · evolve-then-finetune ·
+curriculum/scale · hierarchical RL · role-based MARL · swarm-flat-vs-cognitive) consolidated into a single
+verdict — **`STRATEGY.md`** (with full citations) — and it **reverses the in-flight "build the L4 tower next"
+plan.** The headline: the elaborate **strategy→role→skill→action brain** is over-reach the evidence undercuts;
+hierarchy's measured benefit is **exploration + temporally-extended action, not the structural tower** (Nachum
+et al. 2019, arXiv:1909.10618), and the only depth that scales is **2-level manager/worker** (FeUdal 1703.01161
+/ HIRO 1805.08296). The huddle is really a **hard-exploration / deceptive-optimum problem in an over-shared
+homogeneous policy** — and **ES is folklore as a deception escape** (plain ES collapses to the same degenerate
+optima — Salimans et al. 2017, arXiv:1703.03864; the real lever is directed novelty/diversity, which works on
+PPO too — Conti et al. 2018, arXiv:1712.06560). **QD is demoted to a frontier-mapping / deception-escape
+*diagnostic*** on a compact controller (well-precedented for cov+connectivity descriptors — Engebråten et al.
+2020, arXiv:2007.08656), **not** the trainer for the deep GNN. Connectivity stays a **hard constraint, not a
+brain level**; the trade-off is **constrained, not scalarized**; the curriculum is **sound but must be fixed**
+(connectivity binding at every rung, density pinned, budget binding — LPAC arXiv:2401.04855 / EPC
+arXiv:2003.10423). Roles + phases are treated as **emergent measured outcomes** (boids/Couzin show even the
+gather/disperse *phase* emerges from flat rules — Reynolds 1987 / Couzin et al. 2002), so the corrected next
+move is the **§0′ flat-baseline falsification test** (goal-head + GNN + learned role latent + hard-connectivity
+shell + delivered-coverage) — which settles "tower vs. emergence" with data **before** any L4 layer is built.
+The L4 phase head and discrete skill library are now **conditional on that test failing**, not the default
+build. See `STRATEGY.md` for the apparatus; `EXPERIMENT_PLAN.md` §0′ for the executable run;
+`agent_architecture.md` correction box for the design downgrade.
+
+**Changes.** Wrote `STRATEGY.md` (the consolidated verdict + full reference list). `agent_architecture.md` —
+dated correction box (cap at 2 learned levels; connectivity = constraint; roles/phases emerge). `EXPERIMENT_PLAN.md`
+— §0′ flat-baseline + falsification test inserted as the next step; Phase 2′ marked conditional. `IDEAS.md` —
+ES / QD / hierarchy / curriculum verdicts updated with their key citations. **Next.** Run the §0′ falsification
+test; let the emergence result decide whether any added structure is earned.

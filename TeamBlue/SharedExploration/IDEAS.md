@@ -43,7 +43,12 @@ define-first. Progress logged in `JOURNEY.md`.
   near-98% coverage? (this is half the 90/90 story).
 - **Hooks.** Explorer role tool (module 7), learned variant.
 
-### 4. CBF / KKT / Lagrangian for MARL 🟢
+### 4. CBF / KKT / Lagrangian for MARL 🟢(lit) ⛔ **SETTLED-CLOSED as a per-step coverage fix (2026-06-27)**
+> **Tried & settled (`EXPERIMENT_PLAN.md` §0):** as a **per-step** connectivity constraint this **does not
+> fix coverage at scale** — action-mask / soft-λ₂ / degree-floor under fixed/Lagrangian/PID **all huddle**
+> (the huddle satisfies the constraint, dual λ stays flat, mechanism is structurally inert). **Do NOT re-run
+> per-step connectivity-mechanism sweeps at scale.** The principled-constraint *idea* survives only **in
+> time** (the L4 phase floor / the barrier), not as a per-step pull. Connectivity is now handled by Phase 2′.
 - **Hypothesis.** Treat connectivity (and energy/safety) as a **constraint**, solved with
   CBF/Lagrangian — principled vs hand-tuned penalties.
 - **Initial read.** Strong lineage: **Control Barrier Functions** for connectivity/collision in MRS
@@ -77,7 +82,12 @@ define-first. Progress logged in `JOURNEY.md`.
   plan (type × size × key hyperparams), tied to warm-start transfer.
 - **Hooks.** Every learned module; a first-class run-plan axis.
 
-### 7. Multi-phase mission cycle: **dispersion → stabilization → contraction**, repeat 🟡 (promising)
+### 7. Multi-phase mission cycle: **dispersion → stabilization → contraction**, repeat 🟢 **PROMOTED TO SPINE (2026-06-27)**
+> **Now the primary lever (Phase 2′).** After per-step connectivity guardrails settled-closed at scale
+> (`EXPERIMENT_PLAN.md` §0), this idea is the chosen fix: an **L4 `{disperse↔gather}` phase as a
+> temporally-extended option** (commit ~5–10 steps) **above** the role-picker — resolve cov↔conn **in TIME**.
+> Paired with the **delivered-coverage** objective (rhythm emerges, no conn penalty) + the **barrier** floor.
+> See `agent_architecture.md` L4 section.
 - **Hypothesis.** Structure shared exploration as a repeating macro-cycle — *disperse* to find frontiers,
   *stabilize* (regroup), *contract* to maximally share info — directly trading coverage for connectivity
   in time rather than fighting them simultaneously.
@@ -205,3 +215,59 @@ learnable; HAPPO (arXiv:2412.20049) reproduces our 98/32 gap.
 sweep (near-free, kills the oscillation failure mode); **MARVEL** graph-attention → Phase 1 backbone ref;
 **hard-mask-first + Lagrangian backstop** (Li et al.: hard constraint > soft reward). **Plan FINAL (Phases
 0–5).** Full writeup + citations in `JOURNEY.md`.
+
+---
+
+## ⛔ EMPIRICAL UPDATE — verdicts REVISED by our own runs (2026-06-27)
+
+The lit-derived spine met the experiment. **What the literature got right:** roles help (idea #8), and a
+connectivity *constraint* holds connectivity (idea #4). **What our runs overturned for THIS task:** the
+connectivity-constraint family — idea #4's whole apparatus — **does not fix coverage at scale on dense-grid
+coverage** (Li et al.'s setting is navigation, where clumping is *not* a free connectivity solution; on our
+grid it is). This is the **`EXPERIMENT_PLAN.md` §0 settled ledger**.
+
+> **⛔ SETTLED — DO NOT RE-RUN: per-step connectivity guardrails (idea #4 family) fail at scale.**
+> hard action-mask · soft global-λ₂ · local degree/edge-margin, under fixed/Lagrangian/PID — **all huddle.**
+> **KILLER DIAGNOSTIC:** at the huddle degree ≫ target ⇒ penalty ≈ 0 ⇒ dual λ flat (`0.30→0.30`) ⇒ **the
+> huddle SATISFIES the connectivity signal**, so the mechanism is **structurally inert** and cannot push the
+> team apart. **Numbers:** I1 @16²/4 roles → **90.9 % cov** (role_off huddles **1.6–5.6 %**); scale-transfer
+> **90.9 → 53 → 16 %** (all conn 100 %, held by huddling, mean λ₂ ↑, relays abandoned); `local_edge_margin` ×
+> {soft/lagrangian/pid} → **24² 33/18/55 %, 32² 15/13/16 %**, no gain. ⇒ **Resolve cov↔conn in TIME, not per
+> step.**
+
+**Verdict revisions.**
+
+| # | Idea | WAS | NOW (2026-06-27) | One-line |
+|---|---|---|---|---|
+| 4 | CBF / Lagrangian / constrained (per-step conn) | TEST → spine (Phase 2) | **⛔ SETTLED — does NOT fix coverage at scale; CLOSED as a coverage fix** | huddle satisfies the constraint; dual λ never moves; structurally inert |
+| 8 | Explorer/relay role-picker | ADOPT (Phase-5 slot 2) | **✅ CONFIRMED @16²/4 (decisive: 90.9 % vs ≤5.6 %), but win does NOT scale → promote, then top with L4** | roles break the *base-scale* huddle; not the scale huddle |
+| 7 | **Multi-phase cycle (disperse→gather)** | TEST (scaffold, Phase-5 carry-over) | **🔜 PROMOTED TO THE SPINE — Phase 2′ (the new primary lever)** | resolve cov↔conn in TIME; L4 temporally-extended `{disperse,gather}` option (commit 5–10 steps) |
+| — | **Delivered-coverage objective** (`PersistantNetwork`) | (relay mission, separate) | **🔜 ADOPT — Phase 2′ base-task** | coverage counts only in-contact ⇒ disperse→gather **emerges**, **no conn penalty** |
+| — | **Hyper-Singularity barrier** (conn FLOOR) | (new) | **🔜 ADOPT — composes UNDER L4, never alone** | `f(x)=k·relu(x−a)²/(M−x)^p` capped finite; 0 in safe zone, wall at comm edge; silent floor |
+| — | **Mission-safety as a brain INPUT** | (intended in architecture) | **🔜 OPEN BUILD ITEM** | today enforce-only; wire λ̂₂/barrier-proximity INTO the L4/L3 head (role head reads only belief `z`) |
+
+**Net:** ideas #4's *mechanism* is settled-closed at scale; **idea #7 (multi-phase) is now the spine**, with
+delivered-coverage + the barrier floor + the safety-as-input wiring as its supports. Full arc + exact
+numbers: `JOURNEY.md` 2026-06-27; plan: `EXPERIMENT_PLAN.md` §0 + Phase 2′.
+
+---
+
+## ⮕ METHOD-DIRECTION verdicts — 7-search consolidated review (2026-06-27 · `STRATEGY.md`)
+
+A 7-search literature review of the *method* directions we'd been weighing (which cut across the idea numbers
+above) lands four verdicts that **revise the build plan**. These concern the **how-to-train / how-to-structure**
+axes, not the per-mechanism ideas. Full reasoning + the complete reference list live in **`STRATEGY.md`**; the
+load-bearing citations are below.
+
+| Direction | Key citation | Literature verdict (one line) |
+|---|---|---|
+| **Hierarchy / the L4 strategy→role→skill→action tower** | Nachum et al. 2019, arXiv:1909.10618 (+ 2-level norm: FeUdal arXiv:1703.01161 / HIRO arXiv:1805.08296 / SOL arXiv:2509.00338) | **NOT supported — cap at 2 LEARNED levels** (goal-selector over GNN); hierarchy's benefit is *exploration, not the structural tower*, and only 2-level manager/worker scales. Roles/phases EMERGE (boids/Couzin: Reynolds 1987 / Couzin et al. 2002); the explicit L4 phase head + discrete skill library are downgraded to **conditional** on the §0′ test failing. |
+| **ES as the optimizer / deception escape** | Salimans et al. 2017, arXiv:1703.03864; Conti et al. 2018, arXiv:1712.06560 | **FOLKLORE for deception — demote.** Plain ES collapses to the same degenerate optima; the real lever is **directed novelty/diversity exploration, which works on PPO too.** ES survives only inside a MERL-style hybrid (Majumdar et al. 2020, arXiv:1906.07315) *if* the flat path stalls — interleaved, never a one-shot weight handoff. |
+| **Quality-Diversity (MAP-Elites) as trainer** | Mouret & Clune 2015, arXiv:1504.04909; Engebråten et al. 2020, arXiv:2007.08656 | **DEMOTED to a frontier-mapping / deception-escape *diagnostic*** on a compact controller (cov+connectivity descriptors are well-precedented). **NOT** the trainer for the deep GNN (QD+GNN-at-scale unexplored). Produces the cov↔conn Pareto frontier as a deliverable. |
+| **Curriculum (small→large) / scale-transfer** | Agarwal et al. 2025 (LPAC), arXiv:2401.04855; Long et al. 2020 (EPC), arXiv:2003.10423 | **SOUND but must be FIXED:** connectivity must bind at *every* rung (incl. small), **pin density** across rungs, **100-step budget binds at every rung**, and use **multi-scale fitness** (don't train-once-small-then-transfer — the sparse-small end is the weak corner). |
+
+**Net:** the corrected next move is **not** "build the L4 tower" — it is the **§0′ flat-baseline falsification
+test** (goal-head + GNN + learned role latent + hard-connectivity shell + delivered-coverage), measuring whether
+labour-division + the disperse↔gather rhythm **emerge** (role-diversity per Hu et al. 2022, arXiv:2207.05683)
+before any structure is added. See `STRATEGY.md` (apparatus), `EXPERIMENT_PLAN.md` §0′ (the run),
+`agent_architecture.md` (correction box).
