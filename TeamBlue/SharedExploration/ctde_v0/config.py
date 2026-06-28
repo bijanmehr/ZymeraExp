@@ -262,6 +262,11 @@ class Connectivity:
     estimator: str = "fiedler_local_poweriter"   # Phase-0 decentralized estimator
     grade_on: str = "true_lambda2"               # non-gameable grader
     threshold: float = 1e-3                       # connectivity-% = steps with λ₂ > τ
+    real_threshold: float = 0.5                   # the REAL connectivity bar (λ₂>0.5);
+    #   ``threshold`` (1e-3) is merely "not fully disconnected" — a trivial floor that a
+    #   huddle satisfies for free. ``real_threshold`` is the binding bar the 90/90 goal is
+    #   graded against; logged ALONGSIDE the trivial one (``connectivity_real``) so a run
+    #   is never flattered by the loose threshold. Diagnostic only — never enters training.
     trade_off_lambda: float | None = None         # swept in Phase 2 (soft mechs)
     lambda2_sharp: float = 2.0                    # sigmoid sharpness of the soft graph
     estimator_iters: int = 8                      # power-iteration rounds for λ̂₂
@@ -345,6 +350,38 @@ class CTDEConfig:
     #   NOT hardcoded. (The learned connectivity mechanisms live on
     #   ``mission_safety.mechanism`` — lagrangian / pid_lagrangian.)
     collision_mask: str = "off"
+
+    # ---- Arm-A / Arm-B knobs (additive; defaults reproduce prior behaviour) --
+    # warmstart_noise: σ ≥ 0. When > 0 AND warm-starting (``--init-from``), perturb the
+    #   loaded ACTOR's float leaves by σ·RMS(leaf)·N(0,1) before training — a symmetry-
+    #   break so the curriculum (train small → scale up) doesn't transplant a frozen
+    #   huddle (Arm A: "inject randomness then scale"). 0 (default) -> warm-start byte-
+    #   unchanged. Per-leaf RMS scaling keeps the kick proportional to each weight's size.
+    warmstart_noise: float = 0.0
+    # critic_mode: "central" (default) = the CTDE centralized critic over central_obs
+    #   (training-only global state) sources the GAE value + value loss — byte-unchanged.
+    #   "decentral" = the DTE tail: the GAE team value AND the value loss are sourced from
+    #   the ACTOR's own per-agent value head (mean over agents) instead; the centralized
+    #   critic is left unused (zero-grad). Tests whether dropping the central crutch lets
+    #   the (decentralized) policy stand — and is what the warm-started Arm-A tail switches
+    #   to after the curriculum reaches the top rung. Team-reward GAE is unchanged; only
+    #   the VALUE SOURCE swaps (the global-state critic input is what decentralization drops).
+    critic_mode: str = "central"     # {"central", "decentral"}
+    # diversity_residual: "off" (default) = v0 goal logits (byte-unchanged). "on" = Arm
+    #   B-dico: add a small per-agent, identity-conditioned residual to the goal logits
+    #   (``nets.GoalResidual``), MEAN-ZERO across agents (so the team-average policy is
+    #   unchanged — diversity is *controlled*, not added on top, DiCo-style) and gated by a
+    #   learned scalar. Makes otherwise-identical agents act differently WITHOUT splitting
+    #   the policy. Identity = the agent-count-invariant i/N code -> scale-invariant. The
+    #   module is ALWAYS built (stable param surface); only USED when on.
+    diversity_residual: str = "off"  # {"off", "on"}
+    # fork_groups: 1 (default) = a single shared Actor (v0; byte-unchanged). >1 = Arm
+    #   B-fork: ``nets.GroupedActor`` with that many independent sub-actors over a fixed
+    #   contiguous team partition (2 → explorer/relay halves), each specializing on its own
+    #   group's gradient. Built from scratch (``init_state``) or by replicating a single
+    #   shared bootstrap (``init_state_from_checkpoint``). The CTDE critic stays single +
+    #   shared. Requires ``critic_mode == 'central'`` (grouped decentral value unsupported).
+    fork_groups: int = 1
 
     # ---- run control --------------------------------------------------------
     scale: str = "16x16/4"            # human label for the rung

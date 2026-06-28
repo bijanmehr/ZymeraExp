@@ -447,6 +447,60 @@ class FrontierAttn(eqx.Module):
 
 
 # =============================================================================
+# [3b] Goal residual — DiCo-style per-agent behavioural diversity tool
+# =============================================================================
+#
+# B-dico: make otherwise-identical agents act differently WITHOUT splitting the policy
+# (the fork's alternative). A small per-agent residual is added to the goal logits,
+# conditioned on the agent's IDENTITY (the fixed i/N sinusoidal code — agent-count-
+# invariant, so scale-transfer holds). The residual is MEAN-ZERO across agents, so the
+# team-average policy is unchanged — diversity is *controlled* (DiCo: Bettini et al.
+# 2024), not stacked on top — and a learned gate alpha lets the reward dial it up/down.
+
+
+class GoalResidual(eqx.Module):
+    """Per-agent identity-conditioned goal-logit residual — the B-dico diversity tool.
+
+        residual_i = alpha · ( g(z_i, id_i) − mean_j g(z_j, id_j) )      (mean-zero over agents)
+
+    where ``id_i = _index_signal`` is the agent-count-invariant i/N code, ``g`` is a tiny
+    MLP, and ``alpha = softplus(log_alpha) >= 0`` is a learned gate (starts ≈ ``alpha_init``).
+    Centering across agents keeps the TEAM-MEAN goal policy unchanged — the residual only
+    SPREADS agents apart (controlled diversity), so it can raise behavioural diversity (SND)
+    without biasing the average behaviour. SIZE-INVARIANT: the identity is a function of i/N
+    and the readout is per-agent, so a model trained @16²/4 transfers @32²/10. Built ALWAYS
+    (stable param surface) and only USED when ``diversity_residual == 'on'``. Pure JAX."""
+    l1: eqx.nn.Linear                  # [z || id] -> hidden
+    l2: eqx.nn.Linear                  # hidden -> K
+    log_alpha: jax.Array              # learned gate: alpha = softplus(log_alpha) >= 0
+    K: int = eqx.field(static=True)
+    hidden: int = eqx.field(static=True)
+
+    def __init__(self, width: int, K: int, *, hidden: int = 32,
+                 alpha_init: float = 1.0, key):
+        k1, k2 = jax.random.split(key, 2)
+        self.l1 = eqx.nn.Linear(width + _IDX_DIM, hidden, key=k1)
+        self.l2 = eqx.nn.Linear(hidden, K, key=k2)
+        a0 = float(max(alpha_init, 1e-4))
+        self.log_alpha = jnp.asarray(jnp.log(jnp.expm1(a0)), dtype=jnp.float32)
+        self.K = int(K)
+        self.hidden = int(hidden)
+
+    def __call__(self, z) -> jax.Array:
+        """(N,K) mean-zero gated per-agent residual to ADD to the goal logits. ``z`` (N,W);
+        the identity code is derived from N (so ``alpha == 0`` is exactly the unmodified
+        goal policy and the team-mean is always preserved by the centering)."""
+        n = z.shape[0]
+        ids = _index_signal(n)                                   # (N,_IDX_DIM) per-agent id
+        x = jnp.concatenate([z, ids], axis=-1)                   # (N, W+_IDX_DIM)
+        h = jax.nn.relu(jax.vmap(self.l1)(x))                    # (N, hidden)
+        r = jax.vmap(self.l2)(h)                                 # (N, K) raw residual
+        r = r - r.mean(axis=0, keepdims=True)                    # (N,K) mean-zero across agents
+        alpha = jax.nn.softplus(self.log_alpha)                  # () >= 0
+        return alpha * r                                         # (N,K) gated, mean-zero
+
+
+# =============================================================================
 # [4] Compass directional feature (explicit navigation signal for the heads)
 # =============================================================================
 #
@@ -659,6 +713,7 @@ class Actor(eqx.Module):
     role_head: eqx.nn.Linear
     frontier_attn: FrontierAttn
     compass: Compass
+    goal_residual: GoalResidual
     gru: eqx.nn.GRUCell
     aux_head: eqx.nn.Linear
     value_head: eqx.nn.Linear
@@ -666,19 +721,22 @@ class Actor(eqx.Module):
     n_roles: int = eqx.field(static=True)
     explorer_tool: str = eqx.field(static=True)
     compass_on: bool = eqx.field(static=True)
+    diversity_on: bool = eqx.field(static=True)
     recurrent: bool = eqx.field(static=True)
     width: int = eqx.field(static=True)
 
     def __init__(self, in_ch: int, K: int, *, backbone_cfg, dropout: float, key,
                  n_roles: int = 2, explorer_tool: str = "goal_head",
-                 compass: str = "off", recurrence: str = "feedforward"):
+                 compass: str = "off", recurrence: str = "feedforward",
+                 diversity_residual: str = "off"):
         kb, kg, kr, kf, ka, kv = jax.random.split(key, 6)
-        # Derive the compass / gru keys by folding fixed constants into the ORIGINAL
-        # key, so the six keys above are unchanged -> compass='off' /
-        # recurrence='feedforward' is byte-identical to the pre-module actor
-        # (split(key,7+) would have perturbed all six).
+        # Derive the compass / gru / goal-residual keys by folding fixed constants into the
+        # ORIGINAL key, so the six keys above are unchanged -> compass='off' /
+        # recurrence='feedforward' / diversity_residual='off' is byte-identical to the
+        # pre-module actor (split(key,7+) would have perturbed all six).
         kcomp = jax.random.fold_in(key, 0xC0)
         kgru = jax.random.fold_in(key, 0x60)
+        kres = jax.random.fold_in(key, 0xD1C0)
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
@@ -689,6 +747,9 @@ class Actor(eqx.Module):
         self.role_head = eqx.nn.Linear(W, n_roles, key=kr)
         self.frontier_attn = FrontierAttn(W, key=kf)
         self.compass = Compass(W, K, key=kcomp)
+        # B-dico per-agent diversity residual; always built (stable param surface), only
+        # USED when diversity_residual == 'on' (mean-zero -> team-mean policy unchanged).
+        self.goal_residual = GoalResidual(W, K, key=kres)
         # per-agent recurrent cell over the belief width (W -> W); always built so the
         # param tree is invariant to the recurrence knob, only USED when recurrent.
         self.gru = eqx.nn.GRUCell(W, W, key=kgru)
@@ -698,6 +759,7 @@ class Actor(eqx.Module):
         self.n_roles = int(n_roles)
         self.explorer_tool = str(explorer_tool)
         self.compass_on = (str(compass) == "on")
+        self.diversity_on = (str(diversity_residual) == "on")
         self.recurrent = (str(recurrence) == "recurrent")
         self.width = int(W)
 
@@ -740,10 +802,80 @@ class Actor(eqx.Module):
         # `frontier_attn` params just sit unused (built for a stable param surface).
         if self.explorer_tool == "frontier_attn":
             goal_logits = goal_logits + self.frontier_attn(obs, feat, self.K)  # (N,K)
+        # B-dico: add the identity-conditioned, mean-zero per-agent residual when on.
+        # `diversity_on` is STATIC, so when off this branch never runs and `goal_logits`
+        # is byte-identical to the pre-residual actor (the residual params sit unused).
+        if self.diversity_on:
+            goal_logits = goal_logits + self.goal_residual(feat)               # (N,K)
         role_logits = jax.vmap(self.role_head)(feat)                   # (N,R)
         value = jax.vmap(self.value_head)(feat)[:, 0]                  # (N,)
         lambda2_hat = jax.vmap(self.aux_head)(feat)[:, 0]             # (N,)
         return goal_logits, role_logits, value, lambda2_hat, feat, h_next
+
+
+# =============================================================================
+# Grouped actor: B-fork — G independent sub-actors over a fixed team partition
+# =============================================================================
+
+
+class GroupedActor(eqx.Module):
+    """B-fork: ``G`` independent sub-:class:`Actor`s with SEPARATE parameters, applied to a
+    FIXED contiguous partition of the team (G=2 → group 0 = first half, group 1 = the rest).
+
+    Each sub-actor runs over the WHOLE team (so its backbone still fuses the full comm
+    graph), and agent ``i``'s outputs are taken from ITS group's sub-actor; the other
+    sub-actors' outputs for agent ``i`` are DISCARDED — so each sub-actor's parameters
+    receive gradient ONLY from its own group's agents. That is the fork: two groups with
+    separate policies that specialize independently (the lit's CTDE-bootstrap → fork →
+    specialize; SePS/Kaleidoscope selective sharing), while the CTDE **critic stays single
+    and shared** (it is NOT wrapped here — that is what keeps training stable).
+
+    Drop-in for :class:`Actor`: identical ``__call__`` signature + 6-tuple return + an
+    ``init_hidden``, so the PPO rollout/loss are UNCHANGED — only construction differs
+    (built in ``ppo.init_state`` from scratch, or in ``ppo.init_state_from_checkpoint`` by
+    REPLICATING a single shared bootstrap into G copies, copies>0 lightly perturbed to
+    break symmetry so the groups diverge). The partition is recomputed from N at call time
+    (a fraction of N, never a baked array), so a GroupedActor trained @16²/4 transfers
+    @32²/10 exactly like a single Actor. Pure JAX (vmap/scan/jit-safe)."""
+    subs: list                          # the G sub-Actors (separate params)
+    G: int = eqx.field(static=True)
+    width: int = eqx.field(static=True)
+
+    def __init__(self, subs):
+        self.subs = list(subs)
+        self.G = len(self.subs)
+        self.width = int(self.subs[0].width)
+
+    @staticmethod
+    def _group(n: int, G: int) -> jax.Array:
+        """(N,) int group id per agent — contiguous near-even blocks (agent i → block
+        ``floor(i·G/N)``). Recomputed from the static N so the partition transfers across
+        rungs (4 agents → [0,0,1,1]; 10 agents → [0,0,0,0,0,1,1,1,1,1] for G=2)."""
+        grp = (jnp.arange(n) * G) // max(int(n), 1)
+        return jnp.clip(grp, 0, G - 1).astype(jnp.int32)
+
+    def init_hidden(self, n: int) -> jax.Array:
+        """Zero per-agent hidden state ``(N, W)`` — delegated to a sub-actor (all share
+        the same width), matching :meth:`Actor.init_hidden` for the rollout carry."""
+        return self.subs[0].init_hidden(n)
+
+    def __call__(self, obs, adj_off, *, dist=None, h=None, key=None, inference=False):
+        """Run every sub-actor over the full team, then gather each output per agent from
+        its group's sub-actor. Returns the SAME 6-tuple as :meth:`Actor.__call__`
+        (goal_logits (N,K), role_logits (N,R), value (N,), lambda2_hat (N,), feat (N,W),
+        h_next (N,W)). Gradient to sub-actor g flows only through group-g agents (the rest
+        of g's outputs are not selected)."""
+        n = obs.shape[0]
+        group = self._group(n, self.G)                              # (N,) per-agent group
+        outs = [sub(obs, adj_off, dist=dist, h=h, key=key, inference=inference)
+                for sub in self.subs]                               # G × 6-tuple
+        ar = jnp.arange(n)
+
+        def pick(j):
+            stacked = jnp.stack([o[j] for o in outs], axis=0)       # (G, N, ...)
+            return stacked[group, ar]                               # (N, ...) gather per agent
+
+        return pick(0), pick(1), pick(2), pick(3), pick(4), pick(5)
 
 
 # =============================================================================

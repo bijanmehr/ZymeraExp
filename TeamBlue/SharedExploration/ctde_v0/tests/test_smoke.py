@@ -1568,6 +1568,124 @@ def test_init_from_none_is_byte_unchanged():
         "default init_state is not reproducible from PRNGKey(cfg.seed)"
 
 
+# ---- Arm-A / Arm-B mechanism knobs (warmstart-noise · DTE · DiCo · fork) -----
+#
+# Four additive arms, each gated + byte-unchanged at its default (warmstart_noise=0,
+# critic_mode='central', diversity_residual='off', fork_groups=1). Tests: config
+# round-trip; the DiCo residual is mean-zero across agents + 'off' is byte-unchanged;
+# the GroupedActor partitions/shapes/diverges + replicates a bootstrap (copy 0 exact);
+# the decentral DTE + the warm-start perturbation run / behave.
+
+
+def test_arm_knobs_config_roundtrip():
+    """The four new arm knobs round-trip through the config tree and keep their v0
+    defaults (warmstart_noise=0, critic_mode=central, diversity_residual=off, fork_groups=1)."""
+    import dataclasses
+    cfg = _tiny_cfg()
+    assert (cfg.warmstart_noise, cfg.critic_mode, cfg.diversity_residual,
+            cfg.fork_groups) == (0.0, "central", "off", 1)
+    cfg2 = dataclasses.replace(cfg, warmstart_noise=0.1, critic_mode="decentral",
+                               diversity_residual="on", fork_groups=2)
+    d = cfg2.to_dict()
+    assert (d["warmstart_noise"], d["critic_mode"], d["diversity_residual"],
+            d["fork_groups"]) == (0.1, "decentral", "on", 2)
+    assert from_dict(d).to_dict() == d
+
+
+def test_diversity_residual_off_byte_unchanged_and_on_mean_zero():
+    """diversity_residual='off' (default) leaves goal_logits == goal_head(z) (the residual
+    is never added); 'on' SHIFTS the logits by a per-agent term that is MEAN-ZERO across
+    agents (controlled diversity preserves the team-mean goal policy)."""
+    cfg = _tiny_cfg()
+    env = env_utils.build_env(cfg)
+    obs, state = env.reset(jax.random.PRNGKey(1))
+    adj = env_utils.kb_adjacency(state.body.position, cfg)
+    a_off = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                  dropout=0.0, key=jax.random.PRNGKey(0), diversity_residual="off")
+    a_on = Actor(env.obs.obs_channels, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                 dropout=0.0, key=jax.random.PRNGKey(0), diversity_residual="on")
+    z = a_off.backbone(obs, adj, inference=True)
+    g_off = a_off(obs, adj, inference=True)[0]
+    assert bool(jnp.array_equal(g_off, jax.vmap(a_off.goal_head)(z)))   # off: no residual
+    g_on = a_on(obs, adj, inference=True)[0]
+    assert not bool(jnp.allclose(g_on, g_off))                         # on: shifted
+    resid = g_on - jax.vmap(a_on.goal_head)(z)                         # the added residual
+    assert float(jnp.abs(resid.mean(axis=0)).max()) < 1e-5            # mean-zero across agents
+
+
+def test_grouped_actor_partition_shapes_and_diverges():
+    """GroupedActor (G=2): the partition is the contiguous near-even split, the forward
+    returns the same 6-tuple shapes as a single Actor, and a PPO iter runs (100% valid
+    moves) + actually updates the sub-actors."""
+    import equinox as eqx
+    cfg = _tiny_cfg(world=World(grid=10, n_agents=4, comm_r=5, horizon=6), fork_groups=2)
+    assert [int(x) for x in nets.GroupedActor._group(4, 2)] == [0, 0, 1, 1]
+    assert [int(x) for x in nets.GroupedActor._group(10, 2)] == [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg); stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    assert isinstance(state.actor, nets.GroupedActor) and state.actor.G == 2
+    obs, st = env.reset(jax.random.PRNGKey(2))
+    adj = env_utils.kb_adjacency(st.body.position, cfg)
+    g, r, v, l2, feat, h = state.actor(obs, adj, inference=True)
+    assert g.shape == (4, cfg.action_head.K) and v.shape == (4,) and feat.shape[0] == 4
+    new_state, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"]) and float(logs["ctrl_valid_frac"]) == 1.0
+    p0 = jax.tree_util.tree_leaves(eqx.filter(state.actor, eqx.is_array))
+    p1 = jax.tree_util.tree_leaves(eqx.filter(new_state.actor, eqx.is_array))
+    assert any(not jnp.allclose(a, b) for a, b in zip(p0, p1)), "grouped actor unchanged"
+
+
+def test_grouped_actor_warmstart_replicate_copy0_is_bootstrap(tmp_path):
+    """B-fork warm-start: replicating a single bootstrap into a GroupedActor makes sub 0
+    the bootstrap EXACTLY and sub 1 a (perturbed, hence different) sibling."""
+    import equinox as eqx
+    from ctde_v0 import checkpoint as ckpt
+    cfg1 = _tiny_cfg(world=World(grid=10, n_agents=4, comm_r=5, horizon=6))   # single boot
+    env = env_utils.build_env(cfg1)
+    boot = ppo.init_state(env, cfg1, jax.random.PRNGKey(0))
+    p = str(tmp_path / "boot.eqx")
+    ckpt.save_model(p, (boot.actor, boot.critic), meta=cfg1.to_dict())
+    import dataclasses
+    cfgf = dataclasses.replace(cfg1, fork_groups=2)
+    forked = ppo.init_state_from_checkpoint(env, cfgf, p, jax.random.PRNGKey(9))
+    assert isinstance(forked.actor, nets.GroupedActor)
+    s0 = jax.tree_util.tree_leaves(eqx.filter(forked.actor.subs[0], eqx.is_array))
+    s1 = jax.tree_util.tree_leaves(eqx.filter(forked.actor.subs[1], eqx.is_array))
+    boot_leaves = jax.tree_util.tree_leaves(eqx.filter(boot.actor, eqx.is_array))
+    assert all(bool(jnp.array_equal(a, b)) for a, b in zip(s0, boot_leaves))  # copy0 exact
+    assert any(not jnp.allclose(a, b) for a, b in zip(s1, boot_leaves))       # copy1 perturbed
+
+
+def test_critic_mode_decentral_train_step():
+    """critic_mode='decentral' (the DTE tail) runs a PPO iter sourcing the value from the
+    actor's own value head (the centralized critic is unused), valid moves preserved."""
+    cfg = _tiny_cfg(world=World(grid=10, n_agents=3, comm_r=5, horizon=6),
+                    critic_mode="decentral")
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg); stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    _ns, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"]) and float(logs["ctrl_valid_frac"]) == 1.0
+
+
+def test_warmstart_noise_zero_noop_and_perturbs():
+    """_perturb_actor: σ=0 is a byte-exact no-op; σ>0 changes the float leaves while
+    preserving every shape."""
+    import equinox as eqx
+    cfg = _tiny_cfg()
+    env = env_utils.build_env(cfg)
+    a = ppo._make_actor(env.obs.obs_channels, cfg, jax.random.PRNGKey(0))
+    a0 = ppo._perturb_actor(a, 0.0, jax.random.PRNGKey(1))
+    la = jax.tree_util.tree_leaves(eqx.filter(a, eqx.is_array))
+    l0 = jax.tree_util.tree_leaves(eqx.filter(a0, eqx.is_array))
+    assert all(bool(jnp.array_equal(x, y)) for x, y in zip(la, l0))     # σ=0 no-op
+    a1 = ppo._perturb_actor(a, 0.1, jax.random.PRNGKey(1))
+    l1 = jax.tree_util.tree_leaves(eqx.filter(a1, eqx.is_array))
+    assert all(x.shape == y.shape for x, y in zip(la, l1))             # shapes preserved
+    assert any(not jnp.allclose(x, y) for x, y in zip(la, l1))         # σ>0 perturbs
+
+
 if __name__ == "__main__":
     test_config_roundtrip()
     test_conn_signal_axis_roundtrip()

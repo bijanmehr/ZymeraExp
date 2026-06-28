@@ -45,7 +45,7 @@ import optax
 from . import controller as ctrl
 from . import env_utils as _eu
 from .config import CTDEConfig
-from .nets import Actor, Critic
+from .nets import Actor, Critic, GroupedActor
 
 EPS = 1e-8
 _NEG = -1e9   # masked-goal logit
@@ -161,6 +161,10 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     # distance) to each message, so the rollout must compute that distance and STORE it in
     # the trajectory (gated so the default 'learned' trace pytree is byte-unchanged).
     edge_msg = cfg.backbone.message_content != "learned"
+    # DTE tail (critic_mode): "decentral" sources the GAE value from the actor's own
+    # per-agent value head (mean over agents) instead of the centralized critic — the
+    # central critic is left unused. "central" (default) is byte-unchanged.
+    decentral = cfg.critic_mode == "decentral"
 
     def body(carry, _):
         state, obs, h, k = carry
@@ -177,7 +181,10 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             obs, adj_off, dist=dist, h=h, inference=True
         )
         central = env.central_obs(state)                              # (Cg,H,W)
-        v_team = critic(central, inference=True)                      # ()
+        # central is stored regardless (byte-stable traj pytree); the central critic is
+        # only READ in central mode. In decentral the team value is the actor's own
+        # per-agent value head, mean-pooled (DTE: the global-state critic input is dropped).
+        v_team = value_agent.mean() if decentral else critic(central, inference=True)  # ()
 
         gmask = _goal_mask(env, state, cfg, stencil)                  # (N,K) bool
         masked_logits = jnp.where(gmask, goal_logits, _NEG)
@@ -185,6 +192,10 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         logp = jnp.take_along_axis(
             jax.nn.log_softmax(masked_logits, axis=-1), goal[:, None], axis=-1
         )[:, 0]                                                       # (N,)
+        # per-agent goal distribution — the behavioural fingerprint the diversity
+        # diagnostics read post-hoc (SND = instantaneous spread between agents;
+        # role_div = persistent spread of time-averaged behaviour). Diagnostic only.
+        goal_probs = jax.nn.softmax(masked_logits, axis=-1)           # (N,K)
 
         # role picker (L3): sample a role per agent when enabled, else all-explorer.
         n = state.n_agents
@@ -245,6 +256,7 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             "rew_agent": rew_agent, "rew_team": rew_team,
             "true_l2": l2_true, "coverage": cov, "degree": degree,
             "move": move, "move_valid": move_valid,
+            "goal_probs": goal_probs,
             "done": done.any().astype(jnp.float32),
         }
         if local_signal:
@@ -260,11 +272,19 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             per_step["dist"] = dist                                    # (N,N)
         return (state_next, obs_next, h_next, k), per_step
 
-    (state_T, _obs_T, _h_T, _), traj = jax.lax.scan(
+    (state_T, obs_T, h_T, _), traj = jax.lax.scan(
         body, (state0, obs0, h0, scan_key), xs=None, length=cfg.world.horizon
     )
-    central_T = env.central_obs(state_T)
-    traj["v_last"] = critic(central_T, inference=True)               # () GAE bootstrap
+    if decentral:
+        # bootstrap the final-state value from the actor too (matches the v_team source).
+        adj_T = _eu.kb_adjacency(state_T.body.position, cfg)
+        dist_T = _eu.kb_distance(state_T.body.position, cfg) if edge_msg else None
+        _g, _r, value_agent_T, _l2, _z, _h = actor(obs_T, adj_T, dist=dist_T, h=h_T,
+                                                    inference=True)
+        traj["v_last"] = value_agent_T.mean()                        # () GAE bootstrap
+    else:
+        central_T = env.central_obs(state_T)
+        traj["v_last"] = critic(central_T, inference=True)           # () GAE bootstrap
     return traj
 
 
@@ -303,6 +323,17 @@ def compute_advantages(traj, cfg: CTDEConfig):
         traj["rew_team"], traj["v_team"], traj["v_last"]
     )
     return adv, ret
+
+
+def _pairwise_tv_mean(p):
+    """Mean pairwise total-variation distance between the rows of ``p`` (N,K) — a
+    behavioural-spread scalar in [0,1]. ``TV(p_i, p_j) = 0.5·Σ_k |p_i − p_j|``,
+    averaged over the ``N(N−1)`` ordered off-diagonal pairs (0 for a single agent).
+    Pure JAX (vmap/jit-safe); used for both diversity diagnostics below."""
+    n = p.shape[0]                                                    # static (shape)
+    d = 0.5 * jnp.abs(p[:, None, :] - p[None, :, :]).sum(-1)          # (N,N) TV
+    off = n * (n - 1)                                                 # Python int (static)
+    return d.sum() / max(off, 1)                                      # () mean off-diagonal
 
 
 # =============================================================================
@@ -470,7 +501,15 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         role_pg = jnp.zeros(())
         role_ent = jnp.zeros(())
 
-    v_pred = jax.vmap(lambda c: critic(c, inference=False))(central)  # (M,)
+    if cfg.critic_mode == "decentral":
+        # DTE: team value = the actor's own per-agent value head (mean over agents); the
+        # centralized critic is NOT read here (zero-grad in this mode). ``_z`` is the
+        # post-compass belief/hidden the heads read, so value_head(_z) reproduces the
+        # rollout's per-agent value exactly (consistency with the v_team source).
+        v_agent = jax.vmap(jax.vmap(actor.value_head))(_z)[..., 0]    # (M,N)
+        v_pred = v_agent.mean(-1)                                     # (M,) team value
+    else:
+        v_pred = jax.vmap(lambda c: critic(c, inference=False))(central)  # (M,)
     value_loss = jnp.mean((v_pred - jax.lax.stop_gradient(ret)) ** 2)
 
     aux_loss = _aux_loss(l2_hat, true_l2, cfg)
@@ -569,21 +608,60 @@ def make_stencil(cfg: CTDEConfig):
     return ctrl.goal_stencil(cfg.action_head.K, cfg.action_head.stride)
 
 
+def _make_actor(in_ch: int, cfg: CTDEConfig, key) -> Actor:
+    """Build ONE Actor from the config (the single source of truth for the actor's
+    constructor kwargs — used by ``init_state``, the warm-start template, and the
+    B-fork sub-actor builder so they never drift)."""
+    return Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
+                 dropout=cfg.regularization.dropout, key=key,
+                 explorer_tool=cfg.action_head.explorer_tool,
+                 compass=cfg.action_head.compass,
+                 recurrence=cfg.backbone.recurrence,
+                 diversity_residual=cfg.diversity_residual)
+
+
+def _fork_guard(cfg: CTDEConfig) -> None:
+    if cfg.fork_groups > 1 and cfg.critic_mode == "decentral":
+        raise ValueError(
+            "fork_groups>1 requires critic_mode='central' — the grouped decentral value "
+            "(per-group value heads) is not supported; run B-fork with the shared CTDE critic.")
+
+
 def init_state(env, cfg: CTDEConfig, key) -> TrainState:
+    _fork_guard(cfg)
     ka, kc = jax.random.split(key)
     in_ch = env.obs.obs_channels
     cg = env.obs.central_channels
-    actor = Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
-                  dropout=cfg.regularization.dropout, key=ka,
-                  explorer_tool=cfg.action_head.explorer_tool,
-                  compass=cfg.action_head.compass,
-                  recurrence=cfg.backbone.recurrence)
+    if cfg.fork_groups > 1:
+        # B-fork from scratch: G independent sub-actors (distinct keys -> start different).
+        sub_keys = jax.random.split(ka, cfg.fork_groups)
+        actor = GroupedActor([_make_actor(in_ch, cfg, k) for k in sub_keys])
+    else:
+        actor = _make_actor(in_ch, cfg, ka)
     critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
                     cfg.regularization.dropout, key=kc)
     opt = make_optimizer(cfg)
     params = (eqx.filter(actor, eqx.is_array), eqx.filter(critic, eqx.is_array))
     return TrainState(actor=actor, critic=critic, opt_state=opt.init(params),
                       dual=init_dual(cfg))
+
+
+def _perturb_actor(actor, sigma: float, key):
+    """Add ``σ·RMS(leaf)·N(0,1)`` to every float array leaf of ``actor`` — the Arm-A
+    warm-start symmetry-break (``cfg.warmstart_noise``). Per-leaf RMS scaling keeps the
+    kick proportional to each weight's magnitude (so tiny gates aren't blown up and big
+    matrices aren't under-perturbed). ``σ == 0`` returns the actor byte-unchanged.
+    Deterministic in ``key``; only inexact (float) leaves are touched (ints/static
+    fields untouched)."""
+    params, static = eqx.partition(actor, eqx.is_inexact_array)
+    leaves, treedef = jax.tree_util.tree_flatten(params)
+    keys = jax.random.split(key, max(len(leaves), 1))
+    new_leaves = []
+    for leaf, k in zip(leaves, keys):
+        scale = jnp.sqrt(jnp.mean(leaf ** 2)) + 1e-8           # per-leaf RMS magnitude
+        new_leaves.append(leaf + sigma * scale
+                          * jax.random.normal(k, leaf.shape, leaf.dtype))
+    return eqx.combine(jax.tree_util.tree_unflatten(treedef, new_leaves), static)
 
 
 def init_state_from_checkpoint(env, cfg: CTDEConfig, ckpt_path: str, key) -> TrainState:
@@ -618,14 +696,13 @@ def init_state_from_checkpoint(env, cfg: CTDEConfig, ckpt_path: str, key) -> Tra
     """
     from . import checkpoint as _ckpt
 
+    _fork_guard(cfg)
     ka, kc = jax.random.split(key)
     in_ch = env.obs.obs_channels
     cg = env.obs.central_channels
-    template_actor = Actor(in_ch, cfg.action_head.K, backbone_cfg=cfg.backbone,
-                           dropout=cfg.regularization.dropout, key=ka,
-                           explorer_tool=cfg.action_head.explorer_tool,
-                           compass=cfg.action_head.compass,
-                           recurrence=cfg.backbone.recurrence)
+    # The bootstrap checkpoint is ALWAYS a single shared Actor (B-fork replicates AFTER
+    # loading), so the LOAD template is a single Actor regardless of cfg.fork_groups.
+    template_actor = _make_actor(in_ch, cfg, ka)
     template_critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth,
                              cfg.backbone.norm, cfg.regularization.dropout, key=kc)
 
@@ -635,6 +712,23 @@ def init_state_from_checkpoint(env, cfg: CTDEConfig, ckpt_path: str, key) -> Tra
     _assert_param_shapes_match((saved[0], saved[1]),
                                (template_actor, template_critic), ckpt_path)
     actor, critic = saved
+
+    # Arm-A curriculum symmetry-break: optionally perturb the loaded ACTOR before
+    # training so "train small → scale up" doesn't transplant a frozen huddle. σ == 0
+    # (default) leaves the warm-start byte-unchanged; the critic is always loaded clean
+    # (it is re-fit at the new rung regardless).
+    if cfg.warmstart_noise > 0:
+        actor = _perturb_actor(actor, float(cfg.warmstart_noise),
+                               jax.random.fold_in(key, 0x515E))
+
+    # B-fork warm-start: replicate the single shared bootstrap into G sub-actors. Copy 0
+    # is the bootstrap exactly; copies>0 are lightly perturbed (σ=0.02·RMS) so the groups
+    # diverge under their own per-group gradients rather than staying tied by symmetry.
+    if cfg.fork_groups > 1:
+        fk = jax.random.split(jax.random.fold_in(key, 0xF02C), cfg.fork_groups)
+        subs = [actor] + [_perturb_actor(actor, 0.02, fk[g])
+                          for g in range(1, cfg.fork_groups)]
+        actor = GroupedActor(subs)
 
     # Fresh optimizer on the LOADED params (opt_state intentionally NOT carried
     # across rungs — see docstring) + a fresh dual from cfg.
@@ -768,7 +862,19 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     ep_reward = traj["rew_team"].sum(axis=1).mean()
     coverage_pct = traj["coverage"][:, -1].mean()
     connectivity_pct = (traj["true_l2"] > cfg.connectivity.threshold).mean()
+    # the REAL connectivity bar (λ₂ > real_threshold, default 0.5) logged ALONGSIDE the
+    # trivial one — the honest 90/90 grade, never flattered by the loose 1e-3 floor.
+    connectivity_real = (traj["true_l2"] > cfg.connectivity.real_threshold).mean()
     mean_lambda2 = traj["true_l2"].mean()
+
+    # behavioural diversity (diagnostic; never enters training): SND = instantaneous
+    # spread between agents' goal distributions (mean over steps of mean pairwise TV);
+    # role_div = persistent spread of each agent's TIME-AVERAGED distribution (do agents
+    # settle into distinct roles). Both in [0,1]; ≈0 for a homogeneous huddle, higher =
+    # more differentiated. These are the yardstick the B-fork / B-dico arms move.
+    gp = traj["goal_probs"]                                          # (B,T,N,K)
+    snd = jax.vmap(jax.vmap(_pairwise_tv_mean))(gp).mean()           # mean over B,T
+    role_div = jax.vmap(_pairwise_tv_mean)(gp.mean(axis=1)).mean()   # mean over B of time-avg
 
     # aux λ₂ accuracy = 1 - median rel-err (l2_hat vs true_l2) over CONNECTED steps
     l2_true_bt = traj["true_l2"]                       # (B,T)
@@ -791,6 +897,9 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
         "ep_reward": ep_reward,
         "coverage_pct": coverage_pct,
         "connectivity_pct": connectivity_pct,
+        "connectivity_real": connectivity_real,
+        "snd": snd,
+        "role_div": role_div,
         "mean_lambda2": mean_lambda2,
         "aux_loss": jnp.mean(last_metrics["aux_loss"]),
         "aux_acc": aux_acc,

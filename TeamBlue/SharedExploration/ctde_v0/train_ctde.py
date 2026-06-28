@@ -167,6 +167,23 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                         "NOT carried — the policy is warm-started, the optimizer is "
                         "re-initialised fresh on the loaded params. Default None = "
                         "random init (byte-unchanged).")
+    p.add_argument("--warmstart-noise", type=float, default=0.0,
+                   help="sigma>=0; when >0 WITH --init-from, perturb the loaded actor by "
+                        "sigma*RMS(leaf)*N(0,1) to break symmetry on transfer (Arm A "
+                        "curriculum 'add randomness then scale'). 0=warm-start unchanged.")
+    p.add_argument("--critic-mode", choices=["central", "decentral"], default="central",
+                   help="central (default)=CTDE centralized critic sources the value "
+                        "(byte-unchanged); decentral=DTE tail, value comes from the "
+                        "actor's own per-agent value head (central critic unused).")
+    p.add_argument("--diversity-residual", choices=["off", "on"], default="off",
+                   help="off (default)=v0 goal logits (byte-unchanged); on=Arm B-dico, "
+                        "add a mean-zero per-agent identity-conditioned residual to the "
+                        "goal logits (controlled behavioural diversity without forking).")
+    p.add_argument("--fork-groups", type=int, default=1,
+                   help="1 (default)=single shared actor (byte-unchanged); >1=Arm B-fork, "
+                        "that many independent sub-actors over a fixed team partition "
+                        "(2=explorer/relay halves). Warm-start replicates a single "
+                        "bootstrap into the groups. Requires --critic-mode central.")
     args = p.parse_args(argv)
 
     ckpt_path = (os.path.join(args.run_dir, "model.eqx")
@@ -203,6 +220,10 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         reward_anti_overlap=args.anti_overlap,
         anti_overlap_weight=args.anti_overlap_weight,
         collision_mask=args.collision_mask,
+        warmstart_noise=args.warmstart_noise,
+        critic_mode=args.critic_mode,
+        diversity_residual=args.diversity_residual,
+        fork_groups=args.fork_groups,
         scale=f"{args.grid}x{args.grid}/{args.n_agents}",
         iters=args.iters, rollouts_per_iter=args.rollouts, seed=args.seed,
         ckpt_path=ckpt_path,
@@ -220,6 +241,9 @@ def _log(it, logs):
         f"[iter {it:3d}] reward={logs['ep_reward']:8.2f}  "
         f"cov={logs['coverage_pct']*100:5.1f}%  "
         f"conn={logs['connectivity_pct']*100:5.1f}%  "
+        f"conn.5={logs.get('connectivity_real', 0.0)*100:5.1f}%  "
+        f"snd={logs.get('snd', 0.0):.3f}  "
+        f"role={logs.get('role_div', 0.0):.3f}  "
         f"meanλ2={logs['mean_lambda2']:.3f}  "
         f"aux_acc={logs['aux_acc']*100:5.1f}%  "
         f"(med_rel={logs['median_rel_l2']:.3f})  "
