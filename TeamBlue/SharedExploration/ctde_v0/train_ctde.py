@@ -209,6 +209,9 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
     p.add_argument("--rooms", type=int, default=3, help="rooms when --terrain rooms/mixed/crowded_mix")
     p.add_argument("--n-obstacles", type=int, default=0,
                    help="obstacle count for --terrain walls/clutter/mixed/crowded_mix")
+    p.add_argument("--cover-r", type=int, default=0,
+                   help="coverage footprint radius (0=point/own-cell; 1='cover what you sense', 3x3). "
+                        "cover_r=0 caps the god-view oracle ~72%% cov @32-sq/100-steps; cover_r=1 -> ~100%%.")
     p.add_argument("--pillar-spacing", type=int, default=4, help="lattice period (--terrain pillars)")
     p.add_argument("--pillar-size", type=int, default=2, help="block size (--terrain pillars)")
     p.add_argument("--sense-walls", action=argparse.BooleanOptionalAction, default=True,
@@ -227,7 +230,8 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         world=World(grid=args.grid, n_agents=args.n_agents, comm_r=args.comm_r,
                     horizon=args.horizon, terrain=args.terrain, rooms=args.rooms,
                     n_obstacles=args.n_obstacles, pillar_spacing=args.pillar_spacing,
-                    pillar_size=args.pillar_size, sense_walls=args.sense_walls),
+                    pillar_size=args.pillar_size, sense_walls=args.sense_walls,
+                    cover_r=args.cover_r),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm,
                           message_content=args.message_content,
