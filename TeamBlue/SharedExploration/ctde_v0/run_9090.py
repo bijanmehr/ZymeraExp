@@ -22,8 +22,7 @@ from ctde_v0.run_obstacle_overnight import _PKG_PARENT, _schedule
 _FIXED = ["--role-picker", "expl_relay",
           "--mechanism", "lagrangian", "--conn-signal", "local_edge_margin",
           "--explorer-tool", "frontier_attn", "--collision-mask", "on",
-          "--horizon", "100", "--w-coverage", "3",
-          "--cover-r", "1", "--sense-walls"]
+          "--horizon", "100", "--w-coverage", "3", "--sense-walls"]
 _MAPS = {
     "open":    [],
     "rooms":   ["--terrain", "rooms", "--rooms", "3"],
