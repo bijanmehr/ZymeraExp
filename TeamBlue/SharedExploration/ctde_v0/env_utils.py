@@ -56,6 +56,7 @@ def build_env(cfg: CTDEConfig):
         spawn_radius=w.spawn_radius,   # None -> scatter spawn inside the recipe
         max_steps=None,                # horizon controlled by the fixed-length scan
         terms=terms,                   # None -> recipe DEFAULT_TERMS (v0 unchanged)
+        sense_walls=w.sense_walls,     # SLAM-style wall perception (default on)
     )
     comm_r = int(env.channel.topology.radius)
     assert comm_r == w.comm_r, (comm_r, w.comm_r)
@@ -87,7 +88,8 @@ def build_env(cfg: CTDEConfig):
         # rebuild with the SAME recipe components, swapping only the terrain (env.replace
         # re-runs the comm-coverage recipe, which has no terrain arg).
         env = GridEnv(grid_h=env.grid_h, grid_w=env.grid_w, n_agents=env.n_agents,
-                      cover_r=env.cover_r, terrain=terrain_obj,
+                      cover_r=env.cover_r, wall_sense_r=env.wall_sense_r,
+                      terrain=terrain_obj,
                       spawn=env.spawn, dynamics=env.dynamics, channel=env.channel,
                       obs=env.obs, mission=env.mission)
     return env

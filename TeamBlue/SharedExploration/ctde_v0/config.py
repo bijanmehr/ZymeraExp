@@ -40,6 +40,10 @@ class World:
     comm_r: int = 5            # DiskTopology radius; also feeds the true-λ₂ oracle
     sense_r: int = 1
     cover_r: int = 0
+    # SLAM-style wall perception: fold walls sensed within sense_r into the shared
+    # belief so `known_walls` carries signal and walls stop reading as frontier.
+    # Default ON (wall-aware); set False to reproduce the old wall-blind baseline.
+    sense_walls: bool = True
     n_obstacles: int = 0
     spawn_radius: int | None = 2   # ClusterSpawn radius; None -> scatter spawn
     horizon: int = 100

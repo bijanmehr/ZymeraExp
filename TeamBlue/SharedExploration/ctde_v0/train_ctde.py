@@ -211,6 +211,10 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                    help="obstacle count for --terrain walls/clutter/mixed/crowded_mix")
     p.add_argument("--pillar-spacing", type=int, default=4, help="lattice period (--terrain pillars)")
     p.add_argument("--pillar-size", type=int, default=2, help="block size (--terrain pillars)")
+    p.add_argument("--sense-walls", action=argparse.BooleanOptionalAction, default=True,
+                   help="SLAM-style wall perception: fold walls sensed within sense_r into the "
+                        "shared belief (known_walls carries signal; walls stop reading as "
+                        "frontier). Default on; --no-sense-walls = old wall-blind baseline.")
     p.add_argument("--explore-infogain", choices=["off", "on"], default="off",
                    help="on=add a per-agent exploration bonus (count of uncovered cells in "
                         "sensor range). The 'coverage-bump' incentive is just --w-coverage 3.")
@@ -223,7 +227,7 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         world=World(grid=args.grid, n_agents=args.n_agents, comm_r=args.comm_r,
                     horizon=args.horizon, terrain=args.terrain, rooms=args.rooms,
                     n_obstacles=args.n_obstacles, pillar_spacing=args.pillar_spacing,
-                    pillar_size=args.pillar_size),
+                    pillar_size=args.pillar_size, sense_walls=args.sense_walls),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm,
                           message_content=args.message_content,
