@@ -112,12 +112,12 @@ def to_dict(cfg, worlds, label: str, cat: str = "", desc: str = "") -> dict:
 
 INDEX_HTML = r'''<!doctype html><html><head><meta charset="utf-8"><title>Zymera rollouts</title>
 <style>
- body{font-family:system-ui,sans-serif;margin:0;background:#161616;color:#eee}
- #bar{padding:9px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #333}
- select,button{font-size:14px;padding:5px 9px;background:#2c2c2c;color:#eee;border:1px solid #555;border-radius:5px}
- button{cursor:pointer} button:hover{background:#3a3a3a} #slider{width:320px}
- canvas{display:block;margin:14px auto;background:#1d1d1d;border:1px solid #333}
- .leg{font-size:12px;opacity:.85} .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px}
+ body{font-family:"Helvetica Neue",Arial,system-ui,sans-serif;margin:0;background:#ffffff;color:#1a1f29}
+ #bar{padding:11px 22px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#f7f8fa;border-bottom:1px solid #dfe3e8}
+ select,button{font-size:13px;padding:5px 10px;background:#fff;color:#1a1f29;border:1px solid #c7ccd4;border-radius:4px}
+ button{cursor:pointer} button:hover{background:#eef1f5;border-color:#9aa4b2} #slider{width:340px} select{max-width:560px}
+ canvas{display:block;margin:18px auto;background:#fff;border:1px solid #d7dce3;box-shadow:0 1px 4px rgba(20,30,50,.07)}
+ .leg{font-size:12px;color:#5a6472} .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px;border:1px solid rgba(0,0,0,.12)}
 </style></head><body>
 <div id="bar">
   <select id="run"></select>
@@ -127,13 +127,13 @@ INDEX_HTML = r'''<!doctype html><html><head><meta charset="utf-8"><title>Zymera 
   <label class="leg">speed <input id="speed" type="range" min="1" max="30" value="8" style="width:90px"></label>
   <span class="leg" id="info"></span>
 </div>
-<div id="desc" style="padding:9px 16px;font-size:14px;line-height:1.45;background:#1a1a1a;border-bottom:1px solid #2a2a2a"></div>
+<div id="desc" style="padding:13px 22px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#27303d;background:#fcfcfd;border-bottom:1px solid #e6e9ee"></div>
 <canvas id="cv"></canvas>
-<div class="leg" style="text-align:center;padding-bottom:14px">
-  <span style="background:#2e7d32;padding:1px 7px;border-radius:3px">covered</span> ·
-  <span style="background:#111;padding:1px 7px;border-radius:3px;border:1px solid #444">wall</span> ·
+<div class="leg" style="text-align:center;padding:10px 0 14px">
+  <span style="background:#cfe3c8;color:#2c4327;padding:1px 7px;border-radius:3px">covered</span> ·
+  <span style="background:#3a4150;color:#fff;padding:1px 7px;border-radius:3px">wall</span> ·
   agents = dots (color = skill/role) · faint square = <b>sense range</b> · ring = <b>comm range</b> ·
-  <span style="color:#26a69a">– – –</span> = <b>delivered comm link</b>
+  <span style="color:#1b7f76">– – –</span> = <b>delivered comm link</b>
 </div>
 <div class="leg" id="clegend" style="text-align:center;padding-bottom:16px"></div>
 <script src="data.js"></script>
@@ -143,7 +143,7 @@ const runSel=document.getElementById('run'), slider=document.getElementById('sli
  playBtn=document.getElementById('play'), tlabel=document.getElementById('tlabel'),
  speed=document.getElementById('speed'), info=document.getElementById('info');
 let cur=null, t=0, playing=false, cell=18;
-const COL=['#4fc3f7','#ff8a65','#aed581','#ba68c8','#fff176','#4db6ac','#f06292','#90a4ae','#a1887f','#dce775'];
+const COL=['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#999999','#F0E442','#000000','#882255'];
 const KINDS={skill:['disperse','flock','hold'],role:['explorer','relay']};
 const clegend=document.getElementById('clegend');
 function colorLegend(){
@@ -168,20 +168,20 @@ function load(k){cur=TRAJ[k];const H=cur.grid[0],W=cur.grid[1];
  document.getElementById('desc').innerHTML='<b>'+cur.label+'</b> &nbsp;<span style="opacity:.6">['+(cur.cat||'')+']</span><br>'+(cur.desc||'');
  colorLegend();draw();}
 function draw(){const H=cur.grid[0],W=cur.grid[1],f=cur.frames[t];
- ctx.fillStyle='#1d1d1d';ctx.fillRect(0,0,cv.width,cv.height);
- for(const idx of f.cov){const[x,y]=xy(idx);ctx.fillStyle='#2e7d32';ctx.fillRect(x*cell,y*cell,cell,cell);}
- for(const idx of cur.walls){const[x,y]=xy(idx);ctx.fillStyle='#0c0c0c';ctx.fillRect(x*cell,y*cell,cell,cell);}
- ctx.strokeStyle='#2a2a2a';ctx.lineWidth=.5;
+ ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cv.width,cv.height);
+ for(const idx of f.cov){const[x,y]=xy(idx);ctx.fillStyle='#cfe3c8';ctx.fillRect(x*cell,y*cell,cell,cell);}
+ for(const idx of cur.walls){const[x,y]=xy(idx);ctx.fillStyle='#3a4150';ctx.fillRect(x*cell,y*cell,cell,cell);}
+ ctx.strokeStyle='#eceef2';ctx.lineWidth=.5;
  for(let i=0;i<=W;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,H*cell);ctx.stroke();}
  for(let j=0;j<=H;j++){ctx.beginPath();ctx.moveTo(0,j*cell);ctx.lineTo(W*cell,j*cell);ctx.stroke();}
  f.pos.forEach((p,i)=>{const r=p[0],c=p[1],col=COL[(f.tags[i]||0)%COL.length],s=cur.sense_r;
-  ctx.fillStyle=col+'1f';ctx.fillRect((c-s)*cell,(r-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
-  ctx.beginPath();ctx.arc(ctr(c),ctr(r),cur.comm_r*cell,0,7);ctx.strokeStyle=col+'40';ctx.lineWidth=1;ctx.stroke();});
- ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#26a69a';
+  ctx.fillStyle=col+'22';ctx.fillRect((c-s)*cell,(r-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
+  ctx.beginPath();ctx.arc(ctr(c),ctr(r),cur.comm_r*cell,0,7);ctx.strokeStyle=col+'66';ctx.lineWidth=1;ctx.stroke();});
+ ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#1b7f76';
  for(const e of f.edges){const a=f.pos[e[0]],b=f.pos[e[1]];ctx.beginPath();ctx.moveTo(ctr(a[1]),ctr(a[0]));ctx.lineTo(ctr(b[1]),ctr(b[0]));ctx.stroke();}
  ctx.setLineDash([]);
  f.pos.forEach((p,i)=>{const col=COL[(f.tags[i]||0)%COL.length];ctx.beginPath();ctx.arc(ctr(p[1]),ctr(p[0]),cell*.33,0,7);
-  ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();});
+  ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#2a2f3a';ctx.lineWidth=1;ctx.stroke();});
  tlabel.textContent='t = '+t;}
 slider.oninput=()=>{t=+slider.value;draw();};
 playBtn.onclick=()=>{playing=!playing;playBtn.textContent=playing?'⏸ Pause':'▶ Play';};
@@ -223,8 +223,10 @@ def main(argv=None):
               f"{cfg.scale}, cov {data[label]['cov']}%", flush=True)
     with open(os.path.join(a.out, "data.js"), "w") as f:
         f.write("window.TRAJ = " + json.dumps(data) + ";")
-    with open(os.path.join(a.out, "index.html"), "w") as f:
-        f.write(INDEX_HTML)
+    idx = os.path.join(a.out, "index.html")
+    if not os.path.exists(idx):       # preserve a hand-customised viewer across re-renders
+        with open(idx, "w") as f:
+            f.write(INDEX_HTML)
     print(f"\nwrote {a.out}/index.html + data.js ({len(data)} runs) — open it in a browser",
           flush=True)
 

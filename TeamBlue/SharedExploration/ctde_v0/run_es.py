@@ -38,12 +38,15 @@ else:
 
 
 def merl_train(env, cfg: CTDEConfig, *, key, n_outer: int, grad_steps: int,
-               es_cfg: es.ESConfig, log_fn=None):
+               es_cfg: es.ESConfig, log_fn=None, init_from=None):
     """Run the MERL coexistence loop on ``env``/``cfg`` (which must have selector on).
+    ``init_from`` (path to a prior model.eqx) warm-starts the (actor, critic) — the
+    scale-ladder entry point (16²→24²→32²), carrying the ES-evolved selector up.
     Returns ``(final_state, history)`` where history is a list of per-round records."""
     opt = ppo.make_optimizer(cfg)
     stencil = ppo.make_stencil(cfg)
-    gstate = ppo.init_state(env, cfg, key)
+    gstate = (ppo.init_state_from_checkpoint(env, cfg, init_from, key) if init_from
+              else ppo.init_state(env, cfg, key))
 
     @eqx.filter_jit
     def eval_return(actor, critic, dual_lam, ekey):
@@ -123,6 +126,8 @@ def main(argv=None):
     p.add_argument("--es-kind", choices=["nes", "cem"], default="nes")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--run-dir", type=str, default=None)
+    p.add_argument("--init-from", type=str, default=None,
+                   help="warm-start (actor, critic) from a prior model.eqx — the ES ladder rung-to-rung")
     a = p.parse_args(argv)
 
     cfg = _build_cfg(a)
@@ -137,14 +142,26 @@ def main(argv=None):
               f"grad_cov={rec['grad_cov']:5.1f}% grad_conn.5={rec['grad_conn5']:5.1f}%",
               flush=True)
 
-    _, history = merl_train(env, cfg, key=jax.random.PRNGKey(a.seed),
-                            n_outer=a.outer, grad_steps=a.grad_steps,
-                            es_cfg=es_cfg, log_fn=_log)
+    gstate, history = merl_train(env, cfg, key=jax.random.PRNGKey(a.seed),
+                                 n_outer=a.outer, grad_steps=a.grad_steps,
+                                 es_cfg=es_cfg, log_fn=_log, init_from=a.init_from)
     if a.run_dir:
         os.makedirs(a.run_dir, exist_ok=True)
         with open(os.path.join(a.run_dir, "es_history.json"), "w") as f:
             json.dump(history, f, indent=2)
-        print(f"saved es_history.json -> {a.run_dir}", flush=True)
+        # Save the deployable (actor, critic) snapshot — the ES-evolved selector + the
+        # CTDE-trained executor — so the learned policy can be loaded
+        # (init_state_from_checkpoint), rendered into the gallery, deployed, warm-started.
+        # config.json is what make_report/render read to rebuild the skeleton.
+        if __package__ in (None, ""):
+            from ctde_v0 import checkpoint as ckpt
+        else:
+            from . import checkpoint as ckpt
+        with open(os.path.join(a.run_dir, "config.json"), "w") as f:
+            json.dump(cfg.to_dict(), f, indent=2)
+        ckpt.save_model(os.path.join(a.run_dir, "model.eqx"),
+                        (gstate.actor, gstate.critic), meta=cfg.to_dict())
+        print(f"saved es_history.json + config.json + model.eqx -> {a.run_dir}", flush=True)
     return history
 
 
