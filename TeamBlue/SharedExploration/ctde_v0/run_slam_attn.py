@@ -57,12 +57,12 @@ class Unit:
                 "--run-dir", self.run_dir, "--ckpt"] + _FIXED + self.extra
 
 
-def _build_units(out, seeds):
+def _build_units(out, seeds, terrain_extra):
     units = []
     for s in seeds:
         for aid in _ARM_IDS:
             rd = os.path.join(out, f"seed{s}", aid)
-            units.append(Unit(f"s{s}/{aid}", rd, s, _ARMS[aid]))
+            units.append(Unit(f"s{s}/{aid}", rd, s, _ARMS[aid] + terrain_extra))
     return units
 
 
@@ -75,11 +75,17 @@ def main(argv=None):
     p.add_argument("--iters", type=int, default=2000)
     p.add_argument("--rollouts", type=int, default=16)
     p.add_argument("--jobs", type=int, default=4)
+    p.add_argument("--terrain", default="open",
+                   help="terrain for ALL arms (open/rooms/walls/clutter/pillars/mixed/crowded_mix). "
+                        "Use mixed/crowded_mix to actually test SLAM perception (needs walls present).")
+    p.add_argument("--n-obstacles", type=int, default=0)
+    p.add_argument("--rooms", type=int, default=3)
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
     out = a.out if os.path.isabs(a.out) else os.path.join(_PKG_PARENT, a.out)
     seeds = list(range(a.seed_start, a.seed_start + a.seeds))
-    units = _build_units(out, seeds)
+    terrain_extra = ["--terrain", a.terrain, "--n-obstacles", str(a.n_obstacles), "--rooms", str(a.rooms)]
+    units = _build_units(out, seeds, terrain_extra)
     print(f"=== slam×attn: {len(units)} runs (2 agg × 2 perception × {len(seeds)} seed) "
           f"@32²/10, iters={a.iters}, jobs={a.jobs} ===", flush=True)
     print(f"    fixed: {' '.join(_FIXED)}", flush=True)
