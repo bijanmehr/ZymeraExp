@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team-size sweep @ 24² · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>:root{--accent:#0b8a8f;--accent-soft:#e6f5f5}</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="open-floor.html">Open floor</a>
+ <a class="lnk active" href="team-size.html">Team size</a>
+ <a class="lnk" href="obstacles.html">Obstacles</a>
+ <a class="lnk" href="crowded.html">Crowded</a>
+ <a class="lnk" href="es-ladder.html">ES ladder</a>
+ <a class="lnk" href="connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 02 · fixed 24×24 world</div>
+  <h1>Team-size sweep @ 24²</h1>
+  <p class="what">Holds the 24×24 world fixed and grows the team from 4 to 12 agents, comparing the
+  homogeneous shared policy against the learned skill-selector variants — the question being whether
+  extra agents <em>divide</em> the labor or simply flood the same map with redundant coverage.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">The homogeneous shared policy scales up with the team and leads at 9–12 agents,
+   while the congestion-priced skill-selector variants fall off as the team grows. Total coverage
+   rises with more agents, but the gain is sub-linear — consistent with added agents increasing
+   redundancy rather than cleanly partitioning the map.</span>
+  </div>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // same key rule as groupOf: team-size = sk_n_*
+ function mine(k){ return k.indexOf('sk_n_')===0; }
+ Viewer.init({
+  filter: mine,
+  mount: 'side',
+  accent: '#0b8a8f',
+  // group by team size — the swept variable
+  group: function(k,v){ var n=v.frames[0].pos.length; return (n<10?'0':'')+n+' agents'; }
+ });
+</script>
+</body>
+</html>

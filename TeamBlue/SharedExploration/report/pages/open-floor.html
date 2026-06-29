@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open floor — method ladder · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>:root{--accent:#3a5fcd;--accent-soft:#eef1fc}</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk active" href="open-floor.html">Open floor</a>
+ <a class="lnk" href="team-size.html">Team size</a>
+ <a class="lnk" href="obstacles.html">Obstacles</a>
+ <a class="lnk" href="crowded.html">Crowded</a>
+ <a class="lnk" href="es-ladder.html">ES ladder</a>
+ <a class="lnk" href="connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 01 · open (no obstacles)</div>
+  <h1>Open floor — method ladder</h1>
+  <p class="what">Races the candidate architectures against each other on empty grids
+  (16²/4, 24²/6, 32²/10): a homogeneous shared policy, a per-agent identity residual,
+  hardcoded explorer/relay roles, a learned skill-selector (with and without a congestion price),
+  a scale-curriculum warm-start, and a decentralized-critic ablation.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">Hardcoded explorer/relay roles sit at the top of the ladder at every scale, and
+   adding a <em>congestion price</em> to the learned skill-selector consistently makes it worse, not
+   better. Removing the central critic (decentralized-critic ablation) collapses coverage to near
+   zero — CTDE with a central critic is doing real work here.</span>
+  </div>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // same key rule as groupOf: open-floor = sk_l_* or ab_*
+ function mine(k){ return k.indexOf('sk_l_')===0 || k.indexOf('ab_')===0; }
+ Viewer.init({
+  filter: mine,
+  mount: 'side',
+  accent: '#3a5fcd',
+  // group by grid size so the three scales read clearly
+  group: function(k,v){ var g=v.grid[0]; return g+'×'+g+' · '+v.frames[0].pos.length+' agents'; }
+ });
+</script>
+</body>
+</html>

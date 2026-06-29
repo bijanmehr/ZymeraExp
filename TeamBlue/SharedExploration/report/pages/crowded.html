@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crowded worlds · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>:root{--accent:#7b4397;--accent-soft:#f2ecf6}</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="open-floor.html">Open floor</a>
+ <a class="lnk" href="team-size.html">Team size</a>
+ <a class="lnk" href="obstacles.html">Obstacles</a>
+ <a class="lnk active" href="crowded.html">Crowded</a>
+ <a class="lnk" href="es-ladder.html">ES ladder</a>
+ <a class="lnk" href="connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 04 · dense obstacle worlds</div>
+  <h1>Crowded worlds</h1>
+  <p class="what">Tests generalization into dense clutter, pillar fields, and mixed obstacle layouts —
+  contrasting <em>zero-shot</em> transfer from open-floor training, policies <em>trained on
+  obstacles</em> (baseline vs up-weighted reward), and a <em>native crowded-mix</em> training set,
+  with explorer/relay roles vs the homogeneous policy.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">Policies trained on obstacles with up-weighted coverage reward generally outperform
+   zero-shot transfer from open floor on the matching map, and up-weighted reward beats the baseline
+   reward. The open-floor backbone still transfers non-trivially zero-shot, but coverage drops sharply
+   as the world scales 24² → 32² and clutter density rises from light to heavy.</span>
+  </div>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // same key rule as groupOf: crowded = T_/Tbase_/roleoff_/baseoff_ OR /^(clutter|pillars|mixed)\d/ OR cr_
+ function mine(k){
+  return k.indexOf('T_')===0 || k.indexOf('Tbase_')===0 || k.indexOf('roleoff_')===0 ||
+         k.indexOf('baseoff_')===0 || /^(clutter|pillars|mixed)\d/.test(k) || k.indexOf('cr_')===0;
+ }
+ // group by training regime — the meaningful contrast on this page
+ function regime(k){
+  if(/^(clutter|pillars|mixed)\d/.test(k)) return 'Zero-shot (trained on open floor)';
+  if(k.indexOf('cr_')===0) return 'Native crowded-mix training';
+  return 'Trained on obstacles';
+ }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#7b4397', group: regime });
+</script>
+</body>
+</html>

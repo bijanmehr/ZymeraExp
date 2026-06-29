@@ -1,143 +1,155 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Zymera — rollout gallery</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zymera · connectivity-constrained cooperative coverage — rollout gallery</title>
 <style>
+ :root{
+  --ink:#1a1f29; --muted:#5a6472; --line:#e3e7ec; --bg:#ffffff; --panel:#fafbfc;
+  --serif:Georgia,"Times New Roman",serif;
+  --sans:"Helvetica Neue",Arial,system-ui,sans-serif;
+ }
  *{box-sizing:border-box}
- body{margin:0;font-family:"Helvetica Neue",Arial,system-ui,sans-serif;background:#f4f5f7;color:#1a1f29}
- header{padding:9px 18px;background:#fff;border-bottom:1px solid #dfe3e8;display:flex;gap:11px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:6}
- header h1{font-size:14px;margin:0 8px 0 0;font-weight:600;color:#10233f;letter-spacing:.2px}
- #search{padding:6px 10px;border:1px solid #c7ccd4;border-radius:5px;font-size:13px;width:190px}
- .chip{padding:4px 11px;border:1px solid #cdd2da;border-radius:14px;background:#fff;cursor:pointer;font-size:12px;color:#48505e;user-select:none}
- .chip.on{background:#10233f;color:#fff;border-color:#10233f}
- #wrap{display:flex;align-items:stretch}
- #side{width:340px;flex:0 0 340px;height:calc(100vh - 50px);overflow-y:auto;background:#fff;border-right:1px solid #dfe3e8}
- .grph{padding:10px 14px;font-weight:600;font-size:12.5px;color:#10233f;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#f7f9fb;border-top:1px solid #eef0f3;position:sticky;top:0}
- .grph:hover{background:#eef2f7}.grph .ct{color:#9aa4b2;font-weight:400;font-size:11px}
- .grph .tw{display:inline-block;margin-right:6px;color:#9aa4b2}
- .item{padding:7px 14px 7px 22px;cursor:pointer;border-left:3px solid transparent;line-height:1.25}
- .item:hover{background:#f1f6fc}.item.on{background:#e9f1fb;border-left-color:#2c6cb0}
- .item .nm{color:#202732;font-size:12.5px}.item.on .nm{font-weight:600;color:#102338}
- .item .meta{color:#9aa4b2;font-size:11px;margin-top:1px}
- main{flex:1;min-width:0;padding:14px 22px}
- #ctrl{display:flex;gap:13px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#48505e}
- button{font-size:13px;padding:5px 11px;background:#fff;color:#1a1f29;border:1px solid #c7ccd4;border-radius:5px;cursor:pointer}
- button:hover{background:#eef1f5}#slider{width:300px}
- #desc{font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#27303d;background:#fff;border:1px solid #e6e9ee;border-radius:6px;padding:12px 16px;margin:12px 0}
- canvas{display:block;margin:6px auto 14px;background:#fff;border:1px solid #d7dce3;box-shadow:0 1px 4px rgba(20,30,50,.08)}
- .leg{font-size:12px;color:#5a6472;text-align:center;margin:6px 0}
- .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px;border:1px solid rgba(0,0,0,.12)}
-</style></head><body>
-<header>
- <h1>Zymera · rollout gallery</h1>
- <input id="search" placeholder="search runs…">
- <span class="leg">scale</span>
- <span class="chip on" data-sz="all">all</span><span class="chip" data-sz="16">16²</span><span class="chip" data-sz="24">24²</span><span class="chip" data-sz="32">32²</span>
- <span class="leg" id="count"></span>
-</header>
-<div id="wrap">
- <nav id="side"></nav>
- <main>
-  <div id="ctrl">
-   <button id="play">▶ Play</button>
-   <input id="slider" type="range" min="0" value="0">
-   <span id="tlabel">t = 0</span>
-   <label>speed <input id="speed" type="range" min="1" max="30" value="8" style="width:80px"></label>
-   <span id="info"></span>
-  </div>
-  <div id="desc"></div>
-  <canvas id="cv"></canvas>
-  <div class="leg">
-   <span style="background:#cfe3c8;color:#2c4327;padding:1px 7px;border-radius:3px">covered</span> ·
-   <span style="background:#3a4150;color:#fff;padding:1px 7px;border-radius:3px">wall</span> ·
-   agents = dots (skill/role) · faint square = <b>sense</b> · ring = <b>comm range</b> ·
-   <span style="color:#1b7f76">– – –</span> = <b>comm link</b>
-  </div>
-  <div class="leg" id="clegend"></div>
- </main>
-</div>
+ html,body{margin:0}
+ body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5}
+ a{color:inherit}
+ /* top nav (shared across all pages) */
+ nav.top{display:flex;gap:2px;align-items:center;flex-wrap:wrap;
+  padding:8px 22px;background:#10233f;border-bottom:1px solid #0a1830;position:sticky;top:0;z-index:8}
+ nav.top .home{font-family:var(--sans);font-weight:700;font-size:13px;color:#fff;letter-spacing:.3px;
+  margin-right:14px;text-decoration:none}
+ nav.top a.lnk{font-size:12px;color:#aebfd8;text-decoration:none;padding:5px 9px;border-radius:5px}
+ nav.top a.lnk:hover{background:#1d3157;color:#fff}
+ nav.top a.lnk.active{background:#fff;color:#10233f;font-weight:600}
+ /* hero */
+ .hero{max-width:920px;margin:0 auto;padding:34px 24px 6px}
+ .hero .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+ .hero h1{font-family:var(--sans);font-weight:700;font-size:27px;line-height:1.2;margin:.32em 0 .15em;color:#10233f}
+ .hero p{font-family:var(--serif);font-size:16.5px;color:#27303d;margin:.55em 0}
+ .hero .goal{font-family:var(--serif);font-size:15.5px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid #10233f;border-radius:0 7px 7px 0;padding:12px 16px;margin:18px 0 4px;color:#222b38}
+ .hero .goal b{color:#10233f}
+ .legendbar{max-width:920px;margin:14px auto 0;padding:0 24px;font-size:12px;color:var(--muted)}
+ .legendbar .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px;border:1px solid rgba(0,0,0,.12)}
+ /* card grid */
+ .grid{max-width:1080px;margin:8px auto 50px;padding:18px 24px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px}
+ .card{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);
+  border-radius:10px;overflow:hidden;transition:box-shadow .14s ease,transform .14s ease,border-color .14s ease}
+ .card:hover{box-shadow:0 6px 20px rgba(16,35,63,.12);transform:translateY(-2px);border-color:#cfd6df}
+ .card .band{height:7px;background:var(--accent)}
+ .card .body{padding:15px 17px 16px}
+ .card .idx{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+ .card h3{font-family:var(--sans);font-size:17px;margin:5px 0 7px;color:#10233f;font-weight:700;line-height:1.25}
+ .card p{font-family:var(--serif);font-size:13.5px;color:#3c4654;margin:0 0 13px;line-height:1.45}
+ .card .foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef1f4;padding-top:10px}
+ .card .ct{font-size:12px;color:var(--muted)}
+ .card .ct b{font-size:15px;color:var(--accent)}
+ .card .go{font-size:12px;font-weight:600;color:var(--accent)}
+ footer{max-width:920px;margin:0 auto;padding:6px 24px 44px;font-size:12px;color:#94a0b0;border-top:1px solid var(--line)}
+ .scfail{color:#b22; font-weight:600}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk active" href="index.html">Overview</a>
+ <a class="lnk" href="pages/open-floor.html">Open floor</a>
+ <a class="lnk" href="pages/team-size.html">Team size</a>
+ <a class="lnk" href="pages/obstacles.html">Obstacles</a>
+ <a class="lnk" href="pages/crowded.html">Crowded</a>
+ <a class="lnk" href="pages/es-ladder.html">ES ladder</a>
+ <a class="lnk" href="pages/connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<section class="hero">
+ <div class="kicker">Project Zymera · Team Blue · shared exploration</div>
+ <h1>Connectivity-constrained cooperative coverage</h1>
+ <p>A team of autonomous agents explores an unknown grid world under partial observability,
+ communicating only over a limited-range, time-varying graph. Each agent acts on its own local
+ sensing; the objective is scored at the <em>mission</em> level. The hard part is the coupling:
+ the swarm must <em>cover</em> ground while keeping the comm graph connected, and pushing harder on
+ one tends to cost the other.</p>
+ <div class="goal">
+  <b>Target.</b> Reach <b>≥ 90% coverage</b> <em>and</em> <b>≥ 90% connectivity</b> on a
+  <b>32×32 grid with 10 agents</b> inside a <b>100-step</b> budget — coverage and the comm graph
+  held together at the same time, not traded off.
+ </div>
+ <p>This gallery collects trained-policy rollouts across six experiment families — a method ladder
+ on open floor, a team-size sweep, obstacle reward/barrier studies, crowded-world generalization,
+ an evolution-strategies coexistence ladder, and a head-to-head of connectivity mechanisms (soft
+ λ₂ penalty, Lagrangian, hard mask). Each card opens that family's own page; every page shares the
+ same interactive viewer — press <b>play</b> to watch a rollout, scrub the slider, change speed.</p>
+</section>
+
+<div class="legendbar" id="legendbar"></div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+ Coverage figures shown on each run are the final fraction of free cells visited at the end of the
+ 100-step rollout. Dashed teal edges mark the delivered comm graph (agents in range that step).
+ Generated from <code>data.js</code>; rendering by <code>viewer.js</code>.
+</footer>
+
 <script src="data.js"></script>
+<script src="viewer.js"></script>
 <script>
-const TRAJ=window.TRAJ;
-const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),side=document.getElementById('side'),
- slider=document.getElementById('slider'),playBtn=document.getElementById('play'),tlabel=document.getElementById('tlabel'),
- speed=document.getElementById('speed'),info=document.getElementById('info'),search=document.getElementById('search'),
- clegend=document.getElementById('clegend'),count=document.getElementById('count');
-let cur=null,curKey=null,t=0,playing=false,cell=18,szFilter='all',q='';
-const COL=['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#999999','#F0E442','#000000','#882255'];
-const KINDS={skill:['disperse','flock','hold'],role:['explorer','relay']};
-const collapsed={};
-function groupOf(k){
- if(k.startsWith('sk_l_')||k.startsWith('ab_')) return '1 · Open floor — method ladder';
- if(k.startsWith('sk_n_')) return '2 · Team-size sweep @ 24²';
- if(k.startsWith('ob_')) return '3 · Obstacles — reward & barrier';
- if(k.startsWith('T_')||k.startsWith('Tbase_')||k.startsWith('roleoff_')||k.startsWith('baseoff_')) return '4 · Crowded worlds — trained';
- if(/^(clutter|pillars|mixed)\d/.test(k)) return '4 · Crowded worlds — zero-shot';
- if(k.startsWith('cr_')) return '4 · Crowded worlds — native mix';
- if(k.startsWith('es_merl')) return '5 · ES coexistence ladder';
- if(k.startsWith('cs_')) return '6 · Connectivity-mechanism shootout @ 32²';
- return '9 · misc';
+/* Mirror groupOf() from the original viewer EXACTLY so card counts match the
+   per-page filters. Returns the page slug (or null for an unrouted key). */
+function slugOf(k){
+ if(k.indexOf('sk_l_')===0 || k.indexOf('ab_')===0) return 'open-floor';
+ if(k.indexOf('sk_n_')===0) return 'team-size';
+ if(k.indexOf('ob_')===0) return 'obstacles';
+ if(k.indexOf('T_')===0 || k.indexOf('Tbase_')===0 || k.indexOf('roleoff_')===0 || k.indexOf('baseoff_')===0) return 'crowded';
+ if(/^(clutter|pillars|mixed)\d/.test(k)) return 'crowded';
+ if(k.indexOf('cr_')===0) return 'crowded';
+ if(k.indexOf('es_merl')===0) return 'es-ladder';
+ if(k.indexOf('cs_')===0) return 'connectivity-shootout';
+ return null;
 }
-function gridOf(v){return v.grid[0];}
-function sizeStr(v){return v.grid[0]+'×'+v.grid[1]+' · '+v.frames[0].pos.length+' agents';}
-function buildSide(){
- side.innerHTML='';
- const groups={};
- for(const k in TRAJ){(groups[groupOf(k)]=groups[groupOf(k)]||[]).push(k);}
- let shown=0;
- Object.keys(groups).sort().forEach(g=>{
-  const items=groups[g].filter(k=>{const v=TRAJ[k];
-   if(szFilter!=='all'&&String(gridOf(v))!==szFilter) return false;
-   if(q&&!(v.label+' '+(v.cat||'')).toLowerCase().includes(q)) return false;
-   return true;});
-  if(!items.length) return; shown+=items.length;
-  const open=!collapsed[g];
-  const gh=document.createElement('div');gh.className='grph';
-  gh.innerHTML='<span><span class="tw">'+(open?'▾':'▸')+'</span>'+g.replace(/^\d+ · /,'')+'</span><span class="ct">'+items.length+'</span>';
-  const body=document.createElement('div');body.style.display=open?'block':'none';
-  gh.onclick=()=>{collapsed[g]=!collapsed[g];buildSide();};
-  side.appendChild(gh);
-  items.sort((a,b)=>TRAJ[b].cov-TRAJ[a].cov).forEach(k=>{const v=TRAJ[k];
-   const it=document.createElement('div');it.className='item'+(k===curKey?' on':'');it.dataset.k=k;
-   it.innerHTML='<div class="nm">'+v.label+'</div><div class="meta">'+sizeStr(v)+' &nbsp;·&nbsp; '+v.cov+'% cov</div>';
-   it.onclick=()=>load(k);body.appendChild(it);});
-  side.appendChild(body);
+
+var CARDS=[
+ {slug:'open-floor', idx:'01', accent:'#3a5fcd', title:'Open floor — method ladder',
+  desc:'Architectures raced on empty grids: homogeneous shared policy, per-agent identity residual, hardcoded explorer/relay roles, learned skill-selector, warm-start curriculum, and a decentralized-critic ablation.'},
+ {slug:'team-size', idx:'02', accent:'#0b8a8f', title:'Team-size sweep @ 24²',
+  desc:'The same 24×24 world held fixed while the team grows from 4 to 12 agents — does adding agents divide the labor, or just flood the map with redundant coverage?'},
+ {slug:'obstacles', idx:'03', accent:'#b5651d', title:'Obstacles — reward & barrier',
+  desc:'A full factorial over obstacle maps: reward shaping (baseline / up-weighted coverage / info-gain) crossed with a connectivity barrier ON/OFF, across each architecture and three scales.'},
+ {slug:'crowded', idx:'04', accent:'#7b4397', title:'Crowded worlds',
+  desc:'Dense clutter, pillar fields, and mixed obstacle layouts — comparing zero-shot transfer from open-floor training against policies trained on obstacles, plus native crowded training.'},
+ {slug:'es-ladder', idx:'05', accent:'#2e7d4f', title:'ES coexistence ladder',
+  desc:'A learned skill-selector evolved by evolution strategies alongside the gradient-trained executor (MERL-style coexistence), warm-started up the scale ladder 16² → 24² → 32².'},
+ {slug:'connectivity-shootout', idx:'06', accent:'#a23b5e', title:'Connectivity-mechanism shootout @ 32²',
+  desc:'Five ways to enforce the comm-graph constraint at 32×32/10 — soft λ₂ penalty, learned-Lagrangian (RCPO), PID-Lagrangian, and a hard connectivity mask — each with and without explorer/relay roles.'}
+];
+
+(function(){
+ var TRAJ=window.TRAJ||{};
+ var counts={}; for(var k in TRAJ){var s=slugOf(k); if(s) counts[s]=(counts[s]||0)+1;}
+ document.getElementById('legendbar').innerHTML =
+   'In every rollout: ' + Viewer.legendHTML() +
+   ' &nbsp;·&nbsp; agent dots use the Okabe-Ito colourblind-safe palette.';
+ var grid=document.getElementById('grid');
+ CARDS.forEach(function(c){
+  var n=counts[c.slug]||0;
+  var a=document.createElement('a');
+  a.className='card'; a.href='pages/'+c.slug+'.html'; a.style.setProperty('--accent',c.accent);
+  a.innerHTML =
+   '<div class="band"></div>'+
+   '<div class="body">'+
+     '<div class="idx">Experiment '+c.idx+'</div>'+
+     '<h3>'+c.title+'</h3>'+
+     '<p>'+c.desc+'</p>'+
+     '<div class="foot">'+
+       '<span class="ct"><b>'+n+'</b> '+(n===1?'run':'runs')+(n?'':' <span class="scfail">(empty)</span>')+'</span>'+
+       '<span class="go">View rollouts →</span>'+
+     '</div>'+
+   '</div>';
+  grid.appendChild(a);
  });
- count.textContent=shown+' runs';
-}
-function xy(idx){const W=cur.grid[1];return [idx%W,Math.floor(idx/W)];}
-function ctr(c){return (c+0.5)*cell;}
-function colorLegend(){
- if(cur.kind in KINDS){const nm=KINDS[cur.kind];
-  clegend.innerHTML='dot colour = '+(cur.kind==='skill'?'skill':'role')+': '+nm.map((n,i)=>'<span class="sw" style="background:'+COL[i]+'"></span>'+n).join(' &nbsp; ');
- } else clegend.innerHTML='dot colour = individual agent id (homogeneous policy — no shared roles)';
-}
-function load(k){
- curKey=k;cur=TRAJ[k];const H=cur.grid[0],W=cur.grid[1];
- cell=Math.max(7,Math.min(22,Math.floor(620/Math.max(H,W))));cv.width=W*cell;cv.height=H*cell;
- slider.max=cur.frames.length-1;t=0;slider.value=0;
- info.textContent=H+'×'+W+' · '+cur.frames[0].pos.length+' agents · comm_r '+cur.comm_r+' · sense_r '+cur.sense_r;
- document.getElementById('desc').innerHTML=cur.desc||'';
- document.querySelectorAll('.item').forEach(e=>e.classList.toggle('on',e.dataset.k===k));
- colorLegend();draw();
-}
-function draw(){const H=cur.grid[0],W=cur.grid[1],f=cur.frames[t];
- ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cv.width,cv.height);
- for(const idx of f.cov){const[x,y]=xy(idx);ctx.fillStyle='#cfe3c8';ctx.fillRect(x*cell,y*cell,cell,cell);}
- for(const idx of cur.walls){const[x,y]=xy(idx);ctx.fillStyle='#3a4150';ctx.fillRect(x*cell,y*cell,cell,cell);}
- ctx.strokeStyle='#eceef2';ctx.lineWidth=.5;
- for(let i=0;i<=W;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,H*cell);ctx.stroke();}
- for(let j=0;j<=H;j++){ctx.beginPath();ctx.moveTo(0,j*cell);ctx.lineTo(W*cell,j*cell);ctx.stroke();}
- f.pos.forEach((p,i)=>{const r=p[0],c=p[1],col=COL[(f.tags[i]||0)%COL.length],s=cur.sense_r;
-  ctx.fillStyle=col+'22';ctx.fillRect((c-s)*cell,(r-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
-  ctx.beginPath();ctx.arc(ctr(c),ctr(r),cur.comm_r*cell,0,7);ctx.strokeStyle=col+'66';ctx.lineWidth=1;ctx.stroke();});
- ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#1b7f76';
- for(const e of f.edges){const a=f.pos[e[0]],b=f.pos[e[1]];ctx.beginPath();ctx.moveTo(ctr(a[1]),ctr(a[0]));ctx.lineTo(ctr(b[1]),ctr(b[0]));ctx.stroke();}
- ctx.setLineDash([]);
- f.pos.forEach((p,i)=>{const col=COL[(f.tags[i]||0)%COL.length];ctx.beginPath();ctx.arc(ctr(p[1]),ctr(p[0]),cell*.33,0,7);
-  ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#2a2f3a';ctx.lineWidth=1;ctx.stroke();});
- tlabel.textContent='t = '+t;}
-search.oninput=()=>{q=search.value.toLowerCase().trim();buildSide();};
-document.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));ch.classList.add('on');szFilter=ch.dataset.sz;buildSide();});
-slider.oninput=()=>{t=+slider.value;draw();};
-playBtn.onclick=()=>{playing=!playing;playBtn.textContent=playing?'⏸ Pause':'▶ Play';};
-function tick(){if(playing&&cur){t=(t+1)%cur.frames.length;slider.value=t;draw();}setTimeout(tick,1000/(+speed.value||8));}
-buildSide();load(Object.keys(TRAJ)[0]);tick();
-</script></body></html>
+})();
+</script>
+</body>
+</html>

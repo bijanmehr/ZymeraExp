@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obstacles — reward & barrier · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>:root{--accent:#b5651d;--accent-soft:#f7efe4}</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="open-floor.html">Open floor</a>
+ <a class="lnk" href="team-size.html">Team size</a>
+ <a class="lnk active" href="obstacles.html">Obstacles</a>
+ <a class="lnk" href="crowded.html">Crowded</a>
+ <a class="lnk" href="es-ladder.html">ES ladder</a>
+ <a class="lnk" href="connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 03 · obstacle maps</div>
+  <h1>Obstacles — reward &amp; barrier</h1>
+  <p class="what">A factorial study on obstacle worlds: reward shaping
+  (baseline · up-weighted coverage · info-gain) crossed with a connectivity barrier ON/OFF, run
+  across all three architectures (homogeneous, explorer/relay roles, learned selector) and three
+  scales (16²/4, 24²/6, 32²/10).</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">Explorer/relay roles with up-weighted coverage reward and the connectivity barrier
+   <em>off</em> give the best coverage; switching the barrier <em>on</em> costs coverage across the
+   board, and the info-gain shaping reward-hacks — agents game the shaping term and coverage
+   collapses to near zero. Coverage also falls steeply as the grid scales from 16² to 32².</span>
+  </div>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // same key rule as groupOf: obstacles = ob_*
+ function mine(k){ return k.indexOf('ob_')===0; }
+ Viewer.init({
+  filter: mine,
+  mount: 'side',
+  accent: '#b5651d',
+  group: function(k,v){ var g=v.grid[0]; return g+'×'+g+' · '+v.frames[0].pos.length+' agents'; }
+ });
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connectivity-mechanism shootout @ 32² · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>:root{--accent:#a23b5e;--accent-soft:#f6ebef}</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="open-floor.html">Open floor</a>
+ <a class="lnk" href="team-size.html">Team size</a>
+ <a class="lnk" href="obstacles.html">Obstacles</a>
+ <a class="lnk" href="crowded.html">Crowded</a>
+ <a class="lnk" href="es-ladder.html">ES ladder</a>
+ <a class="lnk active" href="connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 06 · constraint mechanisms @ 32×32 / 10 agents</div>
+  <h1>Connectivity-mechanism shootout @ 32²</h1>
+  <p class="what">Pits the ways of enforcing the comm-graph constraint against each other at the target
+  scale: a soft λ₂ (algebraic-connectivity) penalty, a learned-Lagrangian constraint (RCPO), a
+  PID-Lagrangian controller, and a hard connectivity mask — each run both with explorer/relay roles
+  and with the homogeneous shared policy.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">With explorer/relay roles, the soft λ₂ penalty yields the highest coverage, followed
+   by the learned-Lagrangian (RCPO) and the hard connectivity mask, with the PID-Lagrangian trailing.
+   Roles beat the homogeneous policy under every matched mechanism — how the constraint is imposed and
+   whether the team has differentiated roles both matter, and they compound.</span>
+  </div>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // same key rule as groupOf: connectivity-shootout = cs_*
+ function mine(k){ return k.indexOf('cs_')===0; }
+ // group by policy family — roles vs homogeneous
+ function fam(k){ return k.indexOf('cs_role')===0 ? 'Explorer / relay roles' : 'Homogeneous shared policy'; }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#a23b5e', group: fam });
+</script>
+</body>
+</html>

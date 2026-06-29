@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ES coexistence ladder · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>:root{--accent:#2e7d4f;--accent-soft:#e8f4ec}</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="open-floor.html">Open floor</a>
+ <a class="lnk" href="team-size.html">Team size</a>
+ <a class="lnk" href="obstacles.html">Obstacles</a>
+ <a class="lnk" href="crowded.html">Crowded</a>
+ <a class="lnk active" href="es-ladder.html">ES ladder</a>
+ <a class="lnk" href="connectivity-shootout.html">Connectivity</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 05 · evolution-strategies coexistence</div>
+  <h1>ES coexistence ladder</h1>
+  <p class="what">Evolves the learned skill-selector with evolution strategies alongside the
+  gradient-trained executor (MERL-style coexistence: disjoint parameters, shared team return,
+  separated timescales), warm-started up the scale ladder 16²/4 → 24²/6 → 32²/10.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">The ES-evolved selector and the gradient executor do coexist and learn at 16², but
+   the approach does not climb the scale ladder: even with warm-starting from the rung below, coverage
+   falls off steeply at 24² and again at 32². ES coexistence is viable in the small regime but loses
+   ground as the world grows.</span>
+  </div>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // same key rule as groupOf: es-ladder = es_merl*
+ function mine(k){ return k.indexOf('es_merl')===0; }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#2e7d4f' });
+</script>
+</body>
+</html>
