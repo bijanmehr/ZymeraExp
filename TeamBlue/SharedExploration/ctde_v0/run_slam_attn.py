@@ -70,13 +70,15 @@ def main(argv=None):
     p = argparse.ArgumentParser(description="SLAM × neighbor-attention head-to-head @32²/10")
     p.add_argument("--out", default="runs/slamattn")
     p.add_argument("--seeds", type=int, default=3)
+    p.add_argument("--seed-start", type=int, default=0,
+                   help="first seed index (for chained extensions, e.g. --seed-start 3 --seeds 3)")
     p.add_argument("--iters", type=int, default=2000)
     p.add_argument("--rollouts", type=int, default=16)
     p.add_argument("--jobs", type=int, default=4)
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
     out = a.out if os.path.isabs(a.out) else os.path.join(_PKG_PARENT, a.out)
-    seeds = list(range(a.seeds))
+    seeds = list(range(a.seed_start, a.seed_start + a.seeds))
     units = _build_units(out, seeds)
     print(f"=== slam×attn: {len(units)} runs (2 agg × 2 perception × {len(seeds)} seed) "
           f"@32²/10, iters={a.iters}, jobs={a.jobs} ===", flush=True)
