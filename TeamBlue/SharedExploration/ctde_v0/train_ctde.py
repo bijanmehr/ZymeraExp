@@ -218,6 +218,14 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                    help="SLAM-style wall perception: fold walls sensed within sense_r into the "
                         "shared belief (known_walls carries signal; walls stop reading as "
                         "frontier). Default on; --no-sense-walls = old wall-blind baseline.")
+    p.add_argument("--sense-free", action=argparse.BooleanOptionalAction, default=False,
+                   help="occupancy belief: fold the FULL sensed region (free+walls within "
+                        "sense_r) into the shared belief, adding the occ_frontier channel (a "
+                        "true Yamauchi frontier; the egocentric local_frontier collapses under "
+                        "it). Default off (= plain sense_walls).")
+    p.add_argument("--boundary", action=argparse.BooleanOptionalAction, default=False,
+                   help="add the field-edge (boundary ring) obs channel so the position-blind "
+                        "policy perceives the mission-field extent. Default off.")
     p.add_argument("--explore-infogain", choices=["off", "on"], default="off",
                    help="on=add a per-agent exploration bonus (count of uncovered cells in "
                         "sensor range). The 'coverage-bump' incentive is just --w-coverage 3.")
@@ -231,6 +239,7 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                     horizon=args.horizon, terrain=args.terrain, rooms=args.rooms,
                     n_obstacles=args.n_obstacles, pillar_spacing=args.pillar_spacing,
                     pillar_size=args.pillar_size, sense_walls=args.sense_walls,
+                    sense_free=args.sense_free, boundary=args.boundary,
                     cover_r=args.cover_r),
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm,

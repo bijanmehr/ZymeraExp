@@ -57,6 +57,8 @@ def build_env(cfg: CTDEConfig):
         max_steps=None,                # horizon controlled by the fixed-length scan
         terms=terms,                   # None -> recipe DEFAULT_TERMS (v0 unchanged)
         sense_walls=w.sense_walls,     # SLAM-style wall perception (default on)
+        sense_free=w.sense_free,       # occupancy belief (full sensed region -> occ_frontier)
+        boundary=w.boundary,           # field-edge obs channel (mission-field extent)
     )
     comm_r = int(env.channel.topology.radius)
     assert comm_r == w.comm_r, (comm_r, w.comm_r)
@@ -89,6 +91,7 @@ def build_env(cfg: CTDEConfig):
         # re-runs the comm-coverage recipe, which has no terrain arg).
         env = GridEnv(grid_h=env.grid_h, grid_w=env.grid_w, n_agents=env.n_agents,
                       cover_r=env.cover_r, wall_sense_r=env.wall_sense_r,
+                      sense_free=env.sense_free,   # occ belief (obs channels ride on env.obs)
                       terrain=terrain_obj,
                       spawn=env.spawn, dynamics=env.dynamics, channel=env.channel,
                       obs=env.obs, mission=env.mission)

@@ -44,6 +44,14 @@ class World:
     # belief so `known_walls` carries signal and walls stop reading as frontier.
     # Default ON (wall-aware); set False to reproduce the old wall-blind baseline.
     sense_walls: bool = True
+    # Occupancy belief (mission-field): fold the FULL sensed region (free + walls
+    # within sense_r) into the shared belief, adding the `occ_frontier` channel — a
+    # true Yamauchi frontier (the egocentric `local_frontier` collapses under it).
+    sense_free: bool = False
+    # Add the `boundary` obs channel (field-edge ring) so the position-blind policy
+    # perceives the mission-field extent; pairs with sense_free for directed, contained
+    # frontier exploration that transfers to a bigger world.
+    boundary: bool = False
     n_obstacles: int = 0
     spawn_radius: int | None = 2   # ClusterSpawn radius; None -> scatter spawn
     horizon: int = 100
