@@ -71,12 +71,58 @@ Options/skill setups love to collapse (one mode wins, or the skills smear togeth
    Seed: the anti-overlap reward. The *scripted* global auction stays a baseline + red-team
    surface (#2/#3) — it smuggles global comms and hardcodes the allocation we want to emerge.
 
-## Training — ES + gradient, side by side (MERL / feudal-evolutionary)
+## Training — ES + gradient, side by side (MERL / feudal-evolutionary) — RAN, mechanism confirmed
 
-A **level split**: **ES evolves the small selectors** (sparse team-level credit, escaping
-the huddle local optimum, individuation) · **gradient/CTDE trains the large skills +
-perception** (dense per-step signal). Different modules → nothing to interchange; they
-*compose*, not compete (this dissolves the earlier ES-vs-CTDE warm-start worry).
+A **level split**: **ES evolves the small selectors** (sparse team-level credit, escaping the huddle
+local optimum, individuation) · **gradient/CTDE trains the large skills + perception** (dense per-step
+signal). Different modules → they *compose*, not compete. **Confirmed empirically** (16²/4, 80 rounds,
+`es.py` + `run_es.py`; numbers in `CAMPAIGN_REVIEW.md §8`): the two co-adapt *upward* without either
+collapsing.
+
+### Why it's possible — the mechanism (remember this)
+The coexistence rests on **three load-bearing properties; all must hold:**
+
+1. **Disjoint parameters.** ES perturbs ONLY `selector_head`; the gradient updates ONLY the executor
+   (backbone + goal head + critic), `selector_head` frozen under the gradient pass. The two optimizers
+   never write the same weights → zero parameter-level interference. (Shared weights would let ES noise
+   corrupt the gradient's credit assignment and vice-versa.)
+2. **One shared, aligned objective.** Both maximize the *same* team return J(π) — ES over selector
+   perturbations, CTDE over executor params (policy-gradient surrogate + central critic). Shared, not
+   adversarial (unlike a GAN) → improvements *add* rather than fight. This is the "same centralized-training
+   principle": both see the team-level signal.
+3. **Timescale separation (the feudal/MERL trick).** Executor trains FAST (K dense gradient steps per outer
+   round); selector evolves SLOW (one ES generation per round, the population evaluated against the *current*
+   executor). The slow outer loop treats the fast inner loop as part of its environment — bilevel
+   **two-timescale stochastic approximation** (Borkar): slow ES outer, fast gradient inner.
+
+**Why ES for the selector (not gradient):** (a) the selector output is a **discrete** skill choice
+(m ∈ {disperse,flock,hold}) → discrete decisions give high-variance/biased policy gradients (REINFORCE/Gumbel
+hacks); **ES is gradient-free**, indifferent to the non-differentiable argmax. (b) the selector is **small**
+(`W→3` head) and ES scales poorly with dimension → fits a tiny head, not the whole net. (c) ES explores in
+**parameter space** → naturally yields **individuated** selectors and escapes the **huddle local optimum**
+(sparse team-level credit, where dense gradient collapsed — cf. the DTE result).
+
+**Why gradient/CTDE for the executor:** perception + goal head are **high-dimensional** and need **dense
+per-step credit** (which move gained coverage). PPO + a central critic is sample-efficient and low-variance
+there; and the A/B batch proved the **central critic is load-bearing** (the DTE collapse).
+
+**The risk (watch this):** selector and executor are **moving targets** for each other → non-stationarity →
+the executor-coverage **volatility (35–59% in the late rounds)** IS that co-adaptation noise. It held at
+16²/4 but is the failure mode to watch at scale.
+
+### Canonical references (the mechanism's lineage)
+- **ERL** — Khadka & Tumer, *Evolution-Guided Policy Gradient in RL*, NeurIPS 2018 (population EA + gradient,
+  shared replay; EA explores, gradient exploits).
+- **CEM-RL** — Pourchot & Sigaud, *CEM-RL: Combining Evolutionary and Gradient-Based Methods for Policy
+  Search*, ICLR 2019 (CEM on the actor + TD3 gradient — closest to our CEM/ES + gradient split).
+- **CERL** — Khadka et al., *Collaborative Evolutionary RL*, ICML 2019 (portfolio of learners + evolutionary
+  outer loop).
+- **OpenAI-ES** — Salimans et al., *Evolution Strategies as a Scalable Alternative to RL*, 2017 (the ES
+  estimator we use).
+- **FeUdal Networks** — Vezhnevets et al., ICML 2017 (slow manager sets goals / fast worker executes — the
+  timescale-separation our selector/executor split mirrors; origin: Dayan & Hinton, *Feudal RL*, NeurIPS 1993).
+- **Options** — Sutton, Precup & Singh, *Between MDPs and semi-MDPs*, Artificial Intelligence 1999
+  (skills-as-temporal-abstractions — the menu's grounding).
 
 ## Emergence hypothesis — test, don't prescribe
 

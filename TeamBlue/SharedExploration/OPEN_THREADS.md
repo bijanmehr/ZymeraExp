@@ -17,8 +17,12 @@ have no defense; that's the whole point. Everything below is substrate for this.
 
 **The headline target:** ≥90% coverage **AND** ≥90% connectivity *simultaneously*, at **32×32 / 10
 agents**, within a **100-step** budget — graded on the **real** connectivity bar (λ₂ > 0.5), not the
-trivial 1e-3 floor. **Still open** — and on CROWDED 32² it's far off (~12–28% coverage trained; clutter at
-scale in 100 steps is genuinely hard).
+trivial 1e-3 floor. **Connectivity side now CLOSED** — the mechanism shootout reached ~85% real-connectivity
+with **role + learned-Lagrangian (RCPO)**; **coverage (~45% @32²) is the entire remaining gap.** Direction →
+`LOCALITY_DESIGN.md`: scale-invariance through locality (Voronoi cell + in-cell frontier + difference rewards).
+The learned mode-selector is **dead at scale** (ES collapses 49→25→8% up the ladder). The contribution reframes
+to the **formalisation** — MARL as a model of *autonomous teams across a spectrum* (multi-robot→swarm→LLM agents),
+the learning's real job being **generalisable orchestration ("when to use what")**; resilience is one stratum.
 
 ---
 

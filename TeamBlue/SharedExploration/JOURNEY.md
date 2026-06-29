@@ -635,3 +635,48 @@ only history, **no `model.eqx`** → not gallery-able as-is (add a final model-s
 test the 32²-under-training hypothesis (more iters on the hardest rung); (c) re-run the 2 OOM'd `eoff/32` arms
 at jobs 1; (d) re-run verification on the 6 open lit-review families; (e) multi-map eval to firm up the
 24²-helps / 32²-washes pattern. **Push `0a80fed` to main when ready** (balthar's on rsync'd code).
+
+---
+
+## 2026-06-28 (evening) — ES ladder collapses · connectivity shootout decided · the locality redesign
+
+**ES coexistence ladder — RAN, full 16→24→32 (model-save + `--init-from` added to `run_es.py`).** Fixed the
+no-model bug (now serialises the `(actor,critic)` snapshot) + wired warm-start so the ES selector carries up
+the ladder. Result is **decisive and negative**: the learned mode-selector **collapses with scale** —
+coverage **48.8% → 25.3% → 7.8%** at 16/24/32, gap to hardcoded roles widening **−28 → −32 → −50**. The MERL
+*mechanism* composes (elite advantage stays +5–6) but the *policy* is the opposite of scale-invariant. **The
+learned selector over a global skill menu is dead at scale.** All three rungs in the gallery.
+
+**Connectivity-mechanism shootout — RAN + DECIDED (`run_conn_shootout.py`, 32²/10, role/base × 4 mechanisms).**
+Tested the lit-review's #1 (learned-Lagrangian) vs soft penalty vs hard action-mask. Verdict (real conn = λ₂>0.5):
+role+soft 44.7/81.2 · **role+lagrangian 42.4/84.7** · role+pidlag 39.8/83.0 · role+maskhard 39.9/63.1. **Decision:
+role split + learned-Lagrangian dual** — highest real-connectivity, scale-adaptive, and the dual *needs* the roles
+(`base_lag` collapsed to 62%). **The headline: connectivity is ~solved (~85%); coverage (~45%) is the entire
+remaining gap to 90/90.** Locked into `LOCALITY_DESIGN.md` §4. (Operational note: `ollama` on balthar repeatedly
+grabbed 88 GB and OOM-killed runs; resolved by the user freeing it — added a polite GPU babysitter.)
+
+**Synthesis of all results → `LOCALITY_DESIGN.md`.** Six consistent findings (connectivity free · imposed>learned ·
+diversity only if task-grounded · reward-shaping fragile · weights transfer but skill doesn't · adding agents
+floods not divides) → one diagnosis: **the coverage wall is a spatial-partitioning / credit-assignment problem,
+and anything global-or-learned-to-select fails at scale.** New design principle: **scale-invariance through
+locality** (a big world is just tiled small worlds; each agent solves only its local cell). The design: a parallel
+*local* toolbox (Voronoi cell + in-cell frontier + compass), **difference rewards** (own your cell → partitioning
+emerges), **event-staleness exploration bonus**, **per-agent explore temperature**, **hardcoded-context selection**
+(for now), all paired with the learned-Lagrangian. Written with a **falsification test** (redundancy must invert
+3.7→1; coverage must hold across scale). Supersedes the learned-selector path of `COGNITION_DESIGN.md`.
+
+**Strategic reframe (the discussion).** The contribution is the **formalisation** — that MARL captures a *team of
+autonomous systems* across a spectrum (multi-robot → swarm → LLM-agent teams), where the common object is *a team
+choosing when to use which capability*. So the learning's real job is **generalisable orchestration ("when to use
+what")**, not the primitives; **resilience (covert adversary) is one stratum** of that claim, not the headline.
+Open A/B/C: (A) build the local-skill substrate + param tests; (B) study *learnable* skills vs heuristic; (C) a
+versatile blue agent as ground-zero for many missions.
+
+**Gallery — REBUILT.** `make_report.py` viewer redone: **left sidebar, collapsible study-groups** (open-ladder ·
+team-sweep · obstacles · crowded · ES · shootout), **search box + scale filters**, light/academic theme,
+Okabe-Ito colourblind-safe agent palette, serif captions. **146 tiles**, every distinct seed0 run that loads
+(gaps: ~49 seed-1/2 RNG duplicates + 5 arch-drift `bfork`/`wl`). `make_report` now leaves a hand-customised
+`index.html` alone on re-render.
+
+**Next.** Housekeeping (this commit). Then the architecture discussion (user has ideas), then scope the locality
+experiment with the orchestration fork (B) as the centerpiece.

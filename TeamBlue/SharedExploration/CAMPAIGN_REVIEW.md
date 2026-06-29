@@ -258,3 +258,40 @@ suite **105 green**. Committed `0a80fed` (deployed to balthar by rsync, NOT push
 **Honest caveats:** single map per terrain (before/after is same-map/fair, but one sample); 1 seed; `role_eoff/32`
 + `base_eoff/32` flaked on a simultaneous-compile OOM (re-runnable jobs 1). **Next:** barrier → learned-λ (RCPO);
 more iters on the 32² rung (under-training test); multi-map eval. Gallery: `report/index.html` (41 runs, 7 cats).
+
+---
+
+## §8 — ES + CTDE coexistence (MERL) — RAN, feasibility CONFIRMED (2026-06-28)
+
+`es.py` + `run_es.py`: **ES evolves the `selector_head`, CTDE-gradient trains the executor, interleaved.**
+*The mechanism (why the two compose — disjoint params · shared team-return · timescale separation · why ES
+for the discrete selector / gradient for the high-dim executor) + canonical refs (ERL, CEM-RL, OpenAI-ES,
+FeUdal, Options) live in `COGNITION_DESIGN.md`.* Ran 16²/4, 80 outer rounds (`runs/es/nes16`).
+
+| metric | round 0 | round 79 | peak | early(0–10) → late(70–80) |
+|---|---|---|---|---|
+| es_best (team return) | 201.5 | 226.9 | 231.9 | 207 → 225.5 (**+18.5**) |
+| es_mean (population)  | 195.1 | 220.0 | 227.8 | 201.7 → 220.6 |
+| **executor coverage** | 15.3% | 35.2% | **59%** | 17.6% → **47.1%** |
+| executor connectivity (λ₂>.5) | 100% | 92.7% | 100% | 97% → 98% |
+
+### What it supports
+1. **The two trainers compose — both halves improve, nothing collapses.** Executor coverage climbs 15→47%
+   (peak 59) at ~98% connectivity while the ES selector evolves on top. MERL-style coexistence is **viable here.**
+2. **The ES contributes real signal, not noise.** The **elite advantage (best − mean) stays positive** —
+   avg **+5.9**, peak +14.3 — so every round the ES finds selector settings that beat the population mean,
+   *against a moving executor.* The selector evolution is doing work.
+
+### Honest gaps (why it's a proof-of-concept, not a result)
+- **Only the easy rung (16²/4)** — never climbed the ladder, so selector scale-transfer is untested (and the
+  crowded result makes that the suspicious part).
+- **Executor coverage is volatile (35–59% late)** = the co-adaptation non-stationarity (selector & executor
+  are moving targets for each other). Held, but not yet stable.
+- **No CTDE-only control** at 16²/4 → the +5.9 elite advantage proves ES helps *within its population*, NOT
+  that ES+CTDE beats plain gradient. Net-additivity is suggested, not proven.
+- **No model saved** — `run_es.py` writes only `es_history.json` (no `model.eqx`) → not deployable/renderable.
+  The one concrete bug to fix.
+
+**Verdict:** feasibility **confirmed** (coexistence composes + ES adds signal) — a clean proof-of-concept at
+the small rung. **To make it real:** (1) save a model snapshot; (2) add the CTDE-only control; (3) climb the
+ladder (16→24→32, the scale-transfer test). See "what to improve" below / `OPEN_THREADS.md`.
