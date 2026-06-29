@@ -1,79 +1,143 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Zymera rollouts</title>
+<!doctype html><html><head><meta charset="utf-8"><title>Zymera — rollout gallery</title>
 <style>
- body{font-family:system-ui,sans-serif;margin:0;background:#161616;color:#eee}
- #bar{padding:9px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #333}
- select,button{font-size:14px;padding:5px 9px;background:#2c2c2c;color:#eee;border:1px solid #555;border-radius:5px}
- button{cursor:pointer} button:hover{background:#3a3a3a} #slider{width:320px}
- canvas{display:block;margin:14px auto;background:#1d1d1d;border:1px solid #333}
- .leg{font-size:12px;opacity:.85} .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px}
+ *{box-sizing:border-box}
+ body{margin:0;font-family:"Helvetica Neue",Arial,system-ui,sans-serif;background:#f4f5f7;color:#1a1f29}
+ header{padding:9px 18px;background:#fff;border-bottom:1px solid #dfe3e8;display:flex;gap:11px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:6}
+ header h1{font-size:14px;margin:0 8px 0 0;font-weight:600;color:#10233f;letter-spacing:.2px}
+ #search{padding:6px 10px;border:1px solid #c7ccd4;border-radius:5px;font-size:13px;width:190px}
+ .chip{padding:4px 11px;border:1px solid #cdd2da;border-radius:14px;background:#fff;cursor:pointer;font-size:12px;color:#48505e;user-select:none}
+ .chip.on{background:#10233f;color:#fff;border-color:#10233f}
+ #wrap{display:flex;align-items:stretch}
+ #side{width:340px;flex:0 0 340px;height:calc(100vh - 50px);overflow-y:auto;background:#fff;border-right:1px solid #dfe3e8}
+ .grph{padding:10px 14px;font-weight:600;font-size:12.5px;color:#10233f;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#f7f9fb;border-top:1px solid #eef0f3;position:sticky;top:0}
+ .grph:hover{background:#eef2f7}.grph .ct{color:#9aa4b2;font-weight:400;font-size:11px}
+ .grph .tw{display:inline-block;margin-right:6px;color:#9aa4b2}
+ .item{padding:7px 14px 7px 22px;cursor:pointer;border-left:3px solid transparent;line-height:1.25}
+ .item:hover{background:#f1f6fc}.item.on{background:#e9f1fb;border-left-color:#2c6cb0}
+ .item .nm{color:#202732;font-size:12.5px}.item.on .nm{font-weight:600;color:#102338}
+ .item .meta{color:#9aa4b2;font-size:11px;margin-top:1px}
+ main{flex:1;min-width:0;padding:14px 22px}
+ #ctrl{display:flex;gap:13px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:#48505e}
+ button{font-size:13px;padding:5px 11px;background:#fff;color:#1a1f29;border:1px solid #c7ccd4;border-radius:5px;cursor:pointer}
+ button:hover{background:#eef1f5}#slider{width:300px}
+ #desc{font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#27303d;background:#fff;border:1px solid #e6e9ee;border-radius:6px;padding:12px 16px;margin:12px 0}
+ canvas{display:block;margin:6px auto 14px;background:#fff;border:1px solid #d7dce3;box-shadow:0 1px 4px rgba(20,30,50,.08)}
+ .leg{font-size:12px;color:#5a6472;text-align:center;margin:6px 0}
+ .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px;border:1px solid rgba(0,0,0,.12)}
 </style></head><body>
-<div id="bar">
-  <select id="run"></select>
-  <button id="play">▶ Play</button>
-  <input id="slider" type="range" min="0" value="0">
-  <span id="tlabel" class="leg">t = 0</span>
-  <label class="leg">speed <input id="speed" type="range" min="1" max="30" value="8" style="width:90px"></label>
-  <span class="leg" id="info"></span>
+<header>
+ <h1>Zymera · rollout gallery</h1>
+ <input id="search" placeholder="search runs…">
+ <span class="leg">scale</span>
+ <span class="chip on" data-sz="all">all</span><span class="chip" data-sz="16">16²</span><span class="chip" data-sz="24">24²</span><span class="chip" data-sz="32">32²</span>
+ <span class="leg" id="count"></span>
+</header>
+<div id="wrap">
+ <nav id="side"></nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8" style="width:80px"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg">
+   <span style="background:#cfe3c8;color:#2c4327;padding:1px 7px;border-radius:3px">covered</span> ·
+   <span style="background:#3a4150;color:#fff;padding:1px 7px;border-radius:3px">wall</span> ·
+   agents = dots (skill/role) · faint square = <b>sense</b> · ring = <b>comm range</b> ·
+   <span style="color:#1b7f76">– – –</span> = <b>comm link</b>
+  </div>
+  <div class="leg" id="clegend"></div>
+ </main>
 </div>
-<div id="desc" style="padding:9px 16px;font-size:14px;line-height:1.45;background:#1a1a1a;border-bottom:1px solid #2a2a2a"></div>
-<canvas id="cv"></canvas>
-<div class="leg" style="text-align:center;padding-bottom:14px">
-  <span style="background:#2e7d32;padding:1px 7px;border-radius:3px">covered</span> ·
-  <span style="background:#111;padding:1px 7px;border-radius:3px;border:1px solid #444">wall</span> ·
-  agents = dots (color = skill/role) · faint square = <b>sense range</b> · ring = <b>comm range</b> ·
-  <span style="color:#26a69a">– – –</span> = <b>delivered comm link</b>
-</div>
-<div class="leg" id="clegend" style="text-align:center;padding-bottom:16px"></div>
 <script src="data.js"></script>
 <script>
-const TRAJ=window.TRAJ, cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-const runSel=document.getElementById('run'), slider=document.getElementById('slider'),
- playBtn=document.getElementById('play'), tlabel=document.getElementById('tlabel'),
- speed=document.getElementById('speed'), info=document.getElementById('info');
-let cur=null, t=0, playing=false, cell=18;
-const COL=['#4fc3f7','#ff8a65','#aed581','#ba68c8','#fff176','#4db6ac','#f06292','#90a4ae','#a1887f','#dce775'];
+const TRAJ=window.TRAJ;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),side=document.getElementById('side'),
+ slider=document.getElementById('slider'),playBtn=document.getElementById('play'),tlabel=document.getElementById('tlabel'),
+ speed=document.getElementById('speed'),info=document.getElementById('info'),search=document.getElementById('search'),
+ clegend=document.getElementById('clegend'),count=document.getElementById('count');
+let cur=null,curKey=null,t=0,playing=false,cell=18,szFilter='all',q='';
+const COL=['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#999999','#F0E442','#000000','#882255'];
 const KINDS={skill:['disperse','flock','hold'],role:['explorer','relay']};
-const clegend=document.getElementById('clegend');
+const collapsed={};
+function groupOf(k){
+ if(k.startsWith('sk_l_')||k.startsWith('ab_')) return '1 · Open floor — method ladder';
+ if(k.startsWith('sk_n_')) return '2 · Team-size sweep @ 24²';
+ if(k.startsWith('ob_')) return '3 · Obstacles — reward & barrier';
+ if(k.startsWith('T_')||k.startsWith('Tbase_')||k.startsWith('roleoff_')||k.startsWith('baseoff_')) return '4 · Crowded worlds — trained';
+ if(/^(clutter|pillars|mixed)\d/.test(k)) return '4 · Crowded worlds — zero-shot';
+ if(k.startsWith('cr_')) return '4 · Crowded worlds — native mix';
+ if(k.startsWith('es_merl')) return '5 · ES coexistence ladder';
+ if(k.startsWith('cs_')) return '6 · Connectivity-mechanism shootout @ 32²';
+ return '9 · misc';
+}
+function gridOf(v){return v.grid[0];}
+function sizeStr(v){return v.grid[0]+'×'+v.grid[1]+' · '+v.frames[0].pos.length+' agents';}
+function buildSide(){
+ side.innerHTML='';
+ const groups={};
+ for(const k in TRAJ){(groups[groupOf(k)]=groups[groupOf(k)]||[]).push(k);}
+ let shown=0;
+ Object.keys(groups).sort().forEach(g=>{
+  const items=groups[g].filter(k=>{const v=TRAJ[k];
+   if(szFilter!=='all'&&String(gridOf(v))!==szFilter) return false;
+   if(q&&!(v.label+' '+(v.cat||'')).toLowerCase().includes(q)) return false;
+   return true;});
+  if(!items.length) return; shown+=items.length;
+  const open=!collapsed[g];
+  const gh=document.createElement('div');gh.className='grph';
+  gh.innerHTML='<span><span class="tw">'+(open?'▾':'▸')+'</span>'+g.replace(/^\d+ · /,'')+'</span><span class="ct">'+items.length+'</span>';
+  const body=document.createElement('div');body.style.display=open?'block':'none';
+  gh.onclick=()=>{collapsed[g]=!collapsed[g];buildSide();};
+  side.appendChild(gh);
+  items.sort((a,b)=>TRAJ[b].cov-TRAJ[a].cov).forEach(k=>{const v=TRAJ[k];
+   const it=document.createElement('div');it.className='item'+(k===curKey?' on':'');it.dataset.k=k;
+   it.innerHTML='<div class="nm">'+v.label+'</div><div class="meta">'+sizeStr(v)+' &nbsp;·&nbsp; '+v.cov+'% cov</div>';
+   it.onclick=()=>load(k);body.appendChild(it);});
+  side.appendChild(body);
+ });
+ count.textContent=shown+' runs';
+}
+function xy(idx){const W=cur.grid[1];return [idx%W,Math.floor(idx/W)];}
+function ctr(c){return (c+0.5)*cell;}
 function colorLegend(){
  if(cur.kind in KINDS){const nm=KINDS[cur.kind];
-  clegend.innerHTML='agent dot color = the '+(cur.kind==='skill'?'skill':'role')+' it is using right now: '+
-   nm.map((n,i)=>'<span class="sw" style="background:'+COL[i]+'"></span>'+n).join(' &nbsp; ')+
-   ' &nbsp;—&nbsp; <i>a dot changes color the moment the policy switches that agent\'s mode</i>';
- } else {
-  clegend.innerHTML='agent dot color = individual agent id &nbsp;—&nbsp; <i>homogeneous policy: no shared roles, each agent just gets its own color</i>';
- }}
-const cats={};for(const k in TRAJ){const c=TRAJ[k].cat||'runs';(cats[c]=cats[c]||[]).push(k);}
-for(const c in cats){const og=document.createElement('optgroup');og.label=c;
- for(const k of cats[c]){const o=document.createElement('option');o.value=k;
-  o.textContent=TRAJ[k].label+'  ('+TRAJ[k].cov+'% cov)';og.appendChild(o);}
- runSel.appendChild(og);}
-function xy(idx){const W=cur.grid[1];return [idx%W, Math.floor(idx/W)];}
-function ctr(c){return (c+0.5)*cell;}
-function load(k){cur=TRAJ[k];const H=cur.grid[0],W=cur.grid[1];
- cell=Math.max(6,Math.min(24,Math.floor(700/Math.max(H,W))));cv.width=W*cell;cv.height=H*cell;
+  clegend.innerHTML='dot colour = '+(cur.kind==='skill'?'skill':'role')+': '+nm.map((n,i)=>'<span class="sw" style="background:'+COL[i]+'"></span>'+n).join(' &nbsp; ');
+ } else clegend.innerHTML='dot colour = individual agent id (homogeneous policy — no shared roles)';
+}
+function load(k){
+ curKey=k;cur=TRAJ[k];const H=cur.grid[0],W=cur.grid[1];
+ cell=Math.max(7,Math.min(22,Math.floor(620/Math.max(H,W))));cv.width=W*cell;cv.height=H*cell;
  slider.max=cur.frames.length-1;t=0;slider.value=0;
- info.textContent=`${H}×${W} · comm_r ${cur.comm_r} · sense_r ${cur.sense_r} · ${cur.frames[0].pos.length} agents · ${cur.kind}`;
- document.getElementById('desc').innerHTML='<b>'+cur.label+'</b> &nbsp;<span style="opacity:.6">['+(cur.cat||'')+']</span><br>'+(cur.desc||'');
- colorLegend();draw();}
+ info.textContent=H+'×'+W+' · '+cur.frames[0].pos.length+' agents · comm_r '+cur.comm_r+' · sense_r '+cur.sense_r;
+ document.getElementById('desc').innerHTML=cur.desc||'';
+ document.querySelectorAll('.item').forEach(e=>e.classList.toggle('on',e.dataset.k===k));
+ colorLegend();draw();
+}
 function draw(){const H=cur.grid[0],W=cur.grid[1],f=cur.frames[t];
- ctx.fillStyle='#1d1d1d';ctx.fillRect(0,0,cv.width,cv.height);
- for(const idx of f.cov){const[x,y]=xy(idx);ctx.fillStyle='#2e7d32';ctx.fillRect(x*cell,y*cell,cell,cell);}
- for(const idx of cur.walls){const[x,y]=xy(idx);ctx.fillStyle='#0c0c0c';ctx.fillRect(x*cell,y*cell,cell,cell);}
- ctx.strokeStyle='#2a2a2a';ctx.lineWidth=.5;
+ ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cv.width,cv.height);
+ for(const idx of f.cov){const[x,y]=xy(idx);ctx.fillStyle='#cfe3c8';ctx.fillRect(x*cell,y*cell,cell,cell);}
+ for(const idx of cur.walls){const[x,y]=xy(idx);ctx.fillStyle='#3a4150';ctx.fillRect(x*cell,y*cell,cell,cell);}
+ ctx.strokeStyle='#eceef2';ctx.lineWidth=.5;
  for(let i=0;i<=W;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,H*cell);ctx.stroke();}
  for(let j=0;j<=H;j++){ctx.beginPath();ctx.moveTo(0,j*cell);ctx.lineTo(W*cell,j*cell);ctx.stroke();}
  f.pos.forEach((p,i)=>{const r=p[0],c=p[1],col=COL[(f.tags[i]||0)%COL.length],s=cur.sense_r;
-  ctx.fillStyle=col+'1f';ctx.fillRect((c-s)*cell,(r-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
-  ctx.beginPath();ctx.arc(ctr(c),ctr(r),cur.comm_r*cell,0,7);ctx.strokeStyle=col+'40';ctx.lineWidth=1;ctx.stroke();});
- ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#26a69a';
+  ctx.fillStyle=col+'22';ctx.fillRect((c-s)*cell,(r-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
+  ctx.beginPath();ctx.arc(ctr(c),ctr(r),cur.comm_r*cell,0,7);ctx.strokeStyle=col+'66';ctx.lineWidth=1;ctx.stroke();});
+ ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#1b7f76';
  for(const e of f.edges){const a=f.pos[e[0]],b=f.pos[e[1]];ctx.beginPath();ctx.moveTo(ctr(a[1]),ctr(a[0]));ctx.lineTo(ctr(b[1]),ctr(b[0]));ctx.stroke();}
  ctx.setLineDash([]);
  f.pos.forEach((p,i)=>{const col=COL[(f.tags[i]||0)%COL.length];ctx.beginPath();ctx.arc(ctr(p[1]),ctr(p[0]),cell*.33,0,7);
-  ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();});
+  ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#2a2f3a';ctx.lineWidth=1;ctx.stroke();});
  tlabel.textContent='t = '+t;}
+search.oninput=()=>{q=search.value.toLowerCase().trim();buildSide();};
+document.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));ch.classList.add('on');szFilter=ch.dataset.sz;buildSide();});
 slider.oninput=()=>{t=+slider.value;draw();};
 playBtn.onclick=()=>{playing=!playing;playBtn.textContent=playing?'⏸ Pause':'▶ Play';};
-runSel.onchange=()=>{playing=false;playBtn.textContent='▶ Play';load(runSel.value);};
 function tick(){if(playing&&cur){t=(t+1)%cur.frames.length;slider.value=t;draw();}setTimeout(tick,1000/(+speed.value||8));}
-load(runSel.value);tick();
+buildSide();load(Object.keys(TRAJ)[0]);tick();
 </script></body></html>
