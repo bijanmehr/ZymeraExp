@@ -139,6 +139,10 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                    help="reward weight on the coverage term (default 1.0)")
     p.add_argument("--w-connectivity", type=float, default=2.0,
                    help="reward weight on the connectivity term (default 2.0)")
+    p.add_argument("--soft-lambda-penalty", type=float, default=1.0,
+                   help="soft_lambda connectivity-penalty scale — the cov<->conn FRONTIER dial: "
+                        "0 = no soft penalty (pure coverage), higher = connectivity-dominant. "
+                        "Only active when --mechanism soft_lambda.")
     # trainer
     p.add_argument("--iters", type=int, default=50)
     p.add_argument("--rollouts", type=int, default=8, help="episodes per iteration")
@@ -256,6 +260,7 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                                      lambda_lr=args.lambda_lr,
                                      constraint_threshold=args.constraint_threshold),
         reward=Reward(w_coverage=args.w_coverage, w_connectivity=args.w_connectivity,
+                      soft_lambda_penalty=args.soft_lambda_penalty,
                       barrier_weight=args.barrier_weight, barrier_a=args.barrier_a,
                       barrier_M=args.barrier_M, barrier_p=args.barrier_p,
                       barrier_cap=args.barrier_cap),

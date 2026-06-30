@@ -23,14 +23,17 @@ from ctde_v0.run_obstacle_overnight import _PKG_PARENT, _schedule
 _FIXED = ["--role-picker", "expl_relay",
           "--mechanism", "soft_lambda", "--conn-signal", "local_edge_margin",
           "--explorer-tool", "frontier_attn", "--collision-mask", "on",
-          "--horizon", "100", "--sense-walls"]
-_WCOV = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]            # the 6 frontier points (coverage emphasis)
+          "--horizon", "100", "--sense-walls",
+          "--w-coverage", "3", "--w-connectivity", "0"]   # connectivity ONLY from the swept soft penalty
+# the single cov<->conn dial: soft connectivity-penalty strength. 0 = no connectivity force ->
+# pure coverage (low conn); high -> connectivity-dominant (low cov). 6 points interpolate the frontier.
+_PEN = [0.0, 0.25, 0.5, 1.0, 2.0, 4.0]
 
 
 class Unit:
-    def __init__(self, uid, run_dir, seed, wc):
+    def __init__(self, uid, run_dir, seed, pen):
         self.uid = uid; self.run_dir = run_dir; self.rung = (32, 10, 5)
-        self.seed = seed; self.extra = ["--w-coverage", str(wc)]
+        self.seed = seed; self.extra = ["--soft-lambda-penalty", str(pen)]
         self.init_from_dir = None; self.needs_dir = None; self.proc = None
 
     @property
@@ -49,9 +52,9 @@ class Unit:
 def _build(out, seeds):
     units = []
     for s in seeds:
-        for wc in _WCOV:
-            rd = os.path.join(out, f"seed{s}", f"wcov{wc}")
-            units.append(Unit(f"s{s}/wcov{wc}", rd, s, wc))
+        for pen in _PEN:
+            rd = os.path.join(out, f"seed{s}", f"pen{pen}")
+            units.append(Unit(f"s{s}/pen{pen}", rd, s, pen))
     return units
 
 
@@ -67,9 +70,9 @@ def main(argv=None):
     out = a.out if os.path.isabs(a.out) else os.path.join(_PKG_PARENT, a.out)
     seeds = list(range(a.seeds))
     units = _build(out, seeds)
-    print(f"=== frontier: {len(units)} runs ({len(_WCOV)} w-coverage points x {len(seeds)} seeds) "
+    print(f"=== frontier: {len(units)} runs ({len(_PEN)} soft-penalty points x {len(seeds)} seeds) "
           f"@32^2/10 OPEN cover_r=0 SOFT no-mask, jobs={a.jobs} ===", flush=True)
-    print(f"    w-coverage points: {_WCOV}", flush=True)
+    print(f"    soft_lambda_penalty points (cov<->conn dial): {_PEN}", flush=True)
     if a.dry_run:
         for u in units:
             print(f"  {u.uid:16s} {u.extra}")
