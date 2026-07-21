@@ -333,6 +333,13 @@ class Loss:
     huber_delta: float = 0.1            # delta when aux_loss == "huber"
     vf_coef: float = 0.5
     credit: str = "shared"              # {"shared", "difference"}
+    # remat: gradient checkpointing on the per-row actor forward inside the differentiated
+    # loss. jax.checkpoint recomputes each row's forward activations in the backward pass
+    # instead of storing them, trading ~+25-33% compute for a large cut in peak GPU memory
+    # (the M×N conv/GNN activations dominate the 32²/10 footprint). MATHEMATICALLY EXACT —
+    # identical loss and gradients (rematerialization only changes what is stored vs
+    # recomputed). Default False = byte-unchanged v0 loss.
+    remat: bool = False
 
 
 @dataclass(frozen=True)

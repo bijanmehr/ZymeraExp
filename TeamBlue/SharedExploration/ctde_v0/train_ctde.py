@@ -214,6 +214,11 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                         "reward (A2, top-level credit); difference=the EXACT submodular "
                         "per-agent difference reward D_i (config.loss.credit) that pays "
                         "disjoint sweeping and starves redundant floods.")
+    p.add_argument("--remat", action="store_true",
+                   help="gradient checkpointing on the per-row actor forward in the loss "
+                        "(jax.checkpoint): recompute forward activations in the backward pass "
+                        "instead of storing them — MATHEMATICALLY EXACT (identical loss/grads), "
+                        "~25-33 pct more compute for a large cut in peak GPU memory. Default off.")
     p.add_argument("--diversity-residual", choices=["off", "on"], default="off",
                    help="off (default)=v0 goal logits (byte-unchanged); on=Arm B-dico, "
                         "add a mean-zero per-agent identity-conditioned residual to the "
@@ -306,7 +311,8 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                       barrier_M=args.barrier_M, barrier_p=args.barrier_p,
                       barrier_cap=args.barrier_cap),
         loss=Loss(ppo_clip=args.clip, aux_beta=args.beta, aux_loss=args.aux_loss,
-                  credit=("difference" if args.credit == "difference" else "shared")),
+                  credit=("difference" if args.credit == "difference" else "shared"),
+                  remat=args.remat),
         trainer=Trainer(lr=args.lr, clip=args.clip, ppo_epochs=args.ppo_epochs,
                         minibatches=args.minibatches),
         regularization=Regularization(degree_reg=args.degree_reg,

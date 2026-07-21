@@ -547,7 +547,7 @@ def _clipped_pg(logp, old_logp, adv_norm, clip):
     return -jnp.minimum(unclipped, clipped).mean()
 
 
-def _actor_forward_ff(actor, obs, adj, key, dist=None):
+def _actor_forward_ff(actor, obs, adj, key, dist=None, remat=False):
     """Feedforward actor forward over a FLAT minibatch (M rows). vmap the actor per
     row (h=None -> the zero passthrough, never used); returns (goal_logits (M,N,K),
     role_logits (M,N,R), l2_hat (M,N), feat (M,N,W)). Byte-identical to the
@@ -562,12 +562,14 @@ def _actor_forward_ff(actor, obs, adj, key, dist=None):
     def fwd(o, a, d, kk):
         g, r, _v, l2, feat, _h = actor(o, a, dist=d, key=kk, inference=False)
         return g, r, l2, feat
+    if remat:
+        fwd = jax.checkpoint(fwd)          # recompute the per-row forward in backward (exact)
     if dist is None:
         return jax.vmap(lambda o, a, kk: fwd(o, a, None, kk))(obs, adj, akeys)
     return jax.vmap(fwd)(obs, adj, dist, akeys)
 
 
-def _actor_forward_recurrent(actor, obs, adj, key, dist=None):
+def _actor_forward_recurrent(actor, obs, adj, key, dist=None, remat=False):
     """Recurrent actor forward over a minibatch of EPISODES (obs (B,T,N,C,H,W)).
 
     For each episode independently, run a ``lax.scan`` over the T steps that RE-FOLDS
@@ -604,7 +606,8 @@ def _actor_forward_recurrent(actor, obs, adj, key, dist=None):
                                                inference=False)
             return h_next, (g, r, l2, feat)
 
-        _hT, outs = jax.lax.scan(step, h0, (obs_e, adj_e, dist_e, step_keys))
+        step_fn = jax.checkpoint(step) if remat else step   # remat each BPTT step (exact)
+        _hT, outs = jax.lax.scan(step_fn, h0, (obs_e, adj_e, dist_e, step_keys))
         return outs                                               # each (T,N,...)
 
     g, r, l2, feat = jax.vmap(per_episode)(obs, adj, dist_e_all, ep_keys)  # each (B,T,N,...)
@@ -613,7 +616,7 @@ def _actor_forward_recurrent(actor, obs, adj, key, dist=None):
     return flat(g), flat(r), flat(l2), flat(feat)
 
 
-def _actor_skill_forward_ff(actor, obs, adj, pos, key, dist=None):
+def _actor_skill_forward_ff(actor, obs, adj, pos, key, dist=None, remat=False):
     """Feedforward SELECTOR forward over a FLAT minibatch (M rows) — the selector
     counterpart of :func:`_actor_forward_ff`. vmap ``actor.skill_forward`` per row
     (h=None -> the zero passthrough), threading the per-row agent ``pos`` (M,N,2) the
@@ -630,12 +633,14 @@ def _actor_skill_forward_ff(actor, obs, adj, pos, key, dist=None):
         sl, ol, feat, _h = actor.skill_forward(o, a, p, dist=d, key=kk, inference=False)
         l2 = jax.vmap(actor.aux_head)(feat)[:, 0]                    # (N,) local λ̂₂
         return sl, ol, l2, feat
+    if remat:
+        fwd = jax.checkpoint(fwd)          # recompute the per-row forward in backward (exact)
     if dist is None:
         return jax.vmap(lambda o, a, p, kk: fwd(o, a, p, None, kk))(obs, adj, pos, akeys)
     return jax.vmap(fwd)(obs, adj, pos, dist, akeys)
 
 
-def _actor_skill_forward_recurrent(actor, obs, adj, pos, key, dist=None):
+def _actor_skill_forward_recurrent(actor, obs, adj, pos, key, dist=None, remat=False):
     """Recurrent SELECTOR forward over a minibatch of EPISODES — the selector counterpart
     of :func:`_actor_forward_recurrent`. For each episode, scan over the T steps re-folding
     the hidden under the CURRENT params from zeros (BPTT), running ``actor.skill_forward``
@@ -664,7 +669,8 @@ def _actor_skill_forward_recurrent(actor, obs, adj, pos, key, dist=None):
             l2 = jax.vmap(actor.aux_head)(feat)[:, 0]              # (N,)
             return h_next, (sl, ol, l2, feat)
 
-        _hT, outs = jax.lax.scan(step, h0, (obs_e, adj_e, pos_e, dist_e, step_keys))
+        step_fn = jax.checkpoint(step) if remat else step   # remat each BPTT step (exact)
+        _hT, outs = jax.lax.scan(step_fn, h0, (obs_e, adj_e, pos_e, dist_e, step_keys))
         return outs                                               # each (T,...)
 
     sl, ol, l2, feat = jax.vmap(per_episode)(obs, adj, pos, dist_e_all, ep_keys)
@@ -718,13 +724,13 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         if use_selector:
             # selector forward along each episode (BPTT scan), flattened to (M=B*T,...).
             skill_logits, offset_logits, l2_hat, _z = _actor_skill_forward_recurrent(
-                actor, obs, adj, pos, key, dist)
+                actor, obs, adj, pos, key, dist, remat=cfg.loss.remat)
             role_logits = None
         else:
             # actor forward along each episode (BPTT scan), flattened to (M=B*T,...). The
             # per-step targets/old-logps/adv arrive (B,T,...) and are flattened the SAME way.
             goal_logits, role_logits, l2_hat, _z = _actor_forward_recurrent(
-                actor, obs, adj, key, dist)
+                actor, obs, adj, key, dist, remat=cfg.loss.remat)
         central = _f(batch["central"]); goal = _f(batch["goal"])
         old_logp = _f(batch["goal_logp"]); gmask = _f(batch["goal_mask"])
         role = _f(batch["role"]); old_role_logp = _f(batch["role_logp"])
@@ -747,11 +753,11 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
             skill = batch["skill"]             # (M,N) sampled skill index
             old_skill_logp = batch["skill_logp"]  # (M,N)
             skill_logits, offset_logits, l2_hat, _z = _actor_skill_forward_ff(
-                actor, obs, adj, pos, key, dist)
+                actor, obs, adj, pos, key, dist, remat=cfg.loss.remat)
             role_logits = None
         else:
             goal_logits, role_logits, l2_hat, _z = _actor_forward_ff(
-                actor, obs, adj, key, dist)
+                actor, obs, adj, key, dist, remat=cfg.loss.remat)
     # Selector: this step's goal_logits ARE the SELECTED skill's offset-logits — gather
     # offset_logits (M,3,N,K) at the stored skill (M,N) -> (M,N,K). The offset log-prob /
     # mask / PG below are then IDENTICAL to v0 (the goal action math is reused verbatim).
