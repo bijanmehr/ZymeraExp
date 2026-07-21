@@ -245,6 +245,30 @@ class MPLayer(eqx.Module):
         return jax.nn.relu(out)
 
 
+def _norm_position(obs_i: jax.Array) -> jax.Array:
+    """(2,) boundary-relative NORMALIZED (row, col) of ONE agent — the position-grounding
+    feature. Recovers the agent's cell as the centroid of its own-position one-hot
+    (``_CH_OWN_POS``; exact for a one-hot) and maps it to [-1,1] by the grid extent:
+
+        p = 2 · centroid / (size - 1) - 1     (row 0 -> -1, row H-1 -> +1)
+
+    Boundary-relative + normalized -> SCALE-INVARIANT: the SAME relative location in the
+    field yields the same feature at any H, W (a corner is always ≈(-1,-1), the centre
+    ≈(0,0)), so a model trained @16²/4 reads it the same @32²/10. It is a NORMALIZED
+    fraction of the field extent, NOT an absolute coordinate — nothing grid-size-dependent
+    survives. Pure JAX (vmap/jit-safe)."""
+    own = obs_i[_CH_OWN_POS]                                       # (H,W) own one-hot
+    H, W = own.shape
+    rows = jnp.arange(H, dtype=jnp.float32)[:, None]              # (H,1)
+    cols = jnp.arange(W, dtype=jnp.float32)[None, :]             # (1,W)
+    mass = jnp.maximum(own.sum(), 1.0)
+    cr = (own * rows).sum() / mass                                # () agent row
+    cc = (own * cols).sum() / mass                                # () agent col
+    rn = 2.0 * cr / jnp.maximum(float(H - 1), 1.0) - 1.0          # () row in [-1,1]
+    cn = 2.0 * cc / jnp.maximum(float(W - 1), 1.0) - 1.0          # () col in [-1,1]
+    return jnp.stack([rn, cn])                                    # (2,) normalized position
+
+
 class Backbone(eqx.Module):
     """LPAC backbone: per-agent CNN -> GAP -> feature, then ``mp_rounds`` of GNN
     message passing over the comm graph -> per-agent belief ``z_i`` (N, width).
@@ -258,18 +282,35 @@ class Backbone(eqx.Module):
 
     ``message_content`` (the I2 message-design dial) is threaded into every ``MPLayer``;
     see :class:`MPLayer` for the modes (learned | edge_distance | index).
+
+    ``position_ground`` (the position-grounding dial): when True, ADD a projection of each
+    agent's boundary-relative NORMALIZED position (``_norm_position``, recovered from the
+    ``own_pos`` one-hot centroid, in [-1,1]) to its post-GAP feature BEFORE the message
+    passing — hence before every head — grounding the otherwise position-blind policy. The
+    ``posground`` Linear (2 -> W) is ALWAYS built (its key is ``fold_in``-derived so the
+    conv / MP keys are byte-UNCHANGED) but only USED when the flag is on; with it off the
+    branch is never traced and the backbone forward is byte-identical to the pre-grounding
+    version. Projecting-and-ADDING (rather than concatenating the 2 dims into the first MP
+    Linear, which would widen it and perturb its init) keeps the WHOLE MP / head param
+    surface identical whether grounding is on or off — the established compass idiom.
     """
     conv: list
     mp: list
     ln: eqx.nn.LayerNorm | None
     drop: eqx.nn.Dropout | None
+    posground: eqx.nn.Linear    # position-grounding proj (2 -> W); always built, gated use
     width: int = eqx.field(static=True)
     message_content: str = eqx.field(static=True)
+    position_ground: bool = eqx.field(static=True)
 
     def __init__(self, in_ch: int, width: int, depth: int, mp_rounds: int,
                  agg: str, heads: int, norm: str, dropout: float, *, key,
-                 message_content: str = "learned"):
+                 message_content: str = "learned", position_ground: bool = False):
         kc, kmp = jax.random.split(key)
+        # position-grounding projection key: fold_in (NOT a widened split) so kc / kmp — and
+        # therefore the conv + every MP layer — stay byte-identical to the pre-grounding
+        # backbone (position_ground='off' is bit-for-bit the pre-grounding network).
+        kpos = jax.random.fold_in(key, 0x9051)
         self.conv = _conv_stack(in_ch, width, depth, kc)
         mp_keys = jax.random.split(kmp, max(mp_rounds, 1))
         self.mp = [MPLayer(width, agg, heads, key=mp_keys[i],
@@ -277,11 +318,22 @@ class Backbone(eqx.Module):
                    for i in range(mp_rounds)]
         self.ln = eqx.nn.LayerNorm(width) if norm == "layer" else None
         self.drop = eqx.nn.Dropout(dropout) if dropout > 0 else None
+        # 2-dim normalized position -> belief width; always built (stable param surface),
+        # only USED when position_ground (added to the post-GAP feature before MP).
+        self.posground = eqx.nn.Linear(2, width, key=kpos)
         self.width = int(width)
         self.message_content = str(message_content)
+        self.position_ground = bool(position_ground)
 
     def __call__(self, obs, adj_off, *, dist=None, key=None, inference: bool = False):
         feats = jax.vmap(lambda o: _encode(self.conv, o))(obs)         # (N,W)
+        # POSITION-GROUNDING: add a projection of each agent's boundary-relative NORMALIZED
+        # position to its post-GAP feature BEFORE the message passing (and hence before every
+        # head). `position_ground` is STATIC, so when off this branch is never traced and
+        # `feats` — hence z and every head output — is byte-identical to the pre-grounding
+        # backbone (the `posground` params sit unused). Size-invariant (normalized position).
+        if self.position_ground:
+            feats = feats + jax.vmap(lambda o: self.posground(_norm_position(o)))(obs)  # (N,W)
         z = feats
         for layer in self.mp:
             z = layer(z, adj_off, dist)                                # (N,W)
@@ -290,6 +342,46 @@ class Backbone(eqx.Module):
         if self.drop is not None:
             z = self.drop(z, key=key, inference=inference)
         return z
+
+
+class GCRNCell(eqx.Module):
+    """Graph-Convolutional Recurrent belief cell — the ``recurrence == 'gcrn'`` path.
+
+    Carries a per-NODE recurrent hidden state ``h`` ACROSS the episode THROUGH the comm
+    graph, a recurrent MESSAGE-PASSING belief:
+
+        h_next = GRU( MP(z + h_prev), h_prev )
+
+    where ``MP`` is one message-passing round over the in-range comm graph (a reused
+    :class:`MPLayer`) and ``GRU`` is a per-node :class:`eqx.nn.GRUCell` (W -> W). This is
+    DISTINCT from the per-agent ``recurrence == 'recurrent'`` GRU (``h_next = GRU(z, h)``,
+    which never fuses over the graph): here node i's memory is updated from a graph-fused
+    summary of its NEIGHBOURS' beliefs AND hiddens, so memory / coverage history PROPAGATES
+    across the team, not just along each agent's own trajectory.
+
+    SIZE-INVARIANT by construction — the ``MPLayer`` aggregator is normalized (never a
+    raw-sum) and the GRU is applied per node, so a cell trained @16²/4 transfers @32²/10,
+    matching the LPAC backbone. The internal MP uses the default ``message_content='learned'``
+    (self-contained; it ignores any ``dist`` supplied) so the GCRN path is independent of the
+    backbone's I2 message-design dial. Always BUILT (stable param surface, ``fold_in`` key)
+    but only USED when ``recurrence == 'gcrn'``. Pure JAX (vmap/scan/jit-safe).
+
+    ``__call__(z (N,W), h_prev (N,W), adj_off (N,N) bool, dist=None) -> h_next (N,W)``."""
+    mp: MPLayer
+    gru: eqx.nn.GRUCell
+    width: int = eqx.field(static=True)
+
+    def __init__(self, width: int, agg: str, heads: int, *, key):
+        km, kg = jax.random.split(key)
+        self.mp = MPLayer(width, agg, heads, key=km, message_content="learned")
+        self.gru = eqx.nn.GRUCell(width, width, key=kg)
+        self.width = int(width)
+
+    def __call__(self, z, h_prev, adj_off, dist=None) -> jax.Array:
+        # inject the carried hidden into the message-passing input, fuse over the comm graph,
+        # then GRU-update the per-node hidden — h_next = GRU(MP(z + h_prev), h_prev).
+        mp_out = self.mp(z + h_prev, adj_off, dist)              # (N,W) graph-fused belief
+        return jax.vmap(self.gru)(mp_out, h_prev)                # (N,W) per-node GRU update
 
 
 # =============================================================================
@@ -705,7 +797,12 @@ class Actor(eqx.Module):
     trajectory in the PPO loss). With ``recurrence == 'feedforward'`` (default) the
     GRU is never traced, the heads read ``z`` exactly as before, and ``h_next`` is the
     zero passthrough — so the actor forward is BYTE-IDENTICAL to the pre-recurrence
-    actor (the ``gru`` params just sit unused).
+    actor (the ``gru`` params just sit unused). With ``recurrence == 'gcrn'`` the carried
+    hidden is instead updated by a recurrent MESSAGE-PASSING cell (:class:`GCRNCell`,
+    ``h_next = GRU(MP(z + h_prev), h_prev)``) so node i's memory is fused over the comm
+    graph — the always-built ``gcrn`` cell (a stable, ``fold_in``-keyed param surface) is
+    only USED in this mode; the hidden threads through the SAME rollout/loss plumbing as
+    the per-agent GRU (the PPO loss BPTTs it per episode, like ``'recurrent'``).
 
     Selector (the ``selector`` axis): a hierarchical mode-picker over a 3-skill library
     {0=disperse, 1=flock, 2=hold}. The ``selector_head`` (W -> 3) and a learned
@@ -737,6 +834,7 @@ class Actor(eqx.Module):
     compass: Compass
     goal_residual: GoalResidual
     gru: eqx.nn.GRUCell
+    gcrn: GCRNCell
     selector_head: eqx.nn.Linear
     flock_head: "FlockHead"
     aux_head: eqx.nn.Linear
@@ -747,6 +845,7 @@ class Actor(eqx.Module):
     compass_on: bool = eqx.field(static=True)
     diversity_on: bool = eqx.field(static=True)
     recurrent: bool = eqx.field(static=True)
+    gcrn_on: bool = eqx.field(static=True)
     selector_on: bool = eqx.field(static=True)
     flock_flavor: str = eqx.field(static=True)
     comm_r: float = eqx.field(static=True)
@@ -770,10 +869,12 @@ class Actor(eqx.Module):
         kres = jax.random.fold_in(key, 0xD1C0)
         ksel = jax.random.fold_in(key, 0x5E1)        # selector head key (fold_in, not split)
         kflk = jax.random.fold_in(key, 0xF10C)       # learned flock-head key (fold_in)
+        kgcrn = jax.random.fold_in(key, 0x6C64)      # GCRN recurrent-MP cell key (fold_in)
         self.backbone = Backbone(
             in_ch, backbone_cfg.width, backbone_cfg.depth, backbone_cfg.mp_rounds,
             backbone_cfg.agg, backbone_cfg.heads, backbone_cfg.norm, dropout, key=kb,
             message_content=getattr(backbone_cfg, "message_content", "learned"),
+            position_ground=getattr(backbone_cfg, "position_ground", False),
         )
         W = backbone_cfg.width
         self.goal_head = eqx.nn.Linear(W, K, key=kg)
@@ -786,6 +887,10 @@ class Actor(eqx.Module):
         # per-agent recurrent cell over the belief width (W -> W); always built so the
         # param tree is invariant to the recurrence knob, only USED when recurrent.
         self.gru = eqx.nn.GRUCell(W, W, key=kgru)
+        # GCRN recurrent MESSAGE-PASSING belief cell (h_next = GRU(MP(z + h_prev), h_prev));
+        # always built (stable param surface, fold_in key), only USED when recurrence=='gcrn'.
+        # Distinct from the per-agent gru above: it fuses the hidden over the comm graph.
+        self.gcrn = GCRNCell(W, backbone_cfg.agg, backbone_cfg.heads, key=kgcrn)
         # SELECTOR head (the L3 mode-picker over the 3-skill library {disperse,flock,hold})
         # AND the learned FlockHead are ALWAYS built (cheap, stable param surface) — exactly
         # like goal_residual / gru / compass — so the parameter tree is invariant to the
@@ -804,6 +909,7 @@ class Actor(eqx.Module):
         self.compass_on = (str(compass) == "on")
         self.diversity_on = (str(diversity_residual) == "on")
         self.recurrent = (str(recurrence) == "recurrent")
+        self.gcrn_on = (str(recurrence) == "gcrn")
         self.selector_on = (str(selector) == "on")
         self.flock_flavor = str(flock)
         self.comm_r = float(comm_r)
@@ -847,6 +953,14 @@ class Actor(eqx.Module):
         h_in = self.init_hidden(n) if h is None else h                  # (N,W) carry
         if self.recurrent:
             h_next = jax.vmap(self.gru)(z, h_in)                        # (N,W) per-agent GRU
+            feat = h_next                                              # heads read the hidden
+        elif self.gcrn_on:
+            # GCRN: carry a per-NODE recurrent belief THROUGH the comm-graph message passing
+            # (h_next = GRU(MP(z + h_prev), h_prev)); EVERY head reads that graph-fused hidden.
+            # `gcrn_on` is STATIC, so when off this branch is never traced. Distinct from
+            # `recurrent` (per-agent GRU over z, NO graph fusion): here node i's memory is
+            # updated from its NEIGHBOURS' beliefs+hiddens, so memory propagates across the team.
+            h_next = self.gcrn(z, h_in, adj_off, dist)                 # (N,W) recurrent-MP hidden
             feat = h_next                                              # heads read the hidden
         else:
             h_next = self.init_hidden(n)                              # inert zero passthrough
@@ -1081,3 +1195,167 @@ class Critic(eqx.Module):
         if self.drop is not None:
             z = self.drop(z, key=key, inference=inference)
         return self.value_head(z)[0]                                   # ()
+
+
+# =============================================================================
+# Attention critic (MAAC) + COMA counterfactual — the per-agent credit engine
+# =============================================================================
+
+
+class AttnCritic(eqx.Module):
+    """MAAC-style centralized **attention critic** (CTDE, training only) → a PER-AGENT
+    Q_i, where the scalar :class:`Critic` gives one team value shared by everyone.
+
+    Each agent encodes its own ``(belief feat_i, action a_i)`` into ``e_i``; agent i then
+    ATTENDS over every *other* agent's encoding (self masked out — full team graph, CTDE)
+    to a teammate context ``x_i``, and reads ``Q_i = head([e_i ‖ x_i])``. Because ``e_i``
+    (and the query that forms ``x_i``) carry agent i's own action, **Q_i depends on a_i** —
+    which is what makes the COMA counterfactual baseline (vary a_i, hold the rest) a real
+    per-agent advantage. Symmetric over agents (no identity), attention weights sum to 1
+    → agent-count-invariant, same as the rest of the stack.
+
+    ``__call__(feats (N,D), act (N,K)) -> q (N,)``. ``act`` is a per-agent action one-hot
+    (hard, for a taken joint action) or soft distribution; ``D`` = belief width, ``K`` =
+    action-space size (e.g. goals or moves)."""
+    enc: eqx.nn.Linear          # [feat || act] -> hid   (own state+action encoding e_i)
+    q: eqx.nn.Linear            # attention query  (from e_i)
+    k: eqx.nn.Linear            # attention key    (from e_j)
+    v: eqx.nn.Linear            # attention value  (from e_j)
+    head1: eqx.nn.Linear        # [e_i || ctx_i] -> hid
+    head2: eqx.nn.Linear        # hid -> 1  (Q_i)
+    heads: int = eqx.field(static=True)
+    hid: int = eqx.field(static=True)
+
+    def __init__(self, feat_dim: int, n_actions: int, hid: int, heads: int, *, key):
+        ke, kq, kk, kv, k1, k2 = jax.random.split(key, 6)
+        self.enc = eqx.nn.Linear(feat_dim + n_actions, hid, key=ke)
+        self.q = eqx.nn.Linear(hid, hid, key=kq)
+        self.k = eqx.nn.Linear(hid, hid, key=kk)
+        self.v = eqx.nn.Linear(hid, hid, key=kv)
+        self.head1 = eqx.nn.Linear(2 * hid, hid, key=k1)
+        self.head2 = eqx.nn.Linear(hid, 1, key=k2)
+        self.heads = int(heads)
+        self.hid = int(hid)
+
+    def __call__(self, feats: jax.Array, act: jax.Array) -> jax.Array:
+        n = feats.shape[0]
+        e = jax.nn.relu(jax.vmap(self.enc)(jnp.concatenate([feats, act], axis=-1)))  # (N,hid)
+        qh = jax.vmap(self.q)(e).reshape(n, self.heads, -1)            # (N,Hd,dh)
+        kh = jax.vmap(self.k)(e).reshape(n, self.heads, -1)
+        vh = jax.vmap(self.v)(e).reshape(n, self.heads, -1)
+        dh = qh.shape[-1]
+        scores = jnp.einsum("ihd,jhd->ijh", qh, kh) / jnp.sqrt(dh)     # (N,N,Hd)
+        eye = jnp.eye(n, dtype=bool)                                   # MAAC: attend over OTHERS
+        scores = jnp.where(eye[:, :, None], -jnp.inf, scores)
+        attn = jax.nn.softmax(scores, axis=1)                         # (N,N,Hd) over j != i
+        attn = jnp.where(jnp.isnan(attn), 0.0, attn)                  # n==1 guard (all -inf row)
+        ctx = jnp.einsum("ijh,jhd->ihd", attn, vh).reshape(n, -1)     # (N,hid) teammate context
+        z = jax.nn.relu(jax.vmap(self.head1)(jnp.concatenate([e, ctx], axis=-1)))    # (N,hid)
+        return jax.vmap(self.head2)(z)[:, 0]                          # (N,) per-agent Q_i
+
+
+def coma_counterfactual(critic: "AttnCritic", feats: jax.Array,
+                        act_onehot: jax.Array, act_logits: jax.Array):
+    """COMA per-agent counterfactual advantage = the contribution signal (#70).
+
+    For each agent i, holding every *other* agent's action fixed at the taken joint action,
+    marginalize agent i's own action over its policy ``π_i``::
+
+        A_i = Q_i(s, a) − Σ_{a'} π_i(a') · Q_i(s, a₋ᵢ, a')
+
+    ``feats (N,D)``, ``act_onehot (N,K)`` the taken actions, ``act_logits (N,K)`` the policy
+    logits (``-inf`` for masked-invalid actions is fine — softmax zeros them). Returns
+    ``(adv (N,), q_taken (N,))``: ``adv_i`` is how much agent i's chosen action beat its own
+    average given the team — positive = it pulled its weight, ≈0 = interchangeable with its
+    default, negative = it hurt. This is exactly the per-agent credit a shared team value
+    cannot give, and the difference-reward / resilience contribution #70 measures."""
+    n, K = act_onehot.shape
+    q_taken = critic(feats, act_onehot)                              # (N,) Q at the joint action
+    pi = jax.nn.softmax(act_logits, axis=-1)                         # (N,K)
+    cand = jnp.eye(K, dtype=feats.dtype)                            # (K,K) candidate one-hots
+
+    def q_i_over_actions(i):
+        def one(a_prime):                                           # swap agent i -> a', recompute Q_i
+            a2 = act_onehot.at[i].set(a_prime)
+            return critic(feats, a2)[i]
+        return jax.vmap(one)(cand)                                  # (K,) Q_i for each a'_i
+    qi_all = jax.vmap(q_i_over_actions)(jnp.arange(n))              # (N,K)
+    baseline = jnp.sum(pi * qi_all, axis=-1)                        # (N,) expected Q_i over own action
+    return q_taken - baseline, q_taken
+
+
+# =============================================================================
+# Deep-Sets central critic (CTDE, training only) — COUNT-INVARIANT alternative
+# =============================================================================
+
+
+class DeepSetsCritic(eqx.Module):
+    """Permutation- & count-invariant centralized critic (CTDE, training only).
+
+    Where the conv :class:`Critic` reads the single 3-channel GLOBAL ``central_obs``
+    ``(Cg,H,W)``, this critic reads the **per-agent obs stack** ``(N,C,H,W)`` — the same
+    ``(C,H,W)`` tensors the actor sees — and is invariant to the number of agents ``N`` by
+    construction (Deep Sets / permutation-invariant pooling), matching the LPAC backbone's
+    scale-invariance. Pipeline::
+
+        obs (N,C,H,W)
+          └─ SHARED CNN encoder (``_conv_stack`` / ``_encode``, GAP), vmapped over agents ─▶ (N,width)
+          └─ PERMUTATION-INVARIANT pool over the N agents (``pool``):
+               "mean" -> plain mean over agents
+               "attn" -> single-head self-attention (AttnCritic-style q/k) weights each agent
+                         over the team, then mean over the resulting per-agent contexts
+             ─▶ pooled (width,)
+          └─ concat [pooled ‖ team scalars (coverage_fraction, mean λ̂₂)] ─▶ (width+2,)
+          └─ 2-layer MLP ─▶ value ()
+
+    Drop-in for :class:`Critic`'s RETURN (a scalar ``()``) and its ``key``/``inference``
+    kwargs; the difference is the FIRST positional input — the per-agent obs stack ``(N,C,H,W)``
+    plus a ``(2,)`` team-scalar vector — wired at train time only (``ppo._make_critic`` /
+    the rollout+loss call sites branch on ``cfg.critic_arch``). The exec/decentralized path
+    never touches it."""
+    conv: list
+    ln: eqx.nn.LayerNorm | None
+    drop: eqx.nn.Dropout | None
+    attn_q: eqx.nn.Linear | None
+    attn_k: eqx.nn.Linear | None
+    mlp1: eqx.nn.Linear
+    mlp2: eqx.nn.Linear
+    pool: str = eqx.field(static=True)
+
+    def __init__(self, in_ch: int, width: int, depth: int, norm: str,
+                 dropout: float, *, pool: str = "mean", key):
+        kc, kq, kk, k1, k2 = jax.random.split(key, 5)
+        self.conv = _conv_stack(in_ch, width, depth, kc)
+        self.ln = eqx.nn.LayerNorm(width) if norm == "layer" else None
+        self.drop = eqx.nn.Dropout(dropout) if dropout > 0 else None
+        if pool == "attn":
+            self.attn_q = eqx.nn.Linear(width, width, key=kq)
+            self.attn_k = eqx.nn.Linear(width, width, key=kk)
+        else:
+            self.attn_q = None
+            self.attn_k = None
+        self.mlp1 = eqx.nn.Linear(width + 2, width, key=k1)          # [pooled ‖ 2 team scalars]
+        self.mlp2 = eqx.nn.Linear(width, 1, key=k2)
+        self.pool = str(pool)
+
+    def __call__(self, obs, team_scalars, *, key=None, inference: bool = False):
+        # obs (N,C,H,W); team_scalars (2,) = [coverage_fraction, mean λ̂₂]. -> value ().
+        feats = jax.vmap(lambda x: _encode(self.conv, x))(obs)         # (N,width) SHARED encoder
+        if self.ln is not None:
+            feats = jax.vmap(self.ln)(feats)                           # (N,width)
+        if self.drop is not None:
+            feats = self.drop(feats, key=key, inference=inference)     # (N,width)
+        if self.pool == "attn":
+            # AttnCritic-style self-attention: each agent attends over the whole team (self
+            # included, no masking -> n==1 safe), weights sum to 1 -> agent-count-invariant;
+            # then MEAN over the per-agent contexts (permutation-invariant read-out).
+            q = jax.vmap(self.attn_q)(feats)                           # (N,width)
+            k = jax.vmap(self.attn_k)(feats)                           # (N,width)
+            scores = (q @ k.T) / jnp.sqrt(feats.shape[-1])            # (N,N)
+            w = jax.nn.softmax(scores, axis=-1)                       # (N,N) rows sum to 1
+            pooled = (w @ feats).mean(axis=0)                         # (width,)
+        else:
+            pooled = feats.mean(axis=0)                               # (width,) plain mean pool
+        z = jnp.concatenate([pooled, team_scalars])                   # (width+2,)
+        h = jax.nn.relu(self.mlp1(z))
+        return self.mlp2(h)[0]                                        # ()

@@ -45,7 +45,7 @@ import optax
 from . import controller as ctrl
 from . import env_utils as _eu
 from .config import CTDEConfig
-from .nets import Actor, Critic, GroupedActor
+from .nets import Actor, Critic, DeepSetsCritic, GroupedActor
 
 EPS = 1e-8
 _NEG = -1e9   # masked-goal logit
@@ -54,6 +54,29 @@ _NEG = -1e9   # masked-goal logit
 # =============================================================================
 # Goal selection + mechanism (per step, pure)
 # =============================================================================
+
+
+def _deepsets_critic(cfg: CTDEConfig) -> bool:
+    """True when the central critic is the count-invariant DeepSets variant (setpool/setattn).
+
+    The default ``critic_arch == 'conv'`` returns False, so every call site below keeps the
+    conv :class:`Critic` path byte-unchanged (the DeepSets branch is not even traced)."""
+    return cfg.critic_arch in ("setpool", "setattn")
+
+
+def _critic_value(critic, cfg: CTDEConfig, *, central, obs, state, l2_hat,
+                  inference: bool, key=None):
+    """Central-critic forward that dispatches on ``cfg.critic_arch`` (Python-static branch).
+
+    conv -> ``critic(central)`` (the 3-channel global central_obs), byte-unchanged. DeepSets ->
+    ``critic(per-agent obs (N,C,H,W), team_scalars (2,))`` where the team scalars are
+    ``[coverage_fraction(state), mean λ̂₂]``; the coverage op is only computed on the DeepSets
+    branch so the conv path is untouched. ``central`` may be None on the DeepSets path."""
+    if not _deepsets_critic(cfg):
+        return critic(central, key=key, inference=inference)
+    ts = jnp.stack([_eu.coverage_fraction_free(state, cfg).astype(jnp.float32),
+                    l2_hat.mean().astype(jnp.float32)])                # (2,)
+    return critic(obs, ts, key=key, inference=inference)
 
 
 def _goal_mask(env, state, cfg: CTDEConfig, stencil):
@@ -83,6 +106,22 @@ ROLE_EXPLORER = 0   # role index: explorer = the frontier/goal behaviour
 ROLE_RELAY = 1      # role index: relay = the local λ̂₂-anchor (hold the bridge)
 
 
+def _navfield_blocked(state, cfg: CTDEConfig):
+    """(N,H,W) bool — the per-agent KB occupancy the nav-field planner routes over: cells
+    the agent KNOWS are walls. A cell is blocked for agent i iff it is BOTH a true wall AND
+    in agent i's post-gossip belief (``state.channel.shared``); UNKNOWN and known-free cells
+    are traversable (OPTIMISTIC — so the agent plans a path THROUGH unexplored ground and
+    discovers it). Falls back to the god-view wall map when the channel carries no belief
+    (e.g. NullChannel). Only ever called on the gated navfield path (default greedy skips it),
+    so the default controller is byte-unchanged."""
+    wall = state.wall                                              # (H,W) true walls
+    shared = getattr(state.channel, "shared", None)               # (N,H,W) belief | None
+    if shared is None:                                            # no belief -> god-view walls
+        n = state.body.position.shape[0]
+        return jnp.broadcast_to(wall[None], (n,) + wall.shape)
+    return shared & wall[None]                                    # (N,H,W) known walls per agent
+
+
 def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig = None):
     """((N,) move, (N,) bool was-valid) from chosen goals (+optional roles) via the
     L1 controllers. ``was_valid[i]`` audits the emitted move is env-valid.
@@ -98,6 +137,11 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     When ``cfg.collision_mask == 'on'`` both controllers also ``forbid_collision``
     (the hard collision-mask: never step onto a cell another agent occupies NOW);
     STAY stays selectable so an emitted move is always env-valid (off -> v0).
+
+    ``cfg.action_head.controller`` picks the EXPLORER's L1 controller: "greedy" (default)
+    -> :func:`controller.greedy_move` (v0, byte-unchanged); "navfield" ->
+    :func:`controller.navfield_move` (the L2 nav-field planner + reactive controller, which
+    routes around KNOWN walls toward the same goal). Relay controllers are unaffected.
     """
     pos = state.body.position
     h, w = state.wall.shape
@@ -107,8 +151,20 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     valid_targets = env.dynamics.targets(state)                       # (N,A,2)
     action_valid = env.action_mask(state)                            # (N,A)
     forbid = cfg is not None and cfg.collision_mask == "on"           # hard collision axis
-    expl_move = ctrl.greedy_move(pos, goal, valid_targets, action_valid,
-                                 forbid_collision=forbid)             # (N,)
+    # L1 controller axis (default "greedy" -> byte-unchanged). "navfield": route the
+    # EXPLORER move through the L2 nav-field planner + reactive controller toward the SAME
+    # goal cell (the goal-region head is deferred). On open terrain nav-field == greedy; on
+    # KNOWN walls it routes around them. The reactive controller vetoes agent collisions
+    # intrinsically (its own 3×3 safety check), so it always forbids collisions.
+    use_navfield = cfg is not None and cfg.action_head.controller == "navfield"
+    if use_navfield:
+        blocked = _navfield_blocked(state, cfg)                       # (N,H,W) known walls
+        expl_move = ctrl.navfield_move(pos, goal, blocked, valid_targets, action_valid,
+                                       planner=cfg.action_head.planner,
+                                       forbid_collision=True)         # (N,) nav-field descent
+    else:
+        expl_move = ctrl.greedy_move(pos, goal, valid_targets, action_valid,
+                                     forbid_collision=forbid)         # (N,)
     if role_idx is not None:
         # relay tool axis (I2): pick the relay controller from the config. Static
         # string -> the unused branch is not even traced; "lambda2_anchor" reproduces
@@ -174,6 +230,13 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     # per-agent value head (mean over agents) instead of the centralized critic — the
     # central critic is left unused. "central" (default) is byte-unchanged.
     decentral = cfg.critic_mode == "decentral"
+    # v3 EXACT submodular difference-reward credit (loss.credit=="difference"): compute a
+    # SECOND per-agent reward whose ONLY change vs rew_agent is the coverage magnitude —
+    # each agent is paid its UNIQUELY-provided new coverage D_i (marginal contribution),
+    # connectivity/collision/penalty terms untouched. Stored in a gated trajectory field
+    # (the shared/team reward path is byte-unchanged); the per-agent advantage is formed
+    # from it in train_step. Off (default "shared") -> field absent -> traj pytree unchanged.
+    use_diff_credit = cfg.loss.credit == "difference"
 
     def body(carry, _):
         state, obs, h, k = carry
@@ -218,7 +281,9 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         # central is stored regardless (byte-stable traj pytree); the central critic is
         # only READ in central mode. In decentral the team value is the actor's own
         # per-agent value head, mean-pooled (DTE: the global-state critic input is dropped).
-        v_team = value_agent.mean() if decentral else critic(central, inference=True)  # ()
+        v_team = value_agent.mean() if decentral else _critic_value(
+            critic, cfg, central=central, obs=obs, state=state, l2_hat=l2_hat,
+            inference=True)                                          # ()
 
         gmask = _goal_mask(env, state, cfg, stencil)                  # (N,K) bool
         masked_logits = jnp.where(gmask, goal_logits, _NEG)
@@ -290,6 +355,16 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         rew_agent = _eu.compose_reward(info["reward_terms"], state_next, cfg, l2_penalty,
                                        congestion_penalty=congestion_penalty)
         rew_team = rew_agent.mean()                                   # () centralized target
+        if use_diff_credit:
+            # EXACT submodular coverage difference reward D_i (uniquely-provided new cells
+            # this step); recompose the per-agent reward with the coverage magnitude swapped
+            # new_coverage_i -> D_i, so connectivity/collision/penalty terms are identical.
+            d_i = _eu.coverage_difference_credit(
+                state.covered, state_next.body.position, state_next.wall, cfg)  # (N,)
+            diff_terms = {**info["reward_terms"], "coverage": d_i}
+            rew_agent_credit = _eu.compose_reward(
+                diff_terms, state_next, cfg, l2_penalty,
+                congestion_penalty=congestion_penalty)               # (N,)
         cov = _eu.coverage_fraction_free(state_next, cfg)            # ()
         degree = _eu.degree_stats(state.body.position, cfg)         # (N,)
 
@@ -324,6 +399,12 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             # exactly the same edge geometry (parallels "adj"). Only present for the non-
             # default message_content modes -> the 'learned' trajectory pytree is unchanged.
             per_step["dist"] = dist                                    # (N,N)
+        if use_diff_credit:
+            # the per-agent difference-credited reward (advantage source in train_step) and
+            # the raw uniquely-provided-coverage D_i (a per-agent diagnostic). Both present
+            # only on the "difference" path -> the "shared" trajectory pytree is unchanged.
+            per_step["rew_agent_credit"] = rew_agent_credit            # (N,)
+            per_step["diff_credit"] = d_i                              # (N,) raw D_i
         return (state_next, obs_next, h_next, k), per_step
 
     (state_T, obs_T, h_T, _), traj = jax.lax.scan(
@@ -336,6 +417,16 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         _g, _r, value_agent_T, _l2, _z, _h = actor(obs_T, adj_T, dist=dist_T, h=h_T,
                                                     inference=True)
         traj["v_last"] = value_agent_T.mean()                        # () GAE bootstrap
+    elif _deepsets_critic(cfg):
+        # DeepSets bootstrap needs the per-agent obs stack + team scalars at T; the central
+        # branch does not run the actor at T, so do it once here to recover l2_hat_T (the aux
+        # head, identical whether or not the selector is on — mirrors the decentral branch).
+        adj_T = _eu.kb_adjacency(state_T.body.position, cfg)
+        dist_T = _eu.kb_distance(state_T.body.position, cfg) if edge_msg else None
+        _g, _r, _v, l2_hat_T, _z, _h = actor(obs_T, adj_T, dist=dist_T, h=h_T,
+                                             inference=True)
+        traj["v_last"] = _critic_value(critic, cfg, central=None, obs=obs_T, state=state_T,
+                                       l2_hat=l2_hat_T, inference=True)  # () GAE bootstrap
     else:
         central_T = env.central_obs(state_T)
         traj["v_last"] = critic(central_T, inference=True)           # () GAE bootstrap
@@ -388,6 +479,34 @@ def compute_advantages(traj, cfg: CTDEConfig):
         traj["rew_team"], traj["v_team"], traj["v_last"]
     )
     return adv, ret
+
+
+def compute_agent_advantages(traj, cfg: CTDEConfig, reward_field: str = "rew_agent"):
+    """(B,T,N) PER-AGENT advantage for the v3 per-agent credit schemes. Each agent's OWN
+    reward ``traj[reward_field][:,:,i]`` runs through GAE with the SHARED team value
+    ``v_team`` as the baseline (a state-only baseline -> UNBIASED for the per-agent policy
+    gradient, it only reshapes variance) and the team ``v_last`` bootstrap. The critic keeps
+    training on the team return (:func:`compute_advantages`); only the POLICY advantage
+    becomes per-agent, so each agent is credited for ITS contribution instead of the team
+    mean. vmap over B (episodes) then over N (agents).
+
+    ``reward_field`` selects the per-agent reward source (a mutually-exclusive credit axis):
+    - ``"rew_agent"`` (default) — the full per-agent composed reward, used by the top-level
+      ``cfg.credit == 'agent'`` axis (the balthar A2 experiment).
+    - ``"rew_agent_credit"`` — the EXACT submodular difference-reward variant (coverage
+      magnitude swapped new_coverage_i -> D_i, uniquely-provided new cells), used by
+      ``cfg.loss.credit == 'difference'``; each agent's policy gradient uses its own
+      marginal coverage contribution while the connectivity/collision terms stay shared."""
+    t = cfg.trainer
+
+    def per_episode(rew_a, v, vl):                    # rew_a (T,N), v (T,), vl ()
+        return jax.vmap(
+            lambda r: _gae(r, v, vl, t.gamma, t.gae_lambda)[0], in_axes=1, out_axes=1
+        )(rew_a)                                       # (T,N)
+
+    return jax.vmap(per_episode)(
+        traj[reward_field], traj["v_team"], traj["v_last"]
+    )                                                  # (B,T,N)
 
 
 def _pairwise_tv_mean(p):
@@ -576,7 +695,10 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
     entropy (a clone of the role-PG block). Roles are off when the selector is on
     (selector supersedes the role picker). With ``selector == 'off'`` (default) this whole
     branch is dead and the loss is byte-identical to v0."""
-    recurrent = cfg.backbone.recurrence == "recurrent"
+    # both 'recurrent' (per-agent GRU) and 'gcrn' (recurrent message-passing) carry a
+    # per-agent hidden state across the episode, so BOTH take the per-episode BPTT scan
+    # forward + minibatch-over-episodes path (only the in-actor hidden update differs).
+    recurrent = cfg.backbone.recurrence in ("recurrent", "gcrn")
     use_selector = cfg.selector == "on"
     obs = batch["obs"]                 # FF: (M,N,C,H,W) | REC: (B,T,N,C,H,W)
     adj = batch["adj"]                 # FF: (M,N,N)     | REC: (B,T,N,N)
@@ -643,7 +765,10 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
     probs = jnp.exp(logp_all)
     entropy = -(jnp.where(gmask, probs * logp_all, 0.0)).sum(-1)    # (M,N)
 
-    adv_b = jax.lax.stop_gradient(adv)[:, None]                     # (M,1)
+    # adv is (M,) shared team advantage -> (M,1) broadcast to all agents (v0/A0), OR
+    # (M,N) per-agent difference-reward advantage (v3 credit=="agent"); whiten either way.
+    _a = jax.lax.stop_gradient(adv)
+    adv_b = _a if _a.ndim == 2 else _a[:, None]                     # (M,N) | (M,1)
     adv_norm = (adv_b - adv_b.mean()) / (adv_b.std() + EPS)
     clip = cfg.loss.ppo_clip
     goal_pg = _clipped_pg(logp, old_logp, adv_norm, clip)
@@ -687,6 +812,18 @@ def loss_fn(actor, critic, batch, cfg: CTDEConfig, key):
         # rollout's per-agent value exactly (consistency with the v_team source).
         v_agent = jax.vmap(jax.vmap(actor.value_head))(_z)[..., 0]    # (M,N)
         v_pred = v_agent.mean(-1)                                     # (M,) team value
+    elif _deepsets_critic(cfg):
+        # DeepSets central critic: per-agent obs stack (M,N,C,H,W) + STORED team scalars
+        # [coverage, mean λ̂₂]. The old (rollout-time) l2_hat/coverage are used as fixed data
+        # (not the recomputed differentiable l2_hat) so the critic never gradients the actor's
+        # aux head, matching the rollout's team-scalar source.
+        if recurrent:
+            obs_c = _f(batch["obs"]); cov_c = _f(batch["coverage"]); l2_c = _f(batch["l2_hat"])
+        else:
+            obs_c = batch["obs"]; cov_c = batch["coverage"]; l2_c = batch["l2_hat"]
+        ts = jnp.stack([cov_c.astype(jnp.float32),
+                        l2_c.mean(-1).astype(jnp.float32)], axis=-1)  # (M,2)
+        v_pred = jax.vmap(lambda o, t: critic(o, t, inference=False))(obs_c, ts)  # (M,)
     else:
         v_pred = jax.vmap(lambda c: critic(c, inference=False))(central)  # (M,)
     value_loss = jnp.mean((v_pred - jax.lax.stop_gradient(ret)) ** 2)
@@ -804,6 +941,20 @@ def _make_actor(in_ch: int, cfg: CTDEConfig, key) -> Actor:
                  flock_sharp=cfg.connectivity.lambda2_sharp)
 
 
+def _make_critic(in_ch: int, cg: int, cfg: CTDEConfig, key):
+    """Build the central critic per ``cfg.critic_arch`` (train-only; ``critic_mode='central'``).
+
+    "conv" (default) = the conv :class:`Critic` over the ``cg``-channel global central_obs
+    (byte-unchanged). "setpool" / "setattn" = the count-invariant :class:`DeepSetsCritic` over
+    the ``in_ch``-channel PER-AGENT obs stack, mean / attention agent-pooling respectively."""
+    if not _deepsets_critic(cfg):
+        return Critic(cg, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
+                      cfg.regularization.dropout, key=key)
+    pool = "attn" if cfg.critic_arch == "setattn" else "mean"
+    return DeepSetsCritic(in_ch, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
+                          cfg.regularization.dropout, pool=pool, key=key)
+
+
 def _fork_guard(cfg: CTDEConfig) -> None:
     if cfg.fork_groups > 1 and cfg.critic_mode == "decentral":
         raise ValueError(
@@ -822,8 +973,7 @@ def init_state(env, cfg: CTDEConfig, key) -> TrainState:
         actor = GroupedActor([_make_actor(in_ch, cfg, k) for k in sub_keys])
     else:
         actor = _make_actor(in_ch, cfg, ka)
-    critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth, cfg.backbone.norm,
-                    cfg.regularization.dropout, key=kc)
+    critic = _make_critic(in_ch, cg, cfg, kc)
     opt = make_optimizer(cfg)
     params = (eqx.filter(actor, eqx.is_array), eqx.filter(critic, eqx.is_array))
     return TrainState(actor=actor, critic=critic, opt_state=opt.init(params),
@@ -887,8 +1037,7 @@ def init_state_from_checkpoint(env, cfg: CTDEConfig, ckpt_path: str, key) -> Tra
     # The bootstrap checkpoint is ALWAYS a single shared Actor (B-fork replicates AFTER
     # loading), so the LOAD template is a single Actor regardless of cfg.fork_groups.
     template_actor = _make_actor(in_ch, cfg, ka)
-    template_critic = Critic(cg, cfg.backbone.width, cfg.backbone.depth,
-                             cfg.backbone.norm, cfg.regularization.dropout, key=kc)
+    template_critic = _make_critic(in_ch, cg, cfg, kc)
 
     # Shape-compatibility gate BEFORE deserialise, with a scale-strategy-aware
     # message (eqx would also catch this, but later and more cryptically).
@@ -988,6 +1137,17 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     ck, pk = jax.random.split(key)
     traj = collect(env, state.actor, state.critic, cfg, stencil, ck, state.dual.lam)
     adv, ret = compute_advantages(traj, cfg)
+    # v3 per-agent credit: swap the shared team advantage for a PER-AGENT one (B,T,N). ``ret``
+    # stays team (the critic target is unchanged). Gated -> default (credit=="shared" AND
+    # loss.credit=="shared") is byte-identical. Downstream _flatten_BT / _f collapse
+    # (B,T[,N]) either way. The two schemes are mutually exclusive:
+    #   cfg.credit == "agent"            -> each agent's own full composed reward (A2 axis).
+    #   cfg.loss.credit == "difference"  -> the EXACT submodular difference reward D_i (the
+    #                                       coverage-marginal per-agent reward "rew_agent_credit").
+    if cfg.credit == "agent":
+        adv = compute_agent_advantages(traj, cfg)
+    elif cfg.loss.credit == "difference":
+        adv = compute_agent_advantages(traj, cfg, reward_field="rew_agent_credit")
 
     # The KB adjacency the actor consumed at rollout time is stored in the traj
     # ("adj"), so the loss replays the actor on exactly the same comm graph.
@@ -1011,7 +1171,12 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     # field set is byte-unchanged).
     if cfg.selector == "on":
         fields += ["skill", "skill_logp", "position"]
-    if cfg.backbone.recurrence == "recurrent":
+    # the DeepSets central critic reads the per-agent obs stack (already in "obs") plus two
+    # STORED team scalars — coverage + l2_hat — so minibatch those alongside (gated so the
+    # conv-critic field set is byte-unchanged).
+    if _deepsets_critic(cfg):
+        fields += ["coverage", "l2_hat"]
+    if cfg.backbone.recurrence in ("recurrent", "gcrn"):  # both carry a per-episode hidden
         flat = {k: traj[k] for k in fields}          # keep (B,T,...) — minibatch episodes
         flat["adv"], flat["ret"] = adv, ret          # (B,T) per-episode advantage/return
         nperm = flat["obs"].shape[0]                 # B episodes
@@ -1125,6 +1290,14 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     # stable per config): the per-skill USAGE fraction over all agent-steps + the
     # mode-usage entropy (mean over agents/steps of the per-agent selector entropy — high
     # = the team keeps mixing modes, low = it collapsed onto one skill).
+    # difference-credit diagnostics (only on the "difference" path; the log key set is
+    # static per config): the per-agent uniquely-provided new-coverage D_i, mean over all
+    # agent-steps, and the per-episode total credited cells (Σ_i D_i summed over the horizon,
+    # episode-mean) — the "how much coverage was non-redundant" signal.
+    if cfg.loss.credit == "difference":
+        dc = traj["diff_credit"]                                      # (B,T,N) raw D_i
+        logs["diff_credit_mean"] = dc.mean()                          # () per-agent D_i mean
+        logs["diff_credit_ep_total"] = dc.sum(axis=(1, 2)).mean()     # () unique cells/episode
     if cfg.selector == "on":
         skill_bt = traj["skill"]                                     # (B,T,N) sampled skill
         for m, name in ((0, "disperse"), (1, "flock"), (2, "hold")):

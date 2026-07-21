@@ -65,17 +65,31 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                         "is); index=append a fixed sinusoidal embedding of the sender's "
                         "normalized index (receiver tells neighbours apart). Scale- and "
                         "agent-count-invariant.")
-    p.add_argument("--recurrence", choices=["feedforward", "recurrent"],
+    p.add_argument("--recurrence", choices=["feedforward", "recurrent", "gcrn"],
                    default="feedforward",
                    help="per-agent temporal memory (the recurrence axis): "
                         "feedforward=heads read the per-step belief (v0, byte-unchanged); "
                         "recurrent=a GRU carries a per-agent hidden state across the "
                         "100-step episode so the agent remembers its trajectory/coverage "
                         "history (heads read the hidden). Threads through the rollout "
-                        "scan AND the PPO loss (BPTT, minibatched over episodes).")
+                        "scan AND the PPO loss (BPTT, minibatched over episodes); "
+                        "gcrn=a size-invariant Graph-Convolutional Recurrent belief "
+                        "(hidden carried across the episode AND fused over the comm graph).")
+    p.add_argument("--position-ground", action="store_true",
+                   help="append a boundary-relative, normalized position feature to the "
+                        "backbone input (grounds the position-blind policy). Off by default "
+                        "(byte-unchanged); scale-invariant (normalized to field extent).")
     # action head
     p.add_argument("--goal-k", type=int, default=9)
     p.add_argument("--stride", type=int, default=3)
+    p.add_argument("--controller", choices=["greedy", "navfield"], default="greedy",
+                   help="L1 controller turning the goal into a 1-step move: greedy "
+                        "(default)=Chebyshev-descent, env-valid moves (v0, byte-unchanged); "
+                        "navfield=nav-field + reactive controller (uses --planner).")
+    p.add_argument("--planner", choices=["wavefront", "bfs", "fmm", "astar"],
+                   default="wavefront",
+                   help="nav-field planner, used ONLY when --controller navfield (inert "
+                        "under greedy): wavefront (default) | bfs | fmm | astar.")
     p.add_argument("--explorer-tool", choices=["goal_head", "frontier_attn"],
                    default="goal_head",
                    help="how the explorer picks its goal sector (I2 / L4 'disperse'): "
@@ -110,6 +124,15 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                    help="per-agent soft-degree floor for --conn-signal local_edge_margin")
     p.add_argument("--lambda-lr", type=float, default=0.05,
                    help="dual-ascent step size (lagrangian mechanism)")
+    p.add_argument("--lambda-init", type=float, default=MissionSafety().lambda_init,
+                   help="initial dual variable λ for the adaptive mechanisms "
+                        "(default: config default)")
+    p.add_argument("--pid-kp", type=float, default=MissionSafety().pid_kp,
+                   help="PID proportional gain (pid_lagrangian mechanism)")
+    p.add_argument("--pid-ki", type=float, default=MissionSafety().pid_ki,
+                   help="PID integral gain (pid_lagrangian mechanism)")
+    p.add_argument("--pid-kd", type=float, default=MissionSafety().pid_kd,
+                   help="PID derivative gain (pid_lagrangian mechanism)")
     p.add_argument("--constraint-threshold", type=float, default=None,
                    help="connectivity floor τ for the dual violation "
                         "(default: reuse connectivity.threshold)")
@@ -179,6 +202,18 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
                    help="central (default)=CTDE centralized critic sources the value "
                         "(byte-unchanged); decentral=DTE tail, value comes from the "
                         "actor's own per-agent value head (central critic unused).")
+    p.add_argument("--critic-arch", choices=["conv", "setpool", "setattn"], default="conv",
+                   help="central critic architecture (only read when --critic-mode central): "
+                        "conv (default)=conv critic over the global central_obs (byte-unchanged); "
+                        "setpool/setattn=count-invariant DeepSets critic over the per-agent obs "
+                        "stack with mean / attention agent-pooling.")
+    p.add_argument("--credit", choices=["shared", "agent", "difference"], default="shared",
+                   help="v3 credit assignment (mutually-exclusive schemes): shared "
+                        "(default)=one team-mean advantage broadcast to all agents (A0, "
+                        "byte-unchanged); agent=a PER-AGENT advantage from each agent's own "
+                        "reward (A2, top-level credit); difference=the EXACT submodular "
+                        "per-agent difference reward D_i (config.loss.credit) that pays "
+                        "disjoint sweeping and starves redundant floods.")
     p.add_argument("--diversity-residual", choices=["off", "on"], default="off",
                    help="off (default)=v0 goal logits (byte-unchanged); on=Arm B-dico, "
                         "add a mean-zero per-agent identity-conditioned residual to the "
@@ -248,23 +283,30 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         backbone=Backbone(width=args.width, depth=args.depth, mp_rounds=args.mp_rounds,
                           agg=args.agg, norm=args.norm,
                           message_content=args.message_content,
-                          recurrence=args.recurrence),
+                          recurrence=args.recurrence,
+                          position_ground=args.position_ground),
         action_head=dataclasses.replace(CTDEConfig().action_head, K=args.goal_k,
                                         stride=args.stride,
+                                        controller=args.controller,
+                                        planner=args.planner,
                                         explorer_tool=args.explorer_tool,
                                         relay_tool=args.relay_tool,
                                         compass=args.compass),
         mission_safety=MissionSafety(mechanism=args.mechanism,
                                      conn_signal=args.conn_signal,
                                      degree_target=args.degree_target,
+                                     lambda_init=args.lambda_init,
                                      lambda_lr=args.lambda_lr,
-                                     constraint_threshold=args.constraint_threshold),
+                                     constraint_threshold=args.constraint_threshold,
+                                     pid_kp=args.pid_kp, pid_ki=args.pid_ki,
+                                     pid_kd=args.pid_kd),
         reward=Reward(w_coverage=args.w_coverage, w_connectivity=args.w_connectivity,
                       soft_lambda_penalty=args.soft_lambda_penalty,
                       barrier_weight=args.barrier_weight, barrier_a=args.barrier_a,
                       barrier_M=args.barrier_M, barrier_p=args.barrier_p,
                       barrier_cap=args.barrier_cap),
-        loss=Loss(ppo_clip=args.clip, aux_beta=args.beta, aux_loss=args.aux_loss),
+        loss=Loss(ppo_clip=args.clip, aux_beta=args.beta, aux_loss=args.aux_loss,
+                  credit=("difference" if args.credit == "difference" else "shared")),
         trainer=Trainer(lr=args.lr, clip=args.clip, ppo_epochs=args.ppo_epochs,
                         minibatches=args.minibatches),
         regularization=Regularization(degree_reg=args.degree_reg,
@@ -277,6 +319,8 @@ def _parse_args(argv=None) -> tuple[CTDEConfig, str | None, bool, str | None]:
         collision_mask=args.collision_mask,
         warmstart_noise=args.warmstart_noise,
         critic_mode=args.critic_mode,
+        critic_arch=args.critic_arch,
+        credit=(args.credit if args.credit != "difference" else "shared"),
         diversity_residual=args.diversity_residual,
         fork_groups=args.fork_groups,
         selector=args.selector,

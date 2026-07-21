@@ -1546,6 +1546,81 @@ def test_collision_mask_train_step_runs():
     assert float(logs["ctrl_valid_frac"]) == 1.0          # only valid moves emitted
 
 
+# ---- nav-field planner (L2) + reactive controller (L1) ----------------------
+
+
+def test_navfield_open_terrain_matches_greedy():
+    """L2/L1: on OPEN terrain (no known walls) the nav-field IS the king-move (Chebyshev)
+    distance, so the reactive nav-field controller emits the SAME move as the greedy
+    controller for every agent and every planner — nav-field strictly generalizes greedy."""
+    pos = jnp.array([[8, 8], [3, 10], [12, 4]], dtype=jnp.int32)
+    goal = jnp.array([[8, 12], [1, 10], [12, 12]], dtype=jnp.int32)
+    vt, av = _deltas_targets(pos)
+    blocked = jnp.zeros((pos.shape[0], 16, 16), dtype=bool)           # no known walls
+    g = ctrl.greedy_move(pos, goal, vt, av)                           # (N,) greedy baseline
+    for planner in ("wavefront", "bfs", "astar", "fmm"):
+        nf = ctrl.navfield_move(pos, goal, blocked, vt, av, planner=planner,
+                                forbid_collision=False)
+        assert bool(jnp.array_equal(g, nf)), (planner, g, nf)
+
+
+def test_navfield_field_routes_around_wall():
+    """L2: a KNOWN wall between a cell and the goal makes the nav-field DISTANCE at that
+    cell strictly LARGER than the straight-line Chebyshev distance (the field detours
+    around the wall's gap) while staying finite (reachable); a cell on the goal side keeps
+    the direct Chebyshev distance. Deterministic, env-free — proves the routing."""
+    H = W = 11
+    blocked = jnp.zeros((H, W), dtype=bool).at[0:10, 5].set(True)     # wall col 5, rows 0..9
+    goal = jnp.array([5, 9], dtype=jnp.int32)                         # right of the wall
+    for planner in ("wavefront", "fmm"):
+        D = ctrl.nav_distance_field(goal, blocked, planner)
+        assert float(D[5, 0]) > 9.0, (planner, float(D[5, 0]))       # left side: detours (>straight 9)
+        assert float(D[5, 0]) < 1e9, (planner, "goal unreachable")   # still reachable via the gap
+        assert float(D[5, 7]) == 2.0, (planner, float(D[5, 7]))      # goal side: direct Chebyshev
+
+
+def test_navfield_controller_train_step():
+    """A PPO iteration with --controller navfield runs end-to-end and the controller still
+    emits 100% env-valid moves (the STAY-always-valid guarantee) over the rollout."""
+    cfg = _tiny_cfg(
+        world=World(grid=10, n_agents=2, comm_r=5, horizon=6),
+        action_head=ActionHead(controller="navfield"),
+    )
+    env = env_utils.build_env(cfg)
+    opt = ppo.make_optimizer(cfg)
+    stencil = ppo.make_stencil(cfg)
+    state = ppo.init_state(env, cfg, jax.random.PRNGKey(5))
+    _, logs = ppo.train_step(env, state, cfg, jax.random.PRNGKey(6), opt, stencil)
+    assert jnp.isfinite(logs["ep_reward"])
+    assert float(logs["ctrl_valid_frac"]) == 1.0                     # only valid moves emitted
+
+
+def test_navfield_default_greedy_byte_unchanged():
+    """REGRESSION: the DEFAULT controller is 'greedy'; the default and an explicit greedy
+    produce bit-identical rollouts (nav-field is strictly opt-in, default byte-unchanged)."""
+    import dataclasses
+    cfg_def = _tiny_cfg(world=World(grid=10, n_agents=3, comm_r=5, horizon=6))
+    assert cfg_def.action_head.controller == "greedy"                # the default
+    cfg_exp = dataclasses.replace(cfg_def, action_head=ActionHead(controller="greedy"))
+    env = env_utils.build_env(cfg_def)
+    stencil = ppo.make_stencil(cfg_def)
+    st = ppo.init_state(env, cfg_def, jax.random.PRNGKey(5))
+    key = jax.random.PRNGKey(6)
+    t_def = ppo.collect(env, st.actor, st.critic, cfg_def, stencil, key, jnp.float32(0.0))
+    t_exp = ppo.collect(env, st.actor, st.critic, cfg_exp, stencil, key, jnp.float32(0.0))
+    for k in ("move", "rew_agent", "true_l2"):
+        assert bool(jnp.array_equal(t_def[k], t_exp[k])), k
+
+
+def test_navfield_config_roundtrip():
+    """The controller / planner action-head axes round-trip through the config tree."""
+    cfg = _tiny_cfg(action_head=ActionHead(controller="navfield", planner="fmm"))
+    d = cfg.to_dict()
+    assert d["action_head"]["controller"] == "navfield"
+    assert d["action_head"]["planner"] == "fmm"
+    assert from_dict(d).to_dict() == d
+
+
 def _violating_threshold(cfg, env, stencil, key):
     """A constraint floor τ guaranteed to make v = relu(τ − mean λ₂) > 0 on the
     tiny env (measure the rollout's mean λ₂ and sit comfortably above it), so the
@@ -2010,6 +2085,11 @@ if __name__ == "__main__":
     test_one_train_step_runs()
     test_soft_lambda_mechanism_runs()
     test_collision_mask_train_step_runs()
+    test_navfield_open_terrain_matches_greedy()
+    test_navfield_field_routes_around_wall()
+    test_navfield_controller_train_step()
+    test_navfield_default_greedy_byte_unchanged()
+    test_navfield_config_roundtrip()
     test_lagrangian_mechanism_moves_lambda()
     test_lagrangian_local_edge_margin_moves_lambda()
     test_pid_lagrangian_mechanism_updates_lambda()

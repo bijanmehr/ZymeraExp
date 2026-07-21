@@ -129,6 +129,172 @@ def greedy_move(pos: jax.Array, goal: jax.Array, valid_targets: jax.Array,
     return move
 
 
+# =============================================================================
+# Nav-field planner (L2) + reactive controller (L1)  — ADDITIVE, gated behind
+# ``action_head.controller == 'navfield'`` (default 'greedy' -> none of this runs).
+# =============================================================================
+#
+# A distance-field ("nav-field") planner computes a distance-to-GOAL field over the
+# FREE cells of the KB occupancy grid and the reactive L1 controller descends its
+# gradient one env-valid step at a time (with a hard collision veto + STAY fallback).
+# On OPEN terrain the field is the plain Chebyshev (king-move) distance, so the emitted
+# move is identical to :func:`greedy_move`; around KNOWN walls the field routes around
+# them (something the pure Chebyshev-descent greedy controller cannot do).
+#
+# Everything is pure JAX (fixed-iteration relaxation over the small grid -> vmap/scan/
+# jit-safe). ``_FAR`` is a large FINITE sentinel (not ``inf``) so ``+1`` relaxations and
+# the argmin never produce inf/nan.
+
+_FAR = jnp.float32(1e9)   # "unreached / blocked" distance sentinel (finite, jit-safe)
+
+
+def _king_neighbor_min(D: jax.Array) -> jax.Array:
+    """(H,W) — for every cell, the MIN distance over its 8 king-move neighbours (out-of-
+    bounds neighbours read ``_FAR``). One Bellman-Ford relaxation ring."""
+    f = _FAR
+    n = jnp.pad(D[:-1, :], ((1, 0), (0, 0)), constant_values=f)     # from (r-1, c)
+    s = jnp.pad(D[1:, :],  ((0, 1), (0, 0)), constant_values=f)     # from (r+1, c)
+    w = jnp.pad(D[:, :-1], ((0, 0), (1, 0)), constant_values=f)     # from (r, c-1)
+    e = jnp.pad(D[:, 1:],  ((0, 0), (0, 1)), constant_values=f)     # from (r, c+1)
+    nw = jnp.pad(D[:-1, :-1], ((1, 0), (1, 0)), constant_values=f)  # (r-1, c-1)
+    ne = jnp.pad(D[:-1, 1:],  ((1, 0), (0, 1)), constant_values=f)  # (r-1, c+1)
+    sw = jnp.pad(D[1:, :-1],  ((0, 1), (1, 0)), constant_values=f)  # (r+1, c-1)
+    se = jnp.pad(D[1:, 1:],   ((0, 1), (0, 1)), constant_values=f)  # (r+1, c+1)
+    return jnp.min(jnp.stack([n, s, w, e, nw, ne, sw, se], axis=0), axis=0)
+
+
+def _bfs_distance_field(goal: jax.Array, blocked: jax.Array, n_iters: int) -> jax.Array:
+    """(H,W) float32 — king-move BFS distance transform to ``goal`` over the FREE cells of
+    ``blocked`` (True = obstacle). Jacobi min-plus relaxation for ``n_iters`` sweeps: the
+    goal cell is pinned to 0, blocked cells stay ``_FAR``, every other cell relaxes to
+    ``min(self, min_king_neighbour + 1)``. ``n_iters`` fixed (grid is small) -> vmap/scan-
+    safe. Unreached cells (field not yet propagated that far) stay ``_FAR`` — the reactive
+    controller then STAYs / moves only as far as the field reached (graceful)."""
+    h, w = blocked.shape
+    gr, gc = goal[0], goal[1]
+    seed = jnp.full((h, w), _FAR, jnp.float32).at[gr, gc].set(0.0)
+
+    def body(D, _):
+        D2 = jnp.minimum(D, _king_neighbor_min(D) + 1.0)            # relax one ring
+        D2 = jnp.where(blocked, _FAR, D2)                          # obstacles impassable
+        D2 = D2.at[gr, gc].set(0.0)                                # re-pin the goal source
+        return D2, None
+
+    D, _ = jax.lax.scan(body, seed, xs=None, length=n_iters)
+    return D
+
+
+def _fmm_sweep(D: jax.Array, blocked: jax.Array, row_rev: bool, col_rev: bool) -> jax.Array:
+    """One fast-sweeping (Gauss-Seidel) corner pass over ``D``: rows are processed in order
+    (reversed when ``row_rev``) carrying the already-updated previous row's 3 king
+    neighbours (+1), and within each row cells relax left->right (reversed when ``col_rev``)
+    off the running cumulative minimum (+1). The four (row_rev, col_rev) corners together
+    propagate king-move distances along every characteristic direction — the fast-sweeping
+    Eikonal method. Obstacles are forced to ``_FAR``. Pure JAX (nested ``lax.scan``)."""
+    Dr = D[::-1] if row_rev else D
+    Br = blocked[::-1] if row_rev else blocked
+    w = D.shape[1]
+
+    def row_step(prev_row, cur):
+        d_row, b_row = cur
+        up = prev_row + 1.0
+        upl = jnp.pad(prev_row[:-1], (1, 0), constant_values=_FAR) + 1.0
+        upr = jnp.pad(prev_row[1:], (0, 1), constant_values=_FAR) + 1.0
+        base = jnp.minimum(d_row, jnp.minimum(up, jnp.minimum(upl, upr)))   # (W,) from above
+        row = base[::-1] if col_rev else base
+        brow = b_row[::-1] if col_rev else b_row
+
+        def col_step(prev_cell, x):
+            d_cell, b_cell = x
+            v = jnp.minimum(d_cell, prev_cell + 1.0)               # relax off left neighbour
+            v = jnp.where(b_cell, _FAR, v)
+            return v, v
+
+        _, out = jax.lax.scan(col_step, _FAR, (row, brow))         # left->right cumulative
+        out = out[::-1] if col_rev else out
+        out = jnp.where(b_row, _FAR, out)
+        return out, out
+
+    _, Dout = jax.lax.scan(row_step, jnp.full((w,), _FAR), (Dr, Br))
+    return Dout[::-1] if row_rev else Dout
+
+
+def _fmm_distance_field(goal: jax.Array, blocked: jax.Array, n_rounds: int) -> jax.Array:
+    """(H,W) float32 — fast-sweeping Eikonal approximation of the king-move distance to
+    ``goal``. Each round runs the four corner sweeps (:func:`_fmm_sweep`); a single round
+    already resolves distances on obstacle-free regions (so nav-field == greedy on open
+    terrain), extra rounds route around walls. Goal pinned to 0 each round."""
+    h, w = blocked.shape
+    gr, gc = goal[0], goal[1]
+    D = jnp.full((h, w), _FAR, jnp.float32).at[gr, gc].set(0.0)
+    D = jnp.where(blocked, _FAR, D).at[gr, gc].set(0.0)
+
+    def rnd(D, _):
+        for row_rev in (False, True):
+            for col_rev in (False, True):
+                D = _fmm_sweep(D, blocked, row_rev, col_rev)
+        D = D.at[gr, gc].set(0.0)                                  # re-pin the goal source
+        return D, None
+
+    D, _ = jax.lax.scan(rnd, D, xs=None, length=n_rounds)
+    return D
+
+
+def nav_distance_field(goal: jax.Array, blocked: jax.Array, planner: str = "wavefront") -> jax.Array:
+    """(H,W) float32 distance-to-``goal`` field over the FREE cells of ``blocked`` (True =
+    obstacle), the L2 nav-field. ``planner`` (Python-static) selects the solver:
+
+    * ``"wavefront"`` / ``"bfs"`` — BFS distance transform (Jacobi min-plus relaxation).
+    * ``"astar"``                 — reuses the BFS field. Descending a shortest-path field
+      reconstructs the FIRST move of an A* shortest path; a real priority-queue A* is not
+      vmap-safe, and the emitted 1-step move is identical, so the field is shared.
+    * ``"fmm"``                   — fast-sweeping Eikonal approximation (:func:`_fmm_...`).
+
+    Iterations are fixed from the grid size (``2*(H+W)`` BFS sweeps / 4 fast-sweep rounds) —
+    enough to fully propagate an open grid and route moderate wall detours; the grid is
+    small (agent_architecture.md L2). Pure JAX (vmap/scan/jit-safe)."""
+    h, w = blocked.shape
+    if planner == "fmm":
+        return _fmm_distance_field(goal, blocked, n_rounds=4)
+    # wavefront / bfs / astar -> BFS distance transform (down-gradient == shortest-path move)
+    return _bfs_distance_field(goal, blocked, n_iters=2 * (h + w))
+
+
+def navfield_move(pos: jax.Array, goal: jax.Array, blocked: jax.Array,
+                  valid_targets: jax.Array, action_valid: jax.Array,
+                  planner: str = "wavefront", forbid_collision: bool = True) -> jax.Array:
+    """(N,) int32 — the L2 nav-field + L1 reactive controller move toward ``goal``.
+
+    For each agent: plan a distance field to its goal over its OWN KB occupancy
+    ``blocked[i]`` (:func:`nav_distance_field`), then among the env-VALID actions take the
+    one whose committed cell (``valid_targets``) most reduces the field — descending the
+    nav-field gradient one step. The reactive collision veto (the hard
+    :func:`occupied_cell_mask`, on by default) removes moves onto a cell another agent
+    occupies NOW; STAY is always selectable and is the fallback when no valid move strictly
+    improves on staying (so the emitted move is always env-valid, exactly like
+    :func:`greedy_move`). On open terrain the field is Chebyshev distance -> this reproduces
+    the greedy move; around known walls it routes around them.
+
+    ``blocked`` (N,H,W) bool — per-agent obstacle map (known walls; unknown/known-free are
+    traversable, optimistic). ``planner`` (Python-static) picks the field solver."""
+    n = pos.shape[0]
+    fields = jax.vmap(lambda g, b: nav_distance_field(g, b, planner))(goal, blocked)  # (N,H,W)
+
+    def gather_agent(i):
+        D = fields[i]                                              # (H,W) agent i's field
+        return D[valid_targets[i, :, 0], valid_targets[i, :, 1]]  # (A,) field if action taken
+
+    d = jax.vmap(gather_agent)(jnp.arange(n))                     # (N,A) down-gradient score
+    d = jnp.where(action_valid, d, _FAR)                         # forbid invalid actions
+    if forbid_collision:
+        d = jnp.where(occupied_cell_mask(pos, valid_targets), _FAR, d)  # reactive veto
+    stay = int(ActionId.STAY)
+    best = jnp.argmin(d, axis=-1).astype(jnp.int32)              # (N,) steepest descent
+    d_best = jnp.take_along_axis(d, best[:, None], axis=-1)[:, 0]
+    d_stay = d[:, stay]
+    return jnp.where(d_best < d_stay, best, jnp.int32(stay))      # STAY unless a move helps
+
+
 def candidate_first_moves(pos: jax.Array, goal_cells: jax.Array,
                           valid_targets: jax.Array, action_valid: jax.Array) -> jax.Array:
     """(N, K) int32 — the FIRST greedy move each agent would take for every

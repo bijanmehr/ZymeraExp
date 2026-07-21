@@ -1,0 +1,569 @@
+<title>Deliberation over Reflex — The L3 Reasoner (Zymera Working Paper)</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --ink: #161b23;
+    --muted: #586173;
+    --faint: #8a93a3;
+    --line: #dbe0e7;
+    --accent: #0c7a8c;
+    --accent-ink: #0a5f6e;
+    --accent-soft: #e2f0f2;
+    --warn: #97540a;
+    --warn-soft: #f6ecdb;
+    --good: #1f6f4a;
+    --good-soft: #e2f1e8;
+    --shadow: 0 1px 2px rgba(20,27,35,.05), 0 8px 28px rgba(20,27,35,.06);
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Times New Roman', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, 'Helvetica Neue', Arial, sans-serif;
+    --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', 'Roboto Mono', ui-monospace, Menlo, Consolas, monospace;
+    --measure: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1017; --surface: #141a22; --surface-2: #1b222c;
+      --ink: #e7eaf0; --muted: #9aa4b4; --faint: #6c7686; --line: #262e3a;
+      --accent: #3ec7d6; --accent-ink: #7adbe6; --accent-soft: #11282e;
+      --warn: #e0a94a; --warn-soft: #2a2416;
+      --good: #58c78d; --good-soft: #13251c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f8; --surface: #ffffff; --surface-2: #eef1f4;
+    --ink: #161b23; --muted: #586173; --faint: #8a93a3; --line: #dbe0e7;
+    --accent: #0c7a8c; --accent-ink: #0a5f6e; --accent-soft: #e2f0f2;
+    --warn: #97540a; --warn-soft: #f6ecdb; --good: #1f6f4a; --good-soft: #e2f1e8;
+    --shadow: 0 1px 2px rgba(20,27,35,.05), 0 8px 28px rgba(20,27,35,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1017; --surface: #141a22; --surface-2: #1b222c;
+    --ink: #e7eaf0; --muted: #9aa4b4; --faint: #6c7686; --line: #262e3a;
+    --accent: #3ec7d6; --accent-ink: #7adbe6; --accent-soft: #11282e;
+    --warn: #e0a94a; --warn-soft: #2a2416; --good: #58c78d; --good-soft: #13251c;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--serif); font-size: 18px; line-height: 1.62;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 44px); }
+  .layout { display: grid; grid-template-columns: 1fr; gap: 0; }
+  @media (min-width: 1040px) {
+    .layout { grid-template-columns: 232px minmax(0, 1fr); gap: 52px; align-items: start; }
+  }
+
+  header.mast { border-bottom: 1px solid var(--line); margin-bottom: 40px; }
+  .eyebrow {
+    font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent-ink);
+  }
+  .mast h1 {
+    font-family: var(--serif); font-weight: 700; letter-spacing: -.012em;
+    font-size: clamp(30px, 5vw, 50px); line-height: 1.08; text-wrap: balance;
+    margin: 16px 0 10px;
+  }
+  .mast .sub { font-size: clamp(18px, 2.5vw, 22px); color: var(--muted); font-style: italic; max-width: 34ch; text-wrap: balance; margin: 0 0 22px; }
+  .byline {
+    font-family: var(--sans); font-size: 13px; color: var(--faint);
+    display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 0 26px;
+  }
+  .byline b { color: var(--muted); font-weight: 600; }
+
+  nav.toc { font-family: var(--sans); }
+  @media (min-width: 1040px) {
+    nav.toc { position: sticky; top: 26px; max-height: calc(100vh - 52px); overflow-y: auto; }
+  }
+  nav.toc .toc-title { font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); margin: 4px 0 12px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: flex; gap: 9px; padding: 5px 0; font-size: 13.5px; line-height: 1.35;
+    color: var(--muted); text-decoration: none;
+  }
+  nav.toc a:hover { color: var(--accent-ink); }
+  nav.toc a .n { color: var(--faint); font-variant-numeric: tabular-nums; min-width: 16px; }
+  nav.toc.mobile { margin: 0 0 34px; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: var(--surface); }
+  @media (min-width: 1040px) { nav.toc.mobile { display: none; } }
+  nav.toc.desk { display: none; }
+  @media (min-width: 1040px) { nav.toc.desk { display: block; } }
+
+  article { max-width: 100%; }
+  section { padding: 8px 0 14px; scroll-margin-top: 24px; }
+  section > h2 {
+    font-family: var(--serif); font-weight: 700; letter-spacing: -.01em;
+    font-size: clamp(23px, 3.4vw, 31px); line-height: 1.14; text-wrap: balance;
+    margin: 34px 0 6px; padding-top: 22px; border-top: 1px solid var(--line);
+    display: flex; gap: 14px; align-items: baseline;
+  }
+  section > h2 .snum { font-family: var(--sans); font-size: .55em; font-weight: 700; color: var(--accent); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+  h3 { font-family: var(--serif); font-weight: 700; font-size: clamp(18px, 2.4vw, 21px); margin: 30px 0 4px; letter-spacing: -.005em; }
+  h4 { font-family: var(--sans); font-weight: 700; font-size: 14px; letter-spacing: .02em; margin: 22px 0 2px; color: var(--muted); }
+  p { max-width: var(--measure); margin: 12px 0; }
+  a { color: var(--accent-ink); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  .lede { font-size: 20px; color: var(--muted); max-width: var(--measure); }
+  ul, ol.body { max-width: var(--measure); padding-left: 1.25em; margin: 12px 0; }
+  ul li, ol.body li { margin: 7px 0; }
+  ul { list-style: none; padding-left: 0; }
+  ul > li { position: relative; padding-left: 1.35em; }
+  ul > li::before { content: "—"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+  ol.body { list-style: decimal; }
+  ol.body > li { padding-left: .35em; }
+  ol.body > li::marker { color: var(--accent); font-family: var(--sans); font-weight: 700; font-size: .85em; }
+
+  .abstract {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: clamp(20px, 3vw, 30px); box-shadow: var(--shadow); margin: 8px 0 6px;
+  }
+  .abstract .lab { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-ink); }
+  .abstract p { max-width: 74ch; }
+  .abstract p:last-child { margin-bottom: 0; }
+
+  .thesis { display: grid; gap: 10px; grid-template-columns: 1fr; margin: 22px 0 6px; }
+  @media (min-width: 680px) { .thesis { grid-template-columns: 1fr 1fr; } }
+  .thesis .card { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; }
+  .thesis .card .k { font-family: var(--sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent-ink); }
+  .thesis .card p { margin: 4px 0 0; font-size: 15.5px; color: var(--ink); max-width: none; line-height: 1.5; }
+
+  .callout { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px 14px; margin: 20px 0; background: var(--surface); max-width: var(--measure); }
+  .callout .tag { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .callout p:first-of-type { margin-top: 2px; }
+  .callout p, .callout ul, .callout ol { max-width: none; }
+  .callout p:last-child, .callout ul:last-child, .callout ol:last-child { margin-bottom: 0; }
+  .why { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+  .why .tag { color: var(--accent-ink); }
+  .def { border-left: 3px solid var(--muted); }
+  .def .tag { color: var(--muted); }
+  .crit { border-left: 3px solid var(--warn); background: var(--warn-soft); }
+  .crit .tag { color: var(--warn); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
+
+  /* code / algorithm blocks */
+  .eqwrap { overflow-x: auto; margin: 18px 0; }
+  .eq {
+    font-family: var(--mono); font-size: 14px; line-height: 1.75; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 10px; padding: 16px 18px; white-space: pre; min-width: min-content;
+  }
+  .eq .c { color: var(--muted); }
+  .eq .kw { color: var(--accent-ink); font-weight: 600; }
+
+  /* HTML/CSS math — MathML-free, renders identically in every browser */
+  .eqm { overflow-x: auto; overflow-y: hidden; margin: 18px 0; background: var(--surface-2);
+    border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px;
+    padding: 18px 24px; }
+  .math, .eqgrid { font-family: var(--serif); color: var(--ink); font-size: 1.18em; line-height: 1.5; }
+  .math { white-space: nowrap; }
+  .math i, .eqgrid i { font-style: italic; letter-spacing: .01em; }
+  .op { font-style: normal; padding: 0 .32em; }
+  .fn { font-style: normal; }
+  .math sub, .math sup, .eqgrid sub, .eqgrid sup { font-size: .70em; font-style: normal; }
+  .math i sub, .eqgrid i sub, .math i sup, .eqgrid i sup { font-style: italic; }
+  .underop { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 .18em; }
+  .underop .top { font-style: normal; line-height: 1.05; }
+  .underop .big { font-style: normal; font-size: 1.5em; line-height: .72; }
+  .underop .lim { font-style: normal; font-size: .56em; line-height: 1.15; margin-top: .1em; white-space: nowrap; color: var(--ink); }
+  .eqgrid { display: grid; grid-template-columns: max-content max-content minmax(0,1fr); gap: 12px 14px; align-items: baseline; }
+  .eqgrid .lhs { justify-self: end; white-space: nowrap; }
+  .eqgrid .rel { font-style: normal; }
+  .eqgrid .rhs { white-space: nowrap; }
+  .eqcap { font-family: var(--sans); font-size: 13px; color: var(--muted); margin: -8px 0 20px; max-width: var(--measure); }
+  .eqcap code { font-family: var(--mono); font-size: .92em; color: var(--accent-ink); }
+
+  .spec-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin: 20px 0 -8px; }
+  code.inl { font-family: var(--mono); font-size: .86em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--accent-ink); }
+
+  .tblwrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-family: var(--sans); min-width: 560px; }
+  thead th { text-align: left; background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.45; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { font-weight: 600; color: var(--ink); }
+  .yes { color: var(--good); font-weight: 700; }
+  .no { color: var(--warn); font-weight: 700; }
+  .part { color: var(--muted); font-weight: 700; }
+
+  .fig { margin: 24px 0; }
+  .fig figcaption { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 10px; max-width: var(--measure); }
+  .fig figcaption b { color: var(--ink); font-weight: 600; }
+
+  .flow { display: flex; flex-direction: column; gap: 0; align-items: stretch; max-width: 560px; }
+  .flow .node { border: 1px solid var(--line); border-radius: 10px; padding: 12px 15px; background: var(--surface); box-shadow: var(--shadow); }
+  .flow .node .t { font-family: var(--sans); font-weight: 700; font-size: 13.5px; color: var(--ink); }
+  .flow .node .d { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .flow .node.accentn { border-left: 3px solid var(--accent); }
+  .flow .arrow { align-self: center; color: var(--accent); font-family: var(--mono); font-size: 15px; line-height: 1; padding: 6px 0; }
+
+  hr.soft { border: none; border-top: 1px solid var(--line); margin: 30px 0; max-width: var(--measure); }
+
+  .refs { font-family: var(--sans); font-size: 13.5px; }
+  .refs ol { max-width: none; padding-left: 1.6em; }
+  .refs li { margin: 7px 0; color: var(--muted); }
+  .refs li b { color: var(--ink); font-weight: 600; }
+  footer.end { margin: 44px 0 30px; padding-top: 22px; border-top: 1px solid var(--line); font-family: var(--sans); font-size: 13px; color: var(--faint); }
+  .pill { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface-2); display: inline-block; }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Zymera Research Program · Working Paper · Draft</div>
+    <h1>Deliberation over Reflex</h1>
+    <p class="sub">A size-invariant reasoning layer for decentralized multi-robot coverage — and why its skills must be learned, frozen, and deterministically grown.</p>
+    <div class="byline">
+      <span><b>Author</b> Bijan Mehr</span>
+      <span><b>Layer</b> L3 · the deliberative reasoner</span>
+      <span><b>Status</b> design argument, pre-implementation</span>
+      <span><b>Companion</b> two verified literature reviews (L3 architectures; learned skills)</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc desk" aria-label="Contents">
+      <div class="toc-title">Contents</div>
+      <ol>
+        <li><a href="#s1"><span class="n">1</span><span>The problem, from the ground up</span></a></li>
+        <li><a href="#s2"><span class="n">2</span><span>Why reflex fails: the ceiling</span></a></li>
+        <li><a href="#s3"><span class="n">3</span><span>Skill vs. behavior</span></a></li>
+        <li><a href="#s4"><span class="n">4</span><span>The reasoner, built up</span></a></li>
+        <li><a href="#s5"><span class="n">5</span><span>Why it should work</span></a></li>
+        <li><a href="#s6"><span class="n">6</span><span>Learned, frozen, grown</span></a></li>
+        <li><a href="#s7"><span class="n">7</span><span>The gap and why it matters</span></a></li>
+        <li><a href="#s8"><span class="n">8</span><span>The language model, scoped</span></a></li>
+        <li><a href="#s9"><span class="n">9</span><span>Criticism of this proposal</span></a></li>
+        <li><a href="#s10"><span class="n">10</span><span>How we would falsify it</span></a></li>
+        <li><a href="#refs"><span class="n">·</span><span>References</span></a></li>
+      </ol>
+    </nav>
+
+    <article>
+      <div class="abstract">
+        <div class="lab">Abstract</div>
+        <p>A team of small robots must cover an unknown area while staying in radio contact, each acting only on what it can see and hear from nearby teammates. Today's agent decides one cell at a time — a reflex — and stalls near a quarter of the map. This paper argues for replacing that reflex with a <strong>deliberative layer (L3)</strong> that plans over the agent's belief map before it commits, built as a <strong>value-iteration network</strong> with multi-agent reward-shaping. Two properties make the design worth the trouble: it is a <em>planner</em> whose accuracy provably improves with more internal thinking-steps, and it is <em>size-invariant by construction</em>, so one trained network scales to larger maps and teams by thinking longer rather than by retraining. The layer's behaviors come from a <strong>skill library that is learned once, frozen, and expanded only by deterministic operations</strong> — the one structure that keeps skills both transferable and reproducible. We state the research gap this fills, argue its importance inside and beyond this program, scope the narrow roles a language model can honestly play, and then spend a full section attacking our own proposal. The central bet — a permutation-equivariant skill hierarchy over a time-varying communication graph — is unproven work no paper has done, and we say so plainly.</p>
+      </div>
+
+      <div class="thesis">
+        <div class="card"><div class="k">Claim 1</div><p>Deliberation is a <em>planner</em>, not a heuristic: <code class="inl">k</code> internal steps = <code class="inl">k</code> Bellman backups, and value iteration provably converges to the optimal plan.</p></div>
+        <div class="card"><div class="k">Claim 2</div><p>Scale transfer is <em>structural</em>: a shared 3×3 kernel means bigger problems are solved by more iterations of the same weights, not more parameters.</p></div>
+        <div class="card"><div class="k">Claim 3</div><p>Skills transfer because they are defined by <em>outcome</em>, not motion; they stay reproducible because growth is a <em>deterministic</em> operation on a frozen base.</p></div>
+        <div class="card"><div class="k">Claim 4</div><p>The hard part is unclaimed territory: no published method is decentralized, size- and count-invariant, expandable, <em>and</em> reproducible at once.</p></div>
+      </div>
+
+      <nav class="toc mobile" aria-label="Contents">
+        <div class="toc-title">Contents</div>
+        <ol>
+          <li><a href="#s1"><span class="n">1</span><span>The problem, from the ground up</span></a></li>
+          <li><a href="#s2"><span class="n">2</span><span>Why reflex fails</span></a></li>
+          <li><a href="#s3"><span class="n">3</span><span>Skill vs. behavior</span></a></li>
+          <li><a href="#s4"><span class="n">4</span><span>The reasoner, built up</span></a></li>
+          <li><a href="#s5"><span class="n">5</span><span>Why it should work</span></a></li>
+          <li><a href="#s6"><span class="n">6</span><span>Learned, frozen, grown</span></a></li>
+          <li><a href="#s7"><span class="n">7</span><span>The gap and why it matters</span></a></li>
+          <li><a href="#s8"><span class="n">8</span><span>The language model, scoped</span></a></li>
+          <li><a href="#s9"><span class="n">9</span><span>Criticism</span></a></li>
+          <li><a href="#s10"><span class="n">10</span><span>Falsification</span></a></li>
+          <li><a href="#refs"><span class="n">·</span><span>References</span></a></li>
+        </ol>
+      </nav>
+
+      <section id="s1">
+        <h2><span class="snum">01</span><span>The problem, from the ground up</span></h2>
+        <p class="lede">Start with the simplest honest statement of the task, then add only the complications that force the design.</p>
+        <p><em>N</em> robots stand on an unknown grid. Each has a short sensing range (it sees a 3×3 patch) and a longer but still limited radio range (it can exchange messages with robots within a few cells). The team's job is to <strong>cover the map</strong> — visit or sense every free cell — within a fixed number of steps, <strong>while remaining connected</strong>, so the shared picture actually gets home. No robot sees the whole map; no robot commands the others. Coverage is scored at the level of the <em>team</em>, not the individual.</p>
+        <p>Three facts make this hard, and each one shapes the architecture:</p>
+        <ol class="body">
+          <li><strong>Partial observability.</strong> A robot must act on a <em>belief</em> it accumulates over time and fuses with its neighbors' beliefs — not on ground truth. The belief map is the agent's real input.</li>
+          <li><strong>The coverage–connectivity tension.</strong> To cover more, the team must spread; to stay connected, it must not spread too far. A naive connectivity rule is satisfied for free by <em>huddling</em> — a dense clump is trivially connected — so any mechanism that only rewards connectivity collapses the team into a blob that covers nothing.</li>
+          <li><strong>Scale.</strong> The interesting regime is many robots on a large map. We want a single agent design that works from a small team on a small grid up to a large team on a large grid, so that a cheap, small-scale training run can <em>warm-start</em> the expensive large one. That requirement — one set of weights across sizes — is a hard constraint, not a nicety.</li>
+        </ol>
+        <p>Formally this is a decentralized, partially observed cooperative decision process: a shared state, per-robot local observations, per-robot actions, a team reward, and a horizon. The whole scientific interest of the program lives in the gap between the <em>micro</em> level (what each robot decides locally) and the <em>macro</em> level (whether the mission succeeds). The architecture below is an argument about how a robot should turn its local belief into a decision so that good macro behavior follows.</p>
+      </section>
+
+      <section id="s2">
+        <h2><span class="snum">02</span><span>Why reflex fails: the action-representation ceiling</span></h2>
+        <p>The agent as it stands today is a <em>reflex</em>. A neural network reads the belief map, produces an embedding <code class="inl">z</code>, and a single linear layer maps <code class="inl">z</code> to a distribution over nine short waypoints — the eight compass directions three cells out, plus "stay." It samples one, a greedy controller takes a single step toward it, and <em>the whole thing is re-decided from scratch on the very next tick.</em></p>
+        <p>Written plainly, the agent's effective decision is:</p>
+        <div class="eqm"><div class="math">
+          <i>a</i><sub>t</sub>
+          <span class="op">=</span>
+          <span class="underop"><span class="top">arg&#8202;max</span><span class="lim"><i>v</i> &#8712; 𝒩<sub>9</sub></span></span>
+          ( <i>W</i>&#8202;<i>z</i><sub>t</sub> )( <i>v</i> )
+        </div></div>
+        <p class="eqcap">One matrix multiply, re-run every step. The subscript below argmax ranges over <i>v</i> in the nine nearby waypoints; the horizon of intention is a single step.</p>
+        <p>The horizon of intention here is <strong>one step</strong>. The agent never forms a plan more committal than "drift toward a cell three away, then reconsider." This is the <strong>action-representation ceiling</strong>: no matter how good the belief <code class="inl">z</code> becomes, the <em>output</em> can only express a myopic nudge. Empirically it shows up exactly where you'd predict — from a clustered start, the reward-driven head cannot discover that the team should <em>fan out</em>, and coverage stalls around 16% on the large grid. The bottleneck is not perception; it is the shape of the decision.</p>
+        <p>Two things must change to break the ceiling. First, the agent needs a <strong>distant, committed goal</strong> — a region many cells away that it holds for a while — instead of a waypoint refreshed every tick. Second, it needs a way to <strong>reason about that goal</strong>: to weigh how far it is, whether walls block it, what teammates are already covering, and whether reaching it endangers the radio link — <em>before</em> committing. That reasoning, over a committed horizon, is what we mean by <strong>L3</strong>.</p>
+      </section>
+
+      <section id="s3">
+        <h2><span class="snum">03</span><span>The conceptual foundation: skill vs. behavior</span></h2>
+        <p>Before the architecture, one definition has to be nailed down, because getting it wrong quietly destroys transfer. We have three levels, not one.</p>
+
+        <div class="callout def">
+          <div class="tag"><span class="dot"></span>Definitions</div>
+          <p><strong>Behavior</strong> — a <em>description of what an agent is doing</em>, read off its trajectory. Observed, measured, situation-specific. "It is dispersing"; "the team divided labor." You do not invoke a behavior; you <em>measure</em> it.</p>
+          <p><strong>Skill</strong> — an <em>invokable competence</em>: a reusable sub-policy (formally an <em>option</em> — an initiation condition, an internal policy, a termination) that reliably produces a <em>class</em> of behavior toward a <em>class</em> of outcome. You build, learn, and invoke it. It is the transferable unit.</p>
+          <p><strong>Selector / reasoner (L3)</strong> — the thing that <em>chooses which skill and parameters to invoke when</em>. This is the decision competence, and its generalization — "knowing what to use where" — is the intelligence we actually care about.</p>
+        </div>
+
+        <p>The load-bearing rule: <strong>a skill is individuated by the outcome it achieves, not by the motions it takes.</strong> "Relay" means "keep the communication graph connected to the home set," realized by completely different movements on every map. That single rule is <em>why a skill transfers and a behavior does not</em>: transfer the competence, and the behavior re-derives itself for the new situation. The literature agrees by construction — role-based methods cluster actions <em>by their effects</em>, and value-composition methods represent a skill <em>as a value function</em> (an outcome), never as a fixed action sequence.</p>
+        <p>Two failures dissolve once the levels are kept apart. If a skill <em>is</em> a fixed motion pattern, a new mission needs new patterns — the hand-authoring trap. And "let skills emerge" turns out to mean two incompatible things: <em>behavior</em> always emerges from any policy (that is free, and un-transferable), whereas discovering the <em>repertoire of invokable competences</em> is the specific, harder thing worth doing. We build skills; we measure behavior; behavior is the observable signature by which we <em>detect</em> and verify skills.</p>
+      </section>
+
+      <section id="s4">
+        <h2><span class="snum">04</span><span>The reasoner, built from a linear layer up to a planner</span></h2>
+        <p>We now construct L3 in four moves, each forced by a shortcoming of the last. The endpoint is a <strong>value-iteration network with multi-agent reward-shaping</strong> — concrete enough to implement.</p>
+
+        <h3>4.1 — From a reflex to a plan</h3>
+        <p>The reflex's flaw (§2) is that it maps belief straight to action with no notion of "how good is it to be over <em>there</em>." A planner fixes exactly this: it computes, for every cell, a <strong>value</strong> — the expected coverage-reward-to-go if the agent heads that way — and then goes to the best reachable one. Computing that value field is a classical algorithm: <em>value iteration</em>, which repeatedly propagates value one hop outward until it settles.</p>
+
+        <h3>4.2 — Value iteration as a small recurrent convolution</h3>
+        <p>The key realization (Value Iteration Networks, Tamar et al. 2016) is that one step of value iteration on a grid <em>is a convolution followed by a max</em>. Let <code class="inl">R</code> be a reward map over the grid, <code class="inl">V</code> the value map, <code class="inl">&#947;</code> the discount, and <code class="inl">A</code> the number of move-actions. One Bellman backup is:</p>
+        <div class="eqm"><div class="eqgrid">
+          <span class="lhs"><i>Q</i><sup>t</sup>(<i>v</i>,<i>a</i>)</span>
+          <span class="rel"><span class="op" style="padding:0">=</span></span>
+          <span class="rhs"><i>R</i>(<i>v</i>) <span class="op">+</span> <i>&#947;</i> <span class="underop"><span class="big">&#8721;</span><span class="lim"><i>v</i>&#8242; &#8712; nbr(<i>v</i>)</span></span> <i>P</i>(<i>v</i>&#8242; &#8739; <i>v</i>,<i>a</i>) <span style="padding-left:.15em"><i>V</i><sup>t&#8722;1</sup>(<i>v</i>&#8242;)</span></span>
+
+          <span class="lhs"><i>V</i><sup>t</sup>(<i>v</i>)</span>
+          <span class="rel"><span class="op" style="padding:0">=</span></span>
+          <span class="rhs"><span class="underop"><span class="top">max</span><span class="lim"><i>a</i></span></span> <i>Q</i><sup>t</sup>(<i>v</i>,<i>a</i>)</span>
+        </div></div>
+        <p class="eqcap">Top: immediate reward plus discounted best value of the neighboring cells. Bottom: the value of a cell is the best action's value. Because <code>nbr(v)</code> is the local 3×3 stencil, the sum is a 3×3 convolution and the max is a channel-wise max-pool.</p>
+        <p>Stack <code class="inl">k</code> of these with <em>shared</em> weights and you have value iteration truncated to horizon <code class="inl">k</code>. As an algorithm:</p>
+        <div class="spec-label">Algorithm — the deliberation loop</div>
+        <div class="eqwrap"><div class="eq">V&#8304; = 0
+<span class="kw">for</span> t = 1 &#8230; k:                                <span class="c"># each iteration = one Bellman backup</span>
+    Q&#7511; = Conv3&#215;3( stack[ R, V&#7511;&#8315;&#185; ] ; W )        <span class="c"># W : 3&#215;3&#215;2&#215;A   &#8594;   Q&#7511; &#8712; &#8477;^(A&#215;H&#215;W)</span>
+    V&#7511; = max over the A channels of Q&#7511;           <span class="c"># V&#7511; &#8712; &#8477;^(H&#215;W)</span>
+V  = V&#7503;                                          <span class="c"># planned value-to-go map</span></div></div>
+        <p>The <em>only</em> learned planning parameter is the kernel <code class="inl">W</code> — a few hundred numbers, shared across every cell, every iteration, and (below) every agent and map size. Walls are handled by masking moves into blocked cells.</p>
+
+        <h3>4.3 — Making it cooperative: neighbors shape the reward field</h3>
+        <p>Pure value iteration is single-agent; it would send every robot to the same juiciest frontier. Coordination enters not in the planner but in the <strong>reward map it plans over</strong>. Each agent builds its reward field from its neighbors' messages (positions and value/coverage footprints, received over the radio graph), reduced by a <em>permutation-invariant pool</em> so the result is well-defined for any number of neighbors in any order:</p>
+        <div class="eqm"><div class="eqgrid">
+          <span class="lhs"><i>R</i><sub>i</sub>(<i>v</i>)</span>
+          <span class="rel"><span class="op" style="padding:0">=</span></span>
+          <span class="rhs"><i>R</i><sup>skill</sup>(<i>v</i>)</span>
+
+          <span class="lhs"></span>
+          <span class="rel"><span class="op" style="padding:0">&#8722;</span></span>
+          <span class="rhs"><i>&#955;</i><sub>ov</sub> <span class="underop"><span class="top">POOL</span><span class="lim"><i>j</i> &#8712; <i>N</i>(<i>i</i>)</span></span> <span class="fn">claim</span><sub><i>j</i></sub>(<i>v</i>) <span class="op">&#8722;</span> <i>&#955;</i><sub>c</sub> <span class="fn">conn&#8202;risk</span><sub><i>i</i></sub>(<i>v</i>)</span>
+        </div></div>
+        <p class="eqcap">The skill's objective, minus cells a neighbor already covers (<code>POOL</code> over the variable neighbor set — permutation-invariant, hence count-invariant), minus the risk of breaking the graph.</p>
+        <p>This is the graph-network part of the design (the DGN / MARVIN mechanism): messages flow over the communication graph and modulate the local objective, then the shared planner turns that objective into a route. Cooperation is emergent from the shaped field; count-invariance is guaranteed by the pool.</p>
+
+        <h3>4.4 — Skills as reward-map generators</h3>
+        <p>Here the skill definition of §3 pays off directly. A skill is an <em>outcome</em>; an outcome, on a grid, is a reward map. So each skill simply <em>is</em> a way of writing <code class="inl">R</code>, and the skill head chooses (or blends) among them:</p>
+        <div class="eqm"><div class="eqgrid">
+          <span class="lhs"><i>R</i><sup>disperse</sup>(<i>v</i>)</span><span class="rel"><span class="op" style="padding:0">=</span></span><span class="rhs"><span class="fn">infogain</span>(<i>v</i>)</span>
+          <span class="lhs"><i>R</i><sup>relay</sup>(<i>v</i>)</span><span class="rel"><span class="op" style="padding:0">=</span></span><span class="rhs"><span class="op" style="padding-right:.1em">&#8722;</span><span class="fn">conn&#8202;risk</span>(<i>v</i>)</span>
+          <span class="lhs"><i>R</i><sup>hold</sup>(<i>v</i>)</span><span class="rel"><span class="op" style="padding:0">=</span></span><span class="rhs"><span class="fn">stay&#8202;value</span>(<i>v</i>)</span>
+          <span class="lhs"><i>R</i><sup>skill</sup></span><span class="rel"><span class="op" style="padding:0">=</span></span><span class="rhs"><span class="underop"><span class="big">&#8721;</span><span class="lim"><i>s</i></span></span> <span class="fn">softmax</span>(<span class="fn">skill&#8202;logits</span><sub><i>i</i></sub>)[<i>s</i>] <span class="op">&#8901;</span> <i>R</i><sup>(<i>s</i>)</sup></span>
+        </div></div>
+        <p class="eqcap">Each skill is a way of writing the reward map; the skill head (a small categorical off the belief) selects or blends them. This is exactly outcome-defined, so a skill transfers.</p>
+        <p>This is unusually clean: <em>one</em> shared planner serves <em>all</em> skills; a skill is just the objective handed to it, and "which skill" is a small categorical decision.</p>
+
+        <h3>4.5 — Reading out the command, and thinking longer when it's harder</h3>
+        <p>The heads read the converged value field. The committed subgoal is the highest-value reachable frontier cell:</p>
+        <div class="eqm"><div class="math">
+          <i>v</i><sub>i</sub><sup>&#8727;</sup>
+          <span class="op">=</span>
+          <span class="underop"><span class="top">arg&#8202;max</span><span class="lim"><i>v</i> &#8712; reachable frontier</span></span>
+          <span style="padding-left:.15em"><i>V</i><sub>i</sub>(<i>v</i>)</span>
+        </div></div>
+        <p class="eqcap">A parameter head reads pooled value-map features to set <code>(&#955;<sub>ov</sub>, commit-k, intensity)</code>; the command <code>(skill, v*, params)</code> is handed to the L1 nav-field executor, which descends a wavefront / FMM distance field to the region.</p>
+        <p>Finally, because deliberation is just "iterate the backup," the number of iterations <code class="inl">k</code> becomes a <em>test-time knob</em>: a small map converges in a few backups, a large one in more. Training the loop so it can be run to <em>variable</em> depth (the "think-longer" recipe of Bansal et al. 2022) is what lets a network trained small plan well when deployed large.</p>
+
+        <figure class="fig">
+          <div class="flow">
+            <div class="node accentn"><div class="t">Belief map + neighbor messages</div><div class="d">the KB, plus gossiped positions and footprints over the radio graph</div></div>
+            <div class="arrow">&#8595;</div>
+            <div class="node"><div class="t">Skill head &#8594; reward field R<sub>i</sub></div><div class="d">choose the objective; subtract neighbor overlap and connectivity risk</div></div>
+            <div class="arrow">&#8595;</div>
+            <div class="node accentn"><div class="t">Value iteration &#215;k (shared 3&#215;3 kernel)</div><div class="d">propagate value-to-go k hops; k adapts to problem size</div></div>
+            <div class="arrow">&#8595;</div>
+            <div class="node"><div class="t">Heads &#8594; command (skill, region, params)</div><div class="d">argmax the reachable value; emit a committed subgoal</div></div>
+            <div class="arrow">&#8595;</div>
+            <div class="node"><div class="t">Nav-field executor (L1)</div><div class="d">wavefront / FMM descends the distance field to the region</div></div>
+          </div>
+          <figcaption><b>Figure 1.</b> The L3 data flow. Coordination lives in the reward field; planning lives in the shared value-iteration loop; the skill is the objective, not a separate network.</figcaption>
+        </figure>
+      </section>
+
+      <section id="s5">
+        <h2><span class="snum">05</span><span>Why it should work — three arguments from the equations</span></h2>
+
+        <h3>5.1 — It is a planner, provably</h3>
+        <p>The convolution-plus-max of §4.2 is <em>literally</em> a Bellman backup: reward plus discounted best-neighbor value. Iterating it is value iteration, and the Bellman operator is a <code class="inl">&#947;</code>-contraction, so the value map converges to the optimal value <code class="inl">V*</code> geometrically as <code class="inl">k</code> grows. The region the agent commits to is therefore an approximation of the <em>optimal</em> reachable target under the current objective, and the approximation tightens with every extra iteration. This is the precise sense in which the decision is <em>deliberate</em>: it accounts for consequences <code class="inl">k</code> hops out, with a convergence guarantee — not a hand-tuned heuristic that happens to look ahead.</p>
+
+        <div class="callout why">
+          <div class="tag"><span class="dot"></span>Why it works, in one line</div>
+          <p>The network's computation <em>is</em> the algorithm that solves the task. Spatial multi-agent planning is dynamic programming on a graph; a value-iteration network is a learnable dynamic program; so the thing it learns at small scale is the <em>same</em> computation it runs at large scale.</p>
+        </div>
+
+        <h3>5.2 — Size-invariance is structural, not hoped-for</h3>
+        <p>The kernel <code class="inl">W</code> is 3×3 and shared over every cell and every iteration. Its parameter count does not depend on the map dimensions. A bigger map is handled by <em>running more iterations of the same weights</em> — value simply needs more hops to cross it — not by adding parameters or retraining. This is the mechanism behind warm-start, and it has been demonstrated in the strongest form available: a recurrent planner trained on 9×9 mazes solves 201×201 mazes with the <em>same weights</em>, purely by iterating longer. Count-invariance comes from the same discipline one level up — the neighbor pool of §4.3 is a permutation-invariant reduction over a variable set.</p>
+
+        <h3>5.3 — Alignment is the theory behind the two claims above</h3>
+        <p>The formal reason to expect generalization rather than memorization is <em>algorithmic alignment</em> (Xu et al. 2020): a network generalizes with less data exactly when its computational structure matches the algorithm that solves the task. A single linear head or a flat attention block is <em>not</em> aligned with dynamic programming — it must memorize a size-specific input→output table, which is why the reflex of §2 does not transfer. The value-iteration loop is aligned with DP by construction, which is why it should. Alignment is not a vibe here; it is the named theorem that predicts <em>which</em> of our candidate designs transfers and which does not.</p>
+      </section>
+
+      <section id="s6">
+        <h2><span class="snum">06</span><span>The skills: learned, frozen, and grown deterministically</span></h2>
+        <p>§4.4 said skills are reward-map generators, but left open where they come from. Hand-authoring them per mission is the trap we are trying to escape — it is the opposite of transfer. So the skills must be <em>learned</em>. That immediately collides with a second requirement: <strong>reproducibility</strong> — the same situation should produce the same behavior run-to-run — because a phenomenon you cannot reproduce is not something you can study. Learning is stochastic; reproducibility forbids stochasticity. This is the central tension.</p>
+
+        <h3>6.1 — The resolution: separate the random part from the growing part</h3>
+        <p>The resolution is structural, and it is worth stating as a rule:</p>
+        <div class="callout why">
+          <div class="tag"><span class="dot"></span>The reproducible-expansion rule</div>
+          <p><strong>Reproducible expansion = a frozen stochastic base + a deterministic growth operator.</strong> Learn the skill library once, verify it, and freeze it — a frozen network is deterministic by construction, so the randomness lived only in the one-time training and never reaches deployment. Then grow the repertoire only through operations that are <em>deterministic functions of the frozen parts.</em></p>
+        </div>
+        <p>The analogy is compilation. A compiler's optimizer may make nondeterministic choices, but the compiled binary runs identically every time. The frozen skills are the binary; expansion must be a deterministic transform of that binary, never a fresh nondeterministic compile.</p>
+        <p>Concretely. Base library, frozen: <code class="inl">{go-to-region, hold-connection, sweep}</code>. New mission: "cover the interior while keeping a relay chain home."</p>
+        <ul>
+          <li><strong>Wrong (non-reproducible):</strong> run skill-discovery on the new mission → it learns a fresh "relay-cover" skill → different on every random seed.</li>
+          <li><strong>Right (reproducible):</strong> <em>compose</em> — combine the value functions of <code class="inl">sweep(interior)</code> and <code class="inl">hold-connection(home)</code> through a deterministic algebra → identical behavior every run, with zero new training. If that composition keeps recurring, a deterministic compressibility test promotes it into a named skill.</li>
+        </ul>
+        <p>The methods that fail reproducibility all fail for the <em>same</em> reason: their growth step itself samples — a mutual-information reward, a language-model call, an unregularized latent draw. Make growth deterministic and reproducibility survives end-to-end.</p>
+
+        <h3>6.2 — What "a skill" is, operationally</h3>
+        <p>A skill is a <strong>goal-conditioned sub-policy indexed by an outcome</strong>. The skill <em>space</em> is a learned, continuous space of achievable outcomes; a <em>named</em> skill is a recurring, compressible region of it, detected in the measurable behavior by a deterministic test and then frozen. So we define skills by outcome and <em>identify</em> them by measuring behavior — behavior is the instrument, not the definition.</p>
+
+        <h3>6.3 — For coverage specifically, the outcome is spectral</h3>
+        <p>There is a mission-aligned answer to "what is a skill worth having" for coverage that is also deterministic: <strong>covering options</strong> derive skills from the <em>Laplacian / Fiedler spectrum</em> of the state graph — the options that most reduce the team's cover time. This is not a generic diversity bonus; it is the connectivity spectrum, the very object the program already studies, used as the skill-discovery criterion. It is deterministic given the graph, and it ties the skill layer to the algebraic-connectivity line of work rather than bolting on an unrelated mechanism.</p>
+      </section>
+
+      <section id="s7">
+        <h2><span class="snum">07</span><span>The gap, and why it matters inside and outside this program</span></h2>
+        <p>No single property here is novel. The gap is the <strong>conjunction</strong>: a skill layer that is, all at once,</p>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Family</th><th>Decentralized (incl. strategic)</th><th>Size + count invariant</th><th>Expandable</th><th>Reproducible</th></tr></thead>
+            <tbody>
+              <tr><td>Single-agent skill learning (HIQL, METRA, Skill Machines)</td><td class="yes">strong</td><td class="no">no</td><td class="part">some</td><td class="yes">strong</td></tr>
+              <tr><td>Multi-agent skill / role (HMASD, LAGMA, VO-MASD)</td><td class="part">exec only</td><td class="no">unproven</td><td class="no">no</td><td class="no">no (MI latents)</td></tr>
+              <tr><td>LLM skill libraries (Voyager)</td><td class="no">no</td><td class="no">no</td><td class="yes">yes</td><td class="no">no</td></tr>
+              <tr><td>Nearest prior work — HiSSD (2025)</td><td class="part">exec only</td><td class="part">team + count, offline</td><td class="part">split</td><td class="part">partial</td></tr>
+              <tr><td><b>This proposal</b></td><td class="yes">target</td><td class="yes">target</td><td class="yes">target</td><td class="yes">target</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Every existing method holds one to three of these columns; none holds all four. The concrete contribution is therefore two things: the <strong>permutation-equivariant graph backbone that lifts reproducible single-agent skill machinery onto a decentralized swarm over a time-varying communication graph</strong> — the piece nobody has — and the <strong>spectral (Fiedler / cover-time) skill criterion</strong> for coverage.</p>
+
+        <h3>7.1 — Why it matters for this program</h3>
+        <p>Each column is a precondition for a result the program actually wants, not a checkbox:</p>
+        <ul>
+          <li><strong>Reproducible</strong> is the precondition for <em>science</em>: if skills are seed-dependent, every run is a different agent and no claim about micro→macro propagation is falsifiable.</li>
+          <li><strong>Size/count-invariant</strong> is the precondition for studying <em>scaling</em>: comparing small and large teams is only valid with the <em>same</em> agent, or scale-effects are confounded with retraining effects.</li>
+          <li><strong>Learned-yet-reproducible</strong> is the precondition for studying <em>emergence</em>: hand-authored skills pre-impose the micro→macro structure, short-circuiting the phenomenon under study.</li>
+          <li><strong>Expandable / transferable</strong> is the <em>test</em> that a mechanism is real and not a coverage-specific overfit: cross-mission transfer is the falsification.</li>
+        </ul>
+
+        <h3>7.2 — Why it matters beyond this work</h3>
+        <p>The question was fair: is the gap important outside one thesis? Four ways it is.</p>
+        <ol class="body">
+          <li><strong>Deployable swarms are inherently variable-size and multi-mission.</strong> Disaster-response, environmental monitoring, precision agriculture, and planetary teams (the CADRE / Starling class) cannot afford an agent that must be re-authored per team size or per mission. A single invariant, transferable controller is the difference between a lab demo and a fieldable capability — and no one has one.</li>
+          <li><strong>Reproducibility is the precondition for trust and certification</strong> of learned autonomy. A system whose behavior changes with the training seed cannot be argued safe. The "frozen base + deterministic growth" discipline is a general recipe for learned controllers that a regulator or an operator could actually reason about.</li>
+          <li><strong>It is a concrete bridge between two ML worlds that rarely meet</strong>: compositional, general reasoning (the strength of foundation models, but non-reproducible and centralized) and reproducible, decentralized control (the strength of swarm RL, but narrow). Showing how to get compositional generality <em>without</em> surrendering reproducibility or decentralization is a contribution independent of the coverage task.</li>
+          <li><strong>It links spectral graph theory to skill discovery.</strong> Using algebraic connectivity (Fiedler) as the criterion for what counts as a skill is a reusable idea wherever the mission is defined on a graph — routing, sensor networks, formation control.</li>
+        </ol>
+      </section>
+
+      <section id="s8">
+        <h2><span class="snum">08</span><span>The language model, honestly scoped</span></h2>
+        <p>A language model has no place in the per-step control loop: running one per robot per step over a range-limited, time-varying graph is computationally hopeless, an abstract grid offers its language prior nothing to grip, and it is neither decentralized nor size-invariant. But "not in the loop" is not "nowhere," and two roles survive scrutiny precisely because they sit <em>outside</em> the path that produces actions — so latency, reproducibility, and decentralization objections do not apply.</p>
+        <ul>
+          <li><strong>Offline skill proposer.</strong> A model may <em>propose</em> candidate skills during the one-time, offline base-building phase; each candidate is then verified and <em>frozen</em>. This is simply Phase 1 of §6.1 — the randomness lives in the proposer, the frozen result is deterministic at deploy. For semantically rich missions its compositional prior is a genuine advantage over blind discovery.</li>
+          <li><strong>Out-of-loop narrator / interpreter.</strong> A model may read the internal state — the belief, the value map, the chosen skill, each agent's marginal contribution — and <em>compile it into human-readable explanation</em>: "Agent 3 committed to the north-east frontier while Agent 5 held the bridge because the connectivity margin dropped." It drives no action, so it is free to be slow and offline, and it delivers real value — interpretability, debugging, trust, and a way to read the emergent micro→macro structure in words, including <em>naming</em> the skills the compressibility test graduates.</li>
+        </ul>
+
+        <div class="callout why">
+          <div class="tag"><span class="dot"></span>Is there a language-model angle on the gap itself?</div>
+          <p>Yes, but a scoped one. A language model does <strong>not</strong> fill the decentralized/invariant columns — that is the graph backbone's job, and it cannot be delegated. What a model can contribute is the <strong>expandable</strong>, <strong>cross-mission transfer</strong>, and <strong>readability</strong> axes: proposing compositions and skills offline, grounding a novel language-specified mission into an expression over frozen skills, and narrating internals. Framed as a research claim, the bridge — <em>foundation-model generality confined to out-of-loop proposal and narration over a reproducible, decentralized substrate</em> — is itself a contribution, because it shows how to import the flexibility without importing the non-reproducibility. And a caveat worth keeping: for purely geometric missions, a <em>deterministic</em> composition search over the skill algebra is likely a better strategic composer than a model, and reproducible by construction — so the model earns its seat only as missions begin to speak language.</p>
+        </div>
+      </section>
+
+      <section id="s9">
+        <h2><span class="snum">09</span><span>Criticism of this proposal</span></h2>
+        <p>A design argument that does not attack itself is advocacy. Here are the places this proposal is most likely to be wrong, roughly in order of how much they threaten it.</p>
+
+        <div class="callout crit">
+          <div class="tag"><span class="dot"></span>1 · The central bet is unproven original work</div>
+          <p>The decentralized, permutation-equivariant lift — running the whole skill hierarchy over a sparse, time-varying communication graph with one shared set of weights — is done by <em>no</em> paper in the reviews. Every multi-agent candidate is centralized-at-the-strategic-layer, fixed-roster, and on a static benchmark. So the load-bearing piece has no external proof of feasibility; it is engineering we must succeed at, and it is where the project most plausibly fails.</p>
+        </div>
+        <div class="callout crit">
+          <div class="tag"><span class="dot"></span>2 · A learned value-iteration network may not actually do value iteration</div>
+          <p>The convergence argument of §5.1 assumes the recurrent convolution learns the Bellman backup. Several follow-ups show a VIN can instead behave like a generic deep convolution that merely <em>looks</em> like planning. If that happens here, the "plans, provably" claim is void and the deliberation depth buys nothing. This must be <em>verified</em>, not assumed (§10).</p>
+        </div>
+        <div class="callout crit">
+          <div class="tag"><span class="dot"></span>3 · Deliberation may be over-engineering for coverage</div>
+          <p>If the useful planning horizon on a coverage grid is short — one or two hops — then the iterated planner's advantage over a plain two-round graph network collapses, and we have paid training instability and compute for nothing. The honest position is that depth is a hypothesis to test, not a commitment.</p>
+        </div>
+        <div class="callout crit">
+          <div class="tag"><span class="dot"></span>4 · The reproducibility gift may not survive a team objective</div>
+          <p>Deterministic value-composition algebra assumes goal-reaching value functions. Coverage is a <em>submodular team</em> reward, not per-agent goal-reaching, so the clean composition homomorphism may break — exactly where §6 leans on it for reproducibility. If it breaks, we fall back to compressibility-graduation and residual adaptation, which do not need the goal-reaching structure but are weaker guarantees. Prototype the algebra on the real coverage reward <em>early.</em></p>
+        </div>
+        <div class="callout crit">
+          <div class="tag"><span class="dot"></span>5 · Integration risk compounds</div>
+          <p>Every component (VIN, graph coordination, learned skills, deterministic composition, adaptive depth) is proven <em>separately</em>, mostly in different single-agent settings. Their joint behavior — trained by decentralized policy gradient on coverage — is unproven, and each addition can destabilize the last. The only defense is an incremental build with a transfer test after every layer (§10); a big-bang build would hide which piece failed.</p>
+        </div>
+        <div class="callout crit">
+          <div class="tag"><span class="dot"></span>6 · "Reasoning" can be anthropomorphic self-deception</div>
+          <p>The pull toward a "smart brain" is exactly the trap the field's own bitter-lesson history warns against. The safeguard is that <em>every</em> capacity claim here is tied to a falsification test — if deliberation, or the skill structure, or the composition does not measurably help, it goes. Reasoning is earned by evidence, not asserted by architecture.</p>
+        </div>
+        <p>Two of these — the decentralized lift and the submodular-composition mismatch — are the sharpest gambles, and neither is resolvable by argument. They are resolvable only by building the smallest version and measuring.</p>
+      </section>
+
+      <section id="s10">
+        <h2><span class="snum">10</span><span>How we would falsify it</span></h2>
+        <p>The proposal is only worth building if each claim comes with a test that could kill it. Three mechanism checks and one build order.</p>
+        <ul>
+          <li><strong>Does the planner plan?</strong> Probe whether the value map tracks true shortest-path value on held-out maps, and whether <em>increasing k</em> improves planning on larger grids. If more iterations do not help, §5 is false and the depth is deleted.</li>
+          <li><strong>Does coordination use neighbors?</strong> Perturb a neighbor's message and measure the change in the agent's decision. If it is near zero, the graph coupling is decorative.</li>
+          <li><strong>Do skills stay reproducible after freezing?</strong> Compose a new mission from frozen skills across many seeds and measure behavioral variance. Non-zero variance means the growth path still samples somewhere.</li>
+        </ul>
+        <p><strong>Build-and-ablate order</strong> — verify transfer survives each addition before adding the next: graph backbone alone → + region head → + value-iteration processor → + skill layer → + adaptive depth. If transfer breaks at a step, the culprit is unambiguous. Nothing is trusted from the literature; each borrowed piece re-earns its place on this task, at this scale, decentralized.</p>
+
+        <hr class="soft" />
+        <p class="lede">The thesis in one sentence: replace a myopic reflex with an aligned planner whose competences are learned once, frozen, and grown by deterministic composition — and treat every word of that as a hypothesis with a test attached.</p>
+      </section>
+
+      <section id="refs" class="refs">
+        <h2><span class="snum">·</span><span>References</span></h2>
+        <p style="max-width:var(--measure)"><span class="pill">Note</span> &nbsp;Citations drawn from two adversarially-verified literature reviews conducted for this program; where a claim rests on a single result, that is stated inline above.</p>
+        <ol>
+          <li><b>Tamar, Wu, Thomas, Levine, Abbeel.</b> Value Iteration Networks. NeurIPS 2016.</li>
+          <li><b>Sykora, Ren, Urtasun.</b> Multi-Agent Routing Value Iteration Network (MARVIN). ICML 2020.</li>
+          <li><b>Jiang, Dun, Huang, Lu.</b> Graph Convolutional Reinforcement Learning (DGN). ICLR 2020.</li>
+          <li><b>Niu, Chen, Guo et al.</b> Generalized Value Iteration Networks (GVIN). AAAI 2018.</li>
+          <li><b>Bansal, Schwarzschild, Borgnia, Emam, Huang, Goldblum, Goldstein.</b> End-to-end Algorithm Synthesis with Recurrent Networks: "Deep Thinking." NeurIPS 2022.</li>
+          <li><b>Xu, Li, Zhang, Du, Kawarabayashi, Jegelka.</b> What Can Neural Networks Reason About? (algorithmic alignment). ICLR 2020.</li>
+          <li><b>Park, Ghosh, Eysenbach, Levine.</b> HIQL: Offline Goal-Conditioned RL with Latent States as Actions. NeurIPS 2023.</li>
+          <li><b>Park, Rybkin, Levine.</b> METRA: Metric-Aware Abstraction. ICLR 2024 (Oral).</li>
+          <li><b>Wang, Ren, Han, Ye, Zhang.</b> RODE: Learning Roles to Decompose Multi-Agent Tasks. ICLR 2021.</li>
+          <li><b>Nangue Tasse, James, Rosman.</b> A Boolean Task Algebra for Reinforcement Learning. NeurIPS 2020. — and Skill Machines. ICLR 2024.</li>
+          <li><b>Jiang, Liu, Eysenbach, Kolter, Finn.</b> Learning Options via Compression (LOVE). NeurIPS 2022.</li>
+          <li><b>Chen, Lan, Aggarwal.</b> Multi-agent Covering Option Discovery via Laplacian spectrum of the joint state graph.</li>
+          <li><b>Yang, Yang, Lu, Zhou, Li.</b> Hierarchical Multi-Agent Skill Discovery (HMASD). NeurIPS 2023.</li>
+          <li><b>HiSSD.</b> Hierarchical common / task-specific skills for zero-shot generalization to unseen team and target counts, 2025 (arXiv:2503.21200).</li>
+          <li><b>Ahn et al.</b> Do As I Can, Not As I Say: Grounding Language in Robotic Affordances (SayCan). 2022.</li>
+          <li><b>Wang, Xie, Jiang et al.</b> Voyager: An Open-Ended Embodied Agent with Large Language Models. 2023.</li>
+          <li><b>Sutton, Precup, Singh.</b> Between MDPs and Semi-MDPs: A Framework for Temporal Abstraction (the options framework). Artificial Intelligence, 1999.</li>
+          <li><b>Fiedler.</b> Algebraic Connectivity of Graphs. Czechoslovak Mathematical Journal, 1973.</li>
+        </ol>
+      </section>
+
+      <footer class="end">
+        Zymera Research Program · L3 working paper · a design argument to be confirmed or falsified by the build-and-ablate program of §10. Prepared collaboratively; all empirical claims remain to be re-verified under the fixed experimental spec.
+      </footer>
+    </article>
+  </div>
+</div>

@@ -120,7 +120,17 @@ class Backbone:
     agg: str = "max"
     heads: int = 4
     message_content: str = "learned"  # {"learned", "edge_distance", "index"}
-    recurrence: str = "feedforward"   # {"feedforward", "recurrent"}
+    # recurrence: adds "gcrn" beyond feedforward/recurrent. "gcrn" = a size-invariant
+    #   Graph-Convolutional Recurrent belief — the per-agent hidden is carried across the
+    #   episode AND fused over the comm graph (recurrent message-passing belief) instead of
+    #   the plain per-agent GRU. Default stays "feedforward" (byte-unchanged); the module is
+    #   always built (stable param surface) and only used under the non-default values.
+    recurrence: str = "feedforward"   # {"feedforward", "recurrent", "gcrn"}
+    # position_ground: False (default) -> backbone input byte-unchanged. True -> append a
+    #   boundary-RELATIVE, normalized position feature to the per-agent backbone input (the
+    #   agent's location expressed as a fraction of the mission-field extent), grounding the
+    #   otherwise position-blind policy. Boundary-relative + normalized -> scale-invariant.
+    position_ground: bool = False
 
 
 @dataclass(frozen=True)
@@ -133,9 +143,16 @@ class ActionHead:
                        first K of [center, N, E, S, W, NE, SE, SW, NW]).
     * ``stride``     — cells from the agent to each compass candidate (absolute,
                        so the goal geometry is scale-invariant).
-    * ``controller`` — "greedy": Chebyshev-descent toward the goal, emitting ONLY
-                       env-valid moves (STAY fallback). The sim still sees 1-step
-                       moves; the 100-step budget is unchanged.
+    * ``controller`` — the L1 controller that turns the chosen goal into a 1-step move:
+        - "greedy" (default): Chebyshev-descent toward the goal, emitting ONLY env-valid
+          moves (STAY fallback). The sim still sees 1-step moves; the 100-step budget is
+          unchanged. v0 behaviour, byte-unchanged.
+        - "navfield": a nav-field + reactive controller — a navigation field is planned
+          toward the goal (see ``planner``) and the agent descends it with reactive local
+          avoidance. Only consulted when ``controller == 'navfield'``.
+    * ``planner`` — the nav-field planner used ONLY when ``controller == 'navfield'``
+                       (inert under the default greedy controller): "wavefront" (default) |
+                       "bfs" | "fmm" (fast-marching) | "astar".
     * ``explorer_tool`` — how the EXPLORER picks its goal sector (the L4 "disperse"
                        skill / I2 explorer-tool axis):
         - "goal_head" (default): the goal-pointer logits come from the belief z
@@ -180,7 +197,8 @@ class ActionHead:
     kind: str = "goal_pointer"
     K: int = 9
     stride: int = 3
-    controller: str = "greedy"
+    controller: str = "greedy"               # {"greedy", "navfield"}
+    planner: str = "wavefront"               # {"wavefront","bfs","fmm","astar"} (navfield only)
     explorer_tool: str = "goal_head"        # {"goal_head", "frontier_attn"}
     relay_tool: str = "lambda2_anchor"      # {"lambda2_anchor", "hold"}
     compass: str = "off"                     # {"off", "on"}
@@ -298,12 +316,23 @@ class Connectivity:
 
 @dataclass(frozen=True)
 class Loss:
-    """PPO + auxiliary λ₂ supervision knobs."""
+    """PPO + auxiliary λ₂ supervision knobs.
+
+    * ``credit`` — the advantage credit-assignment scheme:
+        - "shared" (default): the team-mean reward feeds one GAE advantage broadcast to
+          every agent — v0 behaviour, byte-unchanged.
+        - "difference": the EXACT submodular per-agent difference reward (Wolpert–Tumer
+          D_i = team value − team-value-without-i, computed exactly on the submodular
+          coverage objective) replaces the shared reward per agent, paying disjoint
+          sweeping and starving redundant floods. Distinct from the top-level
+          ``credit == 'agent'`` axis (which uses each agent's own per-agent reward).
+    """
     ppo_clip: float = 0.2
     aux_beta: float = 0.1               # weight on the aux λ₂ loss in the total
     aux_loss: str = "mse"               # "mse" | "huber"
     huber_delta: float = 0.1            # delta when aux_loss == "huber"
     vf_coef: float = 0.5
+    credit: str = "shared"              # {"shared", "difference"}
 
 
 @dataclass(frozen=True)
@@ -391,6 +420,12 @@ class CTDEConfig:
     #   to after the curriculum reaches the top rung. Team-reward GAE is unchanged; only
     #   the VALUE SOURCE swaps (the global-state critic input is what decentralization drops).
     critic_mode: str = "central"     # {"central", "decentral"}
+    # critic_arch: the CENTRAL critic's architecture (only read when critic_mode=="central").
+    #   "conv" (default) = the conv :class:`nets.Critic` over the 3-channel global central_obs
+    #   (byte-unchanged). "setpool" / "setattn" = the count-invariant :class:`nets.DeepSetsCritic`
+    #   over the PER-AGENT obs stack (N,C,H,W) with mean / attention agent-pooling. Train-only;
+    #   the exec/decentral path is untouched by this field.
+    critic_arch: str = "conv"        # {"conv", "setpool", "setattn"}
     # diversity_residual: "off" (default) = v0 goal logits (byte-unchanged). "on" = Arm
     #   B-dico: add a small per-agent, identity-conditioned residual to the goal logits
     #   (``nets.GoalResidual``), MEAN-ZERO across agents (so the team-average policy is
@@ -432,6 +467,16 @@ class CTDEConfig:
     #   exploration incentive is just a larger ``Reward.w_coverage`` — no separate axis.)
     explore_infogain: str = "off"    # {"off", "on"}
     info_gain_weight: float = 0.1    # weight on the uncovered-in-sensor-range bonus
+
+    # ---- v3 credit assignment (difference rewards) --------------------------
+    # credit: "shared" (default) = the team-mean reward feeds one GAE advantage broadcast
+    #   to every agent (v0/A0, byte-unchanged). "agent" = each agent's OWN per-agent reward
+    #   (``traj['rew_agent']`` — already coverage_i + connectivity_i + collision_i) feeds a
+    #   PER-AGENT GAE advantage (baselined by the shared team value; a valid state-only
+    #   baseline). At cover_r=0 each agent covers only its own cell, so per-agent coverage IS
+    #   the marginal (difference) coverage reward — the Wolpert–Tumer D_i that pays disjoint
+    #   sweeping and starves redundant floods. The critic still trains on the team return.
+    credit: str = "shared"           # {"shared", "agent"}
 
     # ---- run control --------------------------------------------------------
     scale: str = "16x16/4"            # human label for the rung

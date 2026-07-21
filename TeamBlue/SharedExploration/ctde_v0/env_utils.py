@@ -19,6 +19,7 @@ from __future__ import annotations
 import jax
 import jax.numpy as jnp
 import zymera
+from zymera.metrics import cheby_footprint
 from zymera.missions_terms import _lambda2
 
 from . import controller as _ctrl
@@ -351,3 +352,38 @@ def coverage_fraction_free(world, cfg: CTDEConfig) -> jax.Array:
     num = (covered & free).sum().astype(jnp.float32)
     den = jnp.maximum(free.sum().astype(jnp.float32), 1.0)
     return num / den
+
+
+def coverage_difference_credit(prev_covered: jax.Array, position: jax.Array,
+                               wall: jax.Array, cfg: CTDEConfig) -> jax.Array:
+    """(N,) float32 — the EXACT submodular difference reward for coverage THIS step.
+
+    ``D_i = cov(S) − cov(S\\{i})`` on the submodular team-coverage objective, where
+    ``cov`` = number of free cells the team covers this step that were NOT covered
+    before. Because coverage is a set-cover (submodular) objective this marginal is a
+    CLOSED FORM — no learned COMA estimate, no counterfactual rollout: it is exactly the
+    cells that are (a) new to the team this step, (b) inside agent i's cover footprint,
+    and (c) inside NO OTHER agent's footprint this step (a cell covered by ≥2 agents is
+    redundant, so removing any one leaves it covered → it contributes 0 to every D_i).
+
+    Read off the SAME ``cheby_footprint`` / ``prev.covered`` the env's ``new_coverage``
+    reward term uses (:func:`zymera.metrics.derive`), so the credit and the team coverage
+    metric agree exactly:
+
+      fp_i     = cheby_footprint(pos, cover_r) & ~wall          (N,H,W) i's footprint
+      new_i    = fp_i & ~prev_covered                          new-to-team cells in fp_i
+      count    = Σ_i fp_i                                      (H,W) coverers this step
+      D_i      = |{ c : new_i[c] ∧ count[c] == 1 }|            uniquely-provided new cells
+
+    ``pos`` is the POST-step position (matching the env's coverage bookkeeping); walls are
+    static so ``wall`` may be taken from either the prev or the next world. Pure JAX
+    (vmap/scan/jit-safe). Σ_i D_i ≤ team new-coverage this step (equality iff no two agents
+    cover the same new cell)."""
+    n = position.shape[0]
+    h, w = wall.shape
+    fp = cheby_footprint(position, h, w, cfg.world.cover_r)       # (N,H,W) bool footprint
+    fp = fp & ~wall[None]                                         # free cells only
+    new_fp = fp & ~prev_covered[None]                            # (N,H,W) new-to-team in fp_i
+    unique = fp.sum(0) == 1                                       # (H,W) covered by exactly one
+    d = (new_fp & unique[None]).reshape(n, -1).sum(-1)          # (N,) uniquely-provided new cells
+    return d.astype(jnp.float32)
