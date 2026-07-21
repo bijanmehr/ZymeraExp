@@ -1,4 +1,4 @@
-"""T4 — count-invariant critic A/B, a WARM-START TRANSFER test.
+"""T4 — count-invariant critic A/B, a FROM-SCRATCH + ZERO-SHOT-TRANSFER test.
 
 Belief: the fixed spec now carries the FULL 7-channel SLAM occupancy KB as the baseline belief
 (``--sense-walls --sense-free --boundary``: free/occupied/unknown + occ_frontier + boundary),
@@ -17,17 +17,15 @@ Three ARMS, identical in everything but the critic architecture (the exact Wire-
 
 TWO phases:
 
-  (1) TRAIN — the warm-start ladder 16²/4 -> 24²/6 -> 32²/10, each rung warm-starting the
-      POLICY+CRITIC from the previous rung's model.eqx via --init-from (the scale-invariant
-      backbone makes the cross-rung load byte-shape-identical; optimizer + dual re-init fresh
-      per rung — see ppo.init_state_from_checkpoint). Chained per arm, per seed. The
-      --critic-arch flag is forwarded to EVERY rung so the checkpoint arch always matches the
-      run arch (a conv ckpt only warm-starts a conv run — the arch never crosses within a
-      ladder). 3 arms × 3 seeds = 9 ladders × 3 rungs = 27 warm-start trainings.
+  (1) TRAIN — every scale FROM SCRATCH (no warm-start): 16²/4, 24²/6, 32²/10 each trained
+      independently per arm, per seed. 3 arms × 3 seeds × 3 scales = 27 independent trainings.
+      The 16² run is the transfer eval's SOURCE; the 24²/32² runs are the in-distribution
+      REFERENCE the zero-shot transfer numbers are read against (trained-at-that-scale ceiling).
+      The --critic-arch flag is forwarded to every run so the checkpoint arch always matches.
 
-      Uses the SAME dependency-aware bounded-parallel scheduler as the obstacle launcher
-      (run_obstacle_overnight._schedule): a rung with a model.eqx is skipped; a rung whose
-      --init-from predecessor is missing waits for it; --jobs runs up to N at once.
+      Uses the SAME bounded-parallel scheduler as the obstacle launcher
+      (run_obstacle_overnight._schedule): a run with a model.eqx is skipped; every unit is
+      independent (no --init-from deps); --jobs runs up to N at once.
 
   (2) ZERO-SHOT TRANSFER EVAL — the transfer test proper. For each arm × seed, take the
       16²-TRAINED checkpoint (ladder rung 0) and evaluate it, WITHOUT any further training,
@@ -142,19 +140,20 @@ def _rung0_dir(out: str, arm: str, seed: int) -> str:
 
 
 def _build_units(out, seeds):
-    """3 arms × |seeds| warm-start ladders, each rung 0 fresh and each later rung
-    --init-from the previous rung. Run-dir <out>/<arm>/seed{S}/ladder_{i}_{tag}."""
+    """3 arms × |seeds| × 3 scales, EVERY rung trained FROM SCRATCH (no warm-start, no deps) —
+    each scale is an independent training; the transfer test lives in the zero-shot EVAL phase,
+    which transplants the from-scratch 16² checkpoint up to 24²/32². The 24²/32² from-scratch
+    runs stand as the in-distribution reference the zero-shot numbers are read against.
+    Run-dir <out>/<arm>/seed{S}/ladder_{i}_{tag}."""
     units = []
     for arm in _ARM_IDS:
         arm_extra = _FIXED + _ARMS[arm]
         for s in seeds:
-            prev_dir = None
             for i, (g, n, r) in enumerate(_RUNGS):
                 rd = os.path.join(out, arm, f"seed{s}", f"ladder_{i}_{_tag(g, n, r)}")
-                uid = f"{arm}/s{s}/ladder{i}_{_tag(g, n, r)}"
+                uid = f"{arm}/s{s}/scale{i}_{_tag(g, n, r)}"
                 units.append(Unit(uid, rd, (g, n, r), s, arm_extra,
-                                  init_from_dir=prev_dir, needs_dir=prev_dir))
-                prev_dir = rd
+                                  init_from_dir=None, needs_dir=None))
     return units
 
 
@@ -310,21 +309,18 @@ def main(argv=None):
     seeds = list(range(args.seeds))
     units = _build_units(out, seeds)
 
-    n_ladders = len(_ARM_IDS) * len(seeds)
-    print(f"=== T4 critic A/B: {len(_ARM_IDS)} arms × {len(seeds)} seeds = {n_ladders} "
-          f"warm-start ladders × {len(_RUNGS)} rungs = {len(units)} trainings; "
+    print(f"=== T4 critic A/B: {len(_ARM_IDS)} arms × {len(seeds)} seeds × {len(_RUNGS)} scales "
+          f"= {len(units)} FROM-SCRATCH trainings; "
           f"+ zero-shot transfer eval @ {[_tag(*t) for t in _EVAL_TARGETS]} ===", flush=True)
     print(f"    arms: {_ARM_IDS}   rungs: {[_tag(*x) for x in _RUNGS]}", flush=True)
     print(f"    fixed spec: {' '.join(_FIXED)}", flush=True)
     print(f"    out={out}  iters={args.iters}  jobs={args.jobs}  only={args.only}", flush=True)
 
     if args.dry_run:
-        print("\n-- TRAIN plan (warm-start ladder; each rung>0 --init-from its predecessor) --",
-              flush=True)
+        print("\n-- TRAIN plan (every scale from scratch; no --init-from) --", flush=True)
         for u in units:
             g, n, r = u.rung
-            init = os.path.relpath(u.init_from, out) if u.init_from else "scratch"
-            print(f"  {u.uid:26s} grid={g:2d} N={n:2d}  init-from={init}", flush=True)
+            print(f"  {u.uid:26s} grid={g:2d} N={n:2d}  init-from=scratch", flush=True)
         print("\n-- EVAL plan (zero-shot transfer of each 16² checkpoint) --", flush=True)
         for arm in _ARM_IDS:
             for s in seeds:
