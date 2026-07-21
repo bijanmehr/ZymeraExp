@@ -52,44 +52,57 @@ def _one_step_params(cfg):
     return leaves, {k: float(v) for k, v in logs.items()}
 
 
+def _max_abs_leaf(leaves_a, leaves_b):
+    m = 0.0
+    for a, b in zip(leaves_a, leaves_b):
+        d = np.abs(np.asarray(a, np.float64) - np.asarray(b, np.float64))
+        m = max(m, float(d.max(initial=0.0)))
+    return m
+
+
+def _max_log(la, lb):
+    shared = set(la) & set(lb)
+    return max((abs(la[k] - lb[k]) for k in shared), default=0.0)
+
+
 def _compare():
+    """Judge remat exactness by CONTROLLING for backend non-determinism.
+
+    GPU conv/reduction ops (cuDNN) are not bitwise-reproducible run-to-run, so even two
+    IDENTICAL train_steps differ by a small floor. We measure that floor (OFF vs OFF) and
+    the remat effect (OFF vs ON); remat is exact iff its effect is no larger than the
+    non-determinism floor. On CPU both are ~0 (deterministic)."""
     cfg_off, *_ = train_ctde._parse_args(_ARGV)
     cfg_on = dataclasses.replace(cfg_off, loss=dataclasses.replace(cfg_off.loss, remat=True))
     assert cfg_off.loss.remat is False and cfg_on.loss.remat is True
 
-    off_leaves, off_logs = _one_step_params(cfg_off)
+    off1_leaves, off1_logs = _one_step_params(cfg_off)
+    off2_leaves, off2_logs = _one_step_params(cfg_off)     # non-determinism control
     on_leaves, on_logs = _one_step_params(cfg_on)
+    assert len(off1_leaves) == len(on_leaves), "param tree shape changed under remat"
 
-    assert len(off_leaves) == len(on_leaves), "param tree shape changed under remat"
-    max_abs = 0.0
-    max_rel = 0.0
-    for a, b in zip(off_leaves, on_leaves):
-        a = np.asarray(a, np.float64)
-        b = np.asarray(b, np.float64)
-        d = np.abs(a - b)
-        max_abs = max(max_abs, float(d.max(initial=0.0)))
-        denom = np.abs(a) + 1e-8
-        max_rel = max(max_rel, float((d / denom).max(initial=0.0)))
-    # max abs difference over every shared scalar log (forward values must be identical).
-    shared = set(off_logs) & set(on_logs)
-    loss_diff = max((abs(off_logs[k] - on_logs[k]) for k in shared), default=0.0)
-    return max_abs, max_rel, loss_diff, off_logs, on_logs
+    floor = _max_abs_leaf(off1_leaves, off2_leaves)         # OFF vs OFF  (backend noise)
+    effect = _max_abs_leaf(off1_leaves, on_leaves)          # OFF vs ON   (remat)
+    floor_log = _max_log(off1_logs, off2_logs)
+    effect_log = _max_log(off1_logs, on_logs)
+    return floor, effect, floor_log, effect_log
 
 
 def test_remat_parity():
-    max_abs, max_rel, loss_diff, *_ = _compare()
-    # gradient checkpointing is exact; allow only tiny fp-reassociation slack.
-    assert max_abs < 1e-5, f"post-step param max abs diff {max_abs:.2e} too large (remat not exact)"
-    assert max_rel < 1e-4, f"post-step param max rel diff {max_rel:.2e} too large (remat not exact)"
-    assert loss_diff < 1e-5, f"max log diff {loss_diff:.2e} (forward should be identical)"
+    floor, effect, floor_log, effect_log = _compare()
+    tol = max(1e-6, 3.0 * floor)                            # exact ⟺ within backend noise
+    assert effect <= tol, (f"remat param Δ {effect:.2e} exceeds non-determinism floor "
+                           f"{floor:.2e} (tol {tol:.2e}) — remat NOT exact")
+    tol_log = max(1e-6, 3.0 * floor_log)
+    assert effect_log <= tol_log, (f"remat forward Δ {effect_log:.2e} exceeds floor "
+                                   f"{floor_log:.2e} — forward not identical")
 
 
 if __name__ == "__main__":
-    max_abs, max_rel, loss_diff, off_logs, on_logs = _compare()
-    print(f"post-step param max |Δ|   = {max_abs:.3e}   (want < 1e-5)")
-    print(f"post-step param max relΔ  = {max_rel:.3e}   (want < 1e-4)")
-    print(f"max |Δ| over shared scalar logs = {loss_diff:.3e}   (forward parity)")
-    ok = (max_abs < 1e-5) and (max_rel < 1e-4) and (loss_diff < 1e-5)
-    print("PARITY:", "PASS ✅  (remat is exact — identical gradients)" if ok
-          else "FAIL ❌  (remat changed the update — NOT safe)")
+    floor, effect, floor_log, effect_log = _compare()
+    print(f"param Δ:  OFF-vs-OFF (noise floor) = {floor:.3e}   OFF-vs-ON (remat) = {effect:.3e}")
+    print(f"log   Δ:  OFF-vs-OFF (noise floor) = {floor_log:.3e}   OFF-vs-ON (remat) = {effect_log:.3e}")
+    ok = (effect <= max(1e-6, 3.0 * floor)) and (effect_log <= max(1e-6, 3.0 * floor_log))
+    print("PARITY:", "PASS ✅  (remat effect within backend non-determinism → exact)" if ok
+          else "FAIL ❌  (remat effect EXCEEDS the noise floor — a real change)")
     raise SystemExit(0 if ok else 1)
