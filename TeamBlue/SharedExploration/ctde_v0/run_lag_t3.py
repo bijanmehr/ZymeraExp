@@ -70,9 +70,13 @@ from ctde_v0.run_obstacle_overnight import _PKG_PARENT, _schedule
 # signal (the true team connectivity, computed centrally, folded into reward). The belief is now
 # the FULL 7-channel SLAM occupancy KB: --sense-walls + --sense-free + --boundary give
 # free/occupied/unknown occupancy + a Yamauchi occ_frontier + the field-edge boundary (5→7 ch).
+# Obstacle terrain (mission substrate; open-only was a scoping miss). Override with env ZTERRAIN
+# in {open, rooms, walls, clutter, pillars, mixed}. Default "rooms" = corridors + chokepoints.
+_TERRAIN = os.environ.get("ZTERRAIN", "rooms")
+
 _FIXED = ["--explorer-tool", "frontier_attn", "--collision-mask", "on",
           "--w-coverage", "3", "--sense-walls", "--sense-free", "--boundary",
-          "--horizon", "100", "--cover-r", "0",
+          "--horizon", "100", "--cover-r", "0", "--terrain", _TERRAIN,
           "--role-picker", "expl_relay", "--conn-signal", "global_lambda2"]
 
 # --- the 5 arms (id -> the extra train_ctde flags that DEFINE that arm) ---

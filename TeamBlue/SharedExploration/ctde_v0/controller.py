@@ -84,10 +84,11 @@ def occupied_cell_mask(pos: jax.Array, valid_targets: jax.Array) -> jax.Array:
     flagged: an agent's own current cell does not count as "occupied by another",
     and we force STAY's column off regardless so it always remains selectable.
 
-    CAVEAT: this forbids moving onto a cell another agent occupies RIGHT NOW; two
-    agents simultaneously claiming the same EMPTY cell is still possible under the
-    NoCollision env semantics (see :func:`positions_after`). A deterministic
-    index-priority resolver for that case is a future refinement — not built here.
+    NOTE: this forbids moving onto a cell another agent occupies RIGHT NOW. The remaining
+    case — two agents simultaneously claiming the same EMPTY cell under the NoCollision env
+    semantics — is closed by :func:`resolve_target_conflicts` (deterministic index priority),
+    applied to the chosen moves after selection. The two together GUARANTEE no two agents share
+    a cell after the step (verified by tests/test_collision_free.py).
     """
     n = pos.shape[0]
     # tgt[i,a] == pos[j] for some j != i  (compare every target to every cur cell).
@@ -96,6 +97,28 @@ def occupied_cell_mask(pos: jax.Array, valid_targets: jax.Array) -> jax.Array:
     occ = jnp.any(same & other[:, None, :], axis=-1)                 # (N,A) any other on it
     stay = int(ActionId.STAY)
     return occ.at[:, stay].set(False)                               # STAY never blocked
+
+
+def resolve_target_conflicts(move: jax.Array, valid_targets: jax.Array) -> jax.Array:
+    """(N,) resolved move — the hard-collision COMPLETION of :func:`occupied_cell_mask`.
+
+    ``occupied_cell_mask`` forbids stepping onto a cell occupied RIGHT NOW, but two agents can
+    still commit to the same EMPTY cell in a single tick (the documented NoCollision hole). This
+    closes it by DETERMINISTIC INDEX PRIORITY: among all agents whose committed target cell
+    ``valid_targets[i, move[i]]`` is identical, only the LOWEST-index agent proceeds; every
+    higher-index agent reverts to STAY (its own current cell).
+
+    Together with ``occupied_cell_mask`` (no move targets a currently-occupied cell) and distinct
+    start cells this GUARANTEES no two agents share a cell after the step: convergence is broken
+    here; moving-onto-occupied is masked upstream; and a reverted agent lands on its own cell,
+    which no other agent can target (that cell was occupied, hence already masked). Deterministic
+    and jit-stable (no data-dependent shapes)."""
+    n = move.shape[0]
+    tgt = valid_targets[jnp.arange(n), move]                          # (N,2) committed target cell
+    same = jnp.all(tgt[:, None, :] == tgt[None, :, :], axis=-1)       # (N,N) i,j claim same cell
+    lower = jnp.tril(jnp.ones((n, n), bool), -1)                      # (N,N) j < i (priority)
+    yield_i = jnp.any(same & lower, axis=1)                           # (N,) a higher-priority agent claims it
+    return jnp.where(yield_i, jnp.int32(int(ActionId.STAY)), move)
 
 
 def greedy_move(pos: jax.Array, goal: jax.Array, valid_targets: jax.Array,

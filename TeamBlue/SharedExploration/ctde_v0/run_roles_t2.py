@@ -53,6 +53,14 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _PKG_PARENT = os.path.dirname(_HERE)                       # .../SharedExploration
 _FIEDLER = os.path.abspath(os.path.join(_HERE, "..", "..", "..", "FiedlerValueEstimation"))
 
+# Terrain for the runs. The near-term suite was OPEN-only (a scoping miss); the mission substrate
+# is obstacle worlds (corridors, chokepoints, obstacles) — that's what the 7-ch SLAM belief exists
+# for. Default now to an OBSTACLE terrain; override with env ZTERRAIN in
+# {open, rooms, walls, clutter, pillars, mixed}. Default "rooms" = walls forming rooms with
+# 1-wide doors → corridors + chokepoints (a connected obstacle world). ("mixed" needs
+# --n-obstacles>0 for its clutter; with the default 0 it collapses to plain rooms.)
+_TERRAIN = os.environ.get("ZTERRAIN", "rooms")
+
 # The honest fixed spec — IDENTICAL on every run. frontier-attn explorer + hard collision-mask
 # + lagrangian mechanism on the local_edge_margin connectivity signal, heavier coverage reward,
 # 100-step horizon. cover_r=0 is stated EXPLICITLY here (the confound fix — the god-view Voronoi
@@ -76,9 +84,9 @@ _ARMS = {
 # WORLD: density-pinned OPEN ladder; grid / n_agents / comm_r, all open terrain.
 #   id -> (grid, n_agents, comm_r, terrain_extra_flags)
 _WORLDS = {
-    "o16": (16, 4, 5, ["--terrain", "open"]),
-    "o24": (24, 6, 5, ["--terrain", "open"]),
-    "o32": (32, 10, 5, ["--terrain", "open"]),
+    "o16": (16, 4, 5, ["--terrain", _TERRAIN]),
+    "o24": (24, 6, 5, ["--terrain", _TERRAIN]),
+    "o32": (32, 10, 5, ["--terrain", _TERRAIN]),
 }
 
 # fixed cross order (arm × world) — every combination.

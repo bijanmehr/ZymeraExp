@@ -72,12 +72,16 @@ from ctde_v0.run_obstacle_overnight import _PKG_PARENT, _done, _schedule
 # SLAM occupancy KB: --sense-walls + --sense-free + --boundary give free/occupied/unknown
 # occupancy + a Yamauchi occ_frontier + the field-edge boundary (5→7 ch). The ONLY thing an
 # arm changes is --critic-arch.
+# Obstacle terrain (mission substrate; open-only was a scoping miss). Override with env ZTERRAIN
+# in {open, rooms, walls, clutter, pillars, mixed}. Default "rooms" = corridors + chokepoints.
+_TERRAIN = os.environ.get("ZTERRAIN", "rooms")
+
 _FIXED = ["--explorer-tool", "frontier_attn", "--collision-mask", "on",
           "--mechanism", "lagrangian", "--conn-signal", "global_lambda2",
           "--constraint-threshold", "0.5",
           "--role-picker", "expl_relay", "--w-coverage", "3",
           "--sense-walls", "--sense-free", "--boundary",
-          "--horizon", "100", "--cover-r", "0"]
+          "--horizon", "100", "--cover-r", "0", "--terrain", _TERRAIN]
 
 # the 3 arms — the count-invariant critic A/B. Value = the exact Wire-phase --critic-arch flag.
 _ARMS = {

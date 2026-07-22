@@ -180,6 +180,12 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
         move = jnp.where(role_idx == ROLE_RELAY, relay, expl_move)    # (N,) per-role
     else:
         move = expl_move
+    # HARD collision completion: break simultaneous same-EMPTY-cell convergence by deterministic
+    # index priority (occupied_cell_mask upstream only forbids moving onto a NOW-occupied cell).
+    # Together they GUARANTEE no two agents share a cell after the step. Active whenever collision
+    # avoidance is on (collision_mask == 'on', or the navfield reactive controller).
+    if forbid or use_navfield:
+        move = ctrl.resolve_target_conflicts(move, valid_targets)
     was_valid = jnp.take_along_axis(action_valid, move[:, None], axis=1)[:, 0]
     return move, was_valid
 
