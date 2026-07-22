@@ -63,23 +63,27 @@ def _run_env():
     return env
 
 
-def _build_all(out_base, seeds):
-    """Every training unit across the three suites, each tagged with its suite name + iters.
-    out_base is the runs/ root; each suite builds its run-dirs under out_base/<subdir>."""
+def _build_all(out_base, seeds, suites=None, iters_override=None):
+    """Every training unit across the suites, tagged with its suite name + iters. out_base is the
+    runs/ root; each suite builds run-dirs under out_base/<subdir>. ``suites`` (list) restricts to
+    named suites (e.g. skip lag_t3); ``iters_override`` forces that iter count on every unit."""
     units = []
     for name, mod, iters in _SUITES:
+        if suites and name not in suites:
+            continue
         out = os.path.join(out_base, name)
         us = mod._build_units(out, seeds)
         for u in us:
-            u._iters = iters
+            u._iters = int(iters_override) if iters_override else iters
             u._suite = name
         units.extend(us)
     return units
 
 
-def _schedule(units, rollouts, jobs):
+def _schedule(units, rollouts, jobs, extra=None):
     """Bounded-parallel pool (all units independent). Skips done run-dirs; launches up to
-    `jobs` at once with each unit's own iters; polls to completion."""
+    `jobs` at once with each unit's own iters; polls to completion. ``extra`` (list of flags)
+    is appended to every train_ctde command (e.g. ['--ppo-epochs','6'])."""
     env = _run_env()
     pending = [u for u in units if not _done(u.run_dir)]
     running = []
@@ -92,7 +96,7 @@ def _schedule(units, rollouts, jobs):
         while pending and len(running) < jobs:
             u = pending.pop(0)
             os.makedirs(u.run_dir, exist_ok=True)
-            cmd = u.cmd(u._iters, rollouts)
+            cmd = u.cmd(u._iters, rollouts) + (list(extra) if extra else [])
             print(f"[launch] {u._suite}:{u.uid}  ({u.rung[0]}²/{u.rung[1]}) iters={u._iters}",
                   flush=True)
             u.proc = subprocess.Popen(cmd, cwd=_PKG_PARENT, env=env)
@@ -127,12 +131,19 @@ def main(argv=None):
                    help="I/N round-robin split (e.g. 0/2, 1/2): run only units with index%%N==I, "
                         "for splitting a tier across GPUs/machines (skip-on-done keeps shards "
                         "non-overlapping and resumable)")
+    p.add_argument("--iters-override", type=int, default=None,
+                   help="force this many PPO iters on EVERY unit (overrides per-suite defaults)")
+    p.add_argument("--extra", type=str, default="",
+                   help="extra flags appended to every train_ctde cmd, e.g. '--ppo-epochs 6'")
+    p.add_argument("--suites", type=str, default=None,
+                   help="comma list of suites to include {roles_t2,lag_t3,critic_t4}; default all")
     p.add_argument("--dry-run", action="store_true", help="print the split, launch nothing")
     a = p.parse_args(argv)
 
     out_base = a.out if os.path.isabs(a.out) else os.path.join(_PKG_PARENT, a.out)
     seeds = list(range(a.seeds))
-    units = _build_all(out_base, seeds)
+    suites = a.suites.split(",") if a.suites else None
+    units = _build_all(out_base, seeds, suites=suites, iters_override=a.iters_override)
 
     is_heavy = (a.tier == "heavy")
     tier_units = [u for u in units if (u.rung[0] >= 32) == is_heavy]
@@ -146,7 +157,8 @@ def main(argv=None):
     n_light = len(units) - n_heavy
     print(f"=== serial32 [{a.tier}]: {len(tier_units)} units "
           f"(total {len(units)} = {n_heavy} heavy 32² + {n_light} light), "
-          f"jobs={jobs}, rollouts={a.rollouts}, seeds={seeds} ===", flush=True)
+          f"jobs={jobs}, rollouts={a.rollouts}, seeds={seeds}, "
+          f"iters_override={a.iters_override}, extra='{a.extra}', out={a.out} ===", flush=True)
 
     if a.dry_run:
         for u in tier_units:
@@ -156,7 +168,7 @@ def main(argv=None):
         return
 
     t0 = time.time()
-    done = _schedule(tier_units, a.rollouts, jobs)
+    done = _schedule(tier_units, a.rollouts, jobs, extra=(a.extra.split() if a.extra else None))
     print(f"\n=== SERIAL32 {a.tier} DONE: {done}/{len(tier_units)} produced model.eqx "
           f"({round(time.time() - t0, 1)}s) ===", flush=True)
 
