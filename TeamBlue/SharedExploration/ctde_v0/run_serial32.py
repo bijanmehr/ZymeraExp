@@ -123,6 +123,10 @@ def main(argv=None):
     p.add_argument("--rollouts", type=int, default=16, help="episodes per PPO iter")
     p.add_argument("--jobs", type=int, default=None,
                    help="concurrent trainings (default: heavy=1, light=3)")
+    p.add_argument("--shard", type=str, default=None,
+                   help="I/N round-robin split (e.g. 0/2, 1/2): run only units with index%%N==I, "
+                        "for splitting a tier across GPUs/machines (skip-on-done keeps shards "
+                        "non-overlapping and resumable)")
     p.add_argument("--dry-run", action="store_true", help="print the split, launch nothing")
     a = p.parse_args(argv)
 
@@ -132,6 +136,10 @@ def main(argv=None):
 
     is_heavy = (a.tier == "heavy")
     tier_units = [u for u in units if (u.rung[0] >= 32) == is_heavy]
+    if a.shard:
+        si, sn = (int(x) for x in a.shard.split("/"))
+        tier_units = [u for k, u in enumerate(tier_units) if k % sn == si]
+        print(f"    shard {si}/{sn}: {len(tier_units)} of this tier's units on this process", flush=True)
     jobs = a.jobs if a.jobs is not None else (1 if is_heavy else 3)
 
     n_heavy = sum(1 for u in units if u.rung[0] >= 32)
