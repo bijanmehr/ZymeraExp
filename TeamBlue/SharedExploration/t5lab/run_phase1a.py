@@ -98,6 +98,9 @@ def main():
     print("[phase1a] training from scratch (16 rollouts)...", flush=True)
     actor, hist = train(env, actor, cfg, kt)
     print(f"[phase1a] final train return: {hist[-1].get('ret'):.3f}", flush=True)
+    ckpt = f"{SD}/t5_phase1a_actor.eqx"
+    eqx.tree_serialise_leaves(ckpt, actor)
+    print(f"[phase1a] saved checkpoint -> {ckpt}", flush=True)
 
     maps = json.load(open(f"{SD}/maps_sar.json"))
     covs = []

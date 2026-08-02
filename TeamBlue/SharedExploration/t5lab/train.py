@@ -42,8 +42,11 @@ def _step_logp_val_ent(actor, step, stencil, key):
 def _ppo_loss(actor, batch, adv, ret, old_logp, stencil, clip, vf, ent_c, key):
     B, T = adv.shape
     ks = jax.random.split(key, B * T).reshape(B, T, 2)
+    # vmap only the per-(B,T) fields the loss recompute needs — NOT the whole traj (v_last is
+    # scalar-per-rollout (B,), which the inner T-vmap can't map).
+    steps = {k: batch[k] for k in ("obs", "adj", "pos", "goal_idx", "move", "blocked")}
     new_logp, vteam, ent = jax.vmap(jax.vmap(
-        lambda s, k: _step_logp_val_ent(actor, s, stencil, k)))(batch, ks)   # (B,T) each
+        lambda s, k: _step_logp_val_ent(actor, s, stencil, k)))(steps, ks)   # (B,T) each
     ratio = jnp.exp(new_logp - old_logp)
     pg = -jnp.minimum(ratio * adv, jnp.clip(ratio, 1 - clip, 1 + clip) * adv).mean()
     vloss = vf * ((vteam - ret) ** 2).mean()
@@ -86,8 +89,12 @@ def train(env, actor, cfg, key):
     hist = []
     k = key
     step = eqx.filter_jit(train_step)
-    for _it in range(int(cfg.iters)):
+    for it in range(int(cfg.iters)):
         k, sk = jax.random.split(k)
         actor, opt_state, m = step(env, actor, opt, opt_state, cfg, sk, stencil)
-        hist.append({kk: float(v) for kk, v in m.items()})
+        row = {kk: float(v) for kk, v in m.items()}
+        hist.append(row)
+        if it % 10 == 0 or it == int(cfg.iters) - 1:
+            print(f"[it {it}] ret={row['ret']:.2f} pg={row['pg']:.3f} "
+                  f"vloss={row['vloss']:.1f} ent={row['ent']:.2f}", flush=True)
     return actor, hist
