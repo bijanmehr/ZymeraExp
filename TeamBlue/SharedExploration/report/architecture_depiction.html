@@ -23,43 +23,46 @@
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);margin:0;font:16px/1.55 Charter,Georgia,serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:860px;margin:0 auto;padding:44px 20px 96px}
+.wrap{max-width:880px;margin:0 auto;padding:44px 20px 96px}
 .eyebrow{font:600 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
 h1{font-size:27px;line-height:1.14;margin:0 0 8px;text-wrap:balance}
 .lede{color:var(--soft);font-style:italic;margin:0 0 18px;font-size:16px}
 .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
 
-/* summary chips */
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
-.kv{background:var(--card);border:1px solid var(--rule);border-radius:9px;padding:8px 12px;min-width:90px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 24px}
+.kv{background:var(--card);border:1px solid var(--rule);border-radius:9px;padding:8px 12px;min-width:88px}
 .kv .n{font:800 19px/1 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums;display:block}
 .kv .l{font:600 10.5px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin-top:3px;display:block}
 
 h2{font:700 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:34px 0 10px;padding-top:16px;border-top:1px solid var(--rule)}
 .note{font:13.5px/1.55 ui-sans-serif,system-ui,sans-serif;color:var(--soft);margin:8px 0}
 
-/* ---- parameter budget: one honest stacked bar ---- */
 .budget{background:var(--card);border:1px solid var(--rule);border-radius:11px;padding:16px 18px;margin:6px 0 4px}
 .stack{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--rule2)}
 .stack>span{display:block;min-width:2px}
+.stack>span:last-child{flex:1}
 .blegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font:12px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--soft)}
 .blegend span{display:inline-flex;align-items:center;gap:6px}
 .blegend i{width:11px;height:11px;border-radius:3px;flex:none}
 
-/* ---- the layer flow (pure grid; nothing absolutely positioned) ---- */
-.flow{margin-top:6px}
-.stage{border-left:3px solid var(--sc);border-radius:0 10px 10px 0;background:var(--card);border-top:1px solid var(--rule);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:10px 0;overflow:hidden}
-.shead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:10px 14px;background:color-mix(in srgb,var(--sc) 9%,transparent)}
+/* scope band label */
+.band{display:flex;align-items:center;gap:9px;margin:22px 0 2px;font:700 12px ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;color:var(--bc)}
+.band .dot{width:11px;height:11px;border-radius:50%;background:var(--bc);flex:none}
+.band .sc{font:600 11px ui-sans-serif,system-ui,sans-serif;color:var(--faint);letter-spacing:.02em;margin-left:auto;text-transform:none}
+.bandnote{font:12.5px/1.5 ui-sans-serif,system-ui,sans-serif;color:var(--faint);margin:0 0 8px 20px}
+
+.stage{border-left:3px solid var(--sc);border-radius:0 10px 10px 0;background:var(--card);border-top:1px solid var(--rule);border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:8px 0;overflow:hidden}
+.shead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 14px;background:color-mix(in srgb,var(--sc) 9%,transparent)}
 .shead .t{font:700 13px ui-sans-serif,system-ui,sans-serif;color:var(--sc)}
 .shead .t b{color:var(--ink);font-weight:800;margin-right:7px}
 .shead .s{font:600 11.5px ui-sans-serif,system-ui,sans-serif;color:var(--faint);white-space:nowrap}
 .shead .s b{color:var(--sc);font-variant-numeric:tabular-nums}
 
-.lrow{display:grid;grid-template-columns:1fr 178px 138px;gap:12px;align-items:center;padding:9px 14px;border-top:1px solid var(--rule)}
+.lrow{display:grid;grid-template-columns:1fr 176px 140px;gap:12px;align-items:center;padding:9px 14px;border-top:1px solid var(--rule)}
 .lname{min-width:0}
 .lname .nm{font:700 13.5px ui-sans-serif,system-ui,sans-serif}
 .lname .op{font:12px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--faint);margin-top:1px}
-.xform{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.xform{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .tsr{font:600 11.5px ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;background:var(--chip);color:var(--soft);padding:2px 7px;border-radius:5px;white-space:nowrap}
 .arrow{color:var(--faint);font-size:12px}
 .pcell{display:flex;align-items:center;gap:8px}
@@ -67,15 +70,12 @@ h2{font:700 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em;tex
 .track i{display:block;height:100%;background:var(--sc);border-radius:5px}
 .pnum{font:700 12px ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;width:50px;text-align:right;flex:none}
 .pnum.z{color:var(--faint);font-weight:600}
-.stage.inert{opacity:.82}
-.stage.inert .nm{color:var(--soft)}
+.none{flex:1;font:11px ui-sans-serif,system-ui,sans-serif;color:var(--faint)}
+.stage.inert{opacity:.9}.stage.inert .nm{color:var(--soft)}
+.sub-r{padding-left:26px}
 
-@media(max-width:620px){
- .lrow{grid-template-columns:1fr;gap:6px}
- .pcell{margin-top:2px}
-}
+@media(max-width:620px){.lrow{grid-template-columns:1fr;gap:6px}.pcell{margin-top:2px}}
 
-/* memory panel */
 .eq{background:var(--eqbg);border-radius:8px;padding:11px 15px;margin:12px 0;font:13px/1.7 ui-monospace,Menlo,monospace;overflow-x:auto}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}@media(max-width:620px){.two{grid-template-columns:1fr}}
 .mcard{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:13px 16px}
@@ -90,129 +90,162 @@ code{font:12.5px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1
 <body><div class="wrap">
 
 <p class="eyebrow">Zymera · policy model data-sheet</p>
-<h1>The policy network, as a specification</h1>
-<p class="lede">Every layer, its exact shape transform, and where the parameters live — introspected from a trained checkpoint. Shapes are for a concrete 32×32 grid with 10 agents. No diagram: this is the network read top-to-bottom, the way it runs.</p>
+<h1>The policy network, grouped by who computes what</h1>
+<p class="lede">Read top-to-bottom. Layers are grouped by scope — what each agent computes alone, what couples the team over the communication graph, and what is centralized for training only — mirroring how the mission itself is framed. Shapes are for a concrete 32×32 grid with 10 agents; counts are exact.</p>
 
 <div class="chips">
- <div class="kv"><span class="n mono">206,374</span><span class="l">total params</span></div>
- <div class="kv"><span class="n mono">133,017</span><span class="l">active</span></div>
- <div class="kv"><span class="n mono">73,357</span><span class="l">inert</span></div>
- <div class="kv"><span class="n mono">&lt;1 MB</span><span class="l">weights</span></div>
+ <div class="kv"><span class="n mono">206,374</span><span class="l">trainable</span></div>
+ <div class="kv"><span class="n mono">116,185</span><span class="l">active</span></div>
+ <div class="kv"><span class="n mono">90,189</span><span class="l">inert here</span></div>
+ <div class="kv"><span class="n mono">19</span><span class="l">frozen planner</span></div>
  <div class="kv"><span class="n mono">7×32×32</span><span class="l">input / agent</span></div>
  <div class="kv"><span class="n mono">5</span><span class="l">output moves</span></div>
 </div>
 
-<h2>Where the parameters live</h2>
-<p class="note">True proportions of all 206,374 parameters. The biggest single block is <b>inert</b> — recurrence and alternative tools that are built but carry no gradient in this configuration.</p>
+<h2>Where the parameters live — and how many are dead weight</h2>
+<p class="note"><b>44% of the parameters (90,189) carry no gradient in this configuration</b> — recurrence, attention, and alternative tool-heads that are built but switched off. The bar is colored: solid = used, gray = inert.</p>
 <div class="budget">
  <div class="stack">
-  <span style="width:19.9%;background:var(--blue)" title="Perception conv — 41,088"></span>
-  <span style="width:20.2%;background:var(--purp)" title="Communication GNN — 41,728"></span>
-  <span style="width:2.3%;background:var(--green)" title="Decision heads — 4,696"></span>
-  <span style="width:22.0%;background:var(--red)" title="Critic — 45,505"></span>
-  <span style="width:35.5%;background:var(--gray)" title="Inert — 73,357"></span>
+  <span style="width:19.88%;background:var(--blue)" title="Perception conv — 41,024 (active)"></span>
+  <span style="width:12.10%;background:var(--purp)" title="GNN message/update/norm — 24,960 (active)"></span>
+  <span style="width:2.28%;background:var(--green)" title="Decision heads — 4,696 (active)"></span>
+  <span style="width:22.05%;background:var(--red)" title="Critic — 45,505 (active)"></span>
+  <span style="width:8.06%;background:var(--gray)" title="GNN attention q/k — 16,640 (inert, max-agg)"></span>
+  <span style="width:34.11%;background:var(--gray);opacity:.72" title="Recurrence GRU+GCRN — 70,400 (inert)"></span>
+  <span style="background:var(--gray);opacity:.5" title="Alt tools + position proj — 3,149 (inert)"></span>
  </div>
  <div class="blegend">
-  <span><i style="background:var(--blue)"></i>Perception conv · 41,088 · 20%</span>
-  <span><i style="background:var(--purp)"></i>Communication GNN · 41,728 · 20%</span>
-  <span><i style="background:var(--green)"></i>Decision heads · 4,696 · 2%</span>
+  <span><i style="background:var(--blue)"></i>Perception · 41,024 · 20%</span>
+  <span><i style="background:var(--purp)"></i>GNN (used) · 24,960 · 12%</span>
+  <span><i style="background:var(--green)"></i>Decision · 4,696 · 2%</span>
   <span><i style="background:var(--red)"></i>Critic · 45,505 · 22%</span>
-  <span><i style="background:var(--gray)"></i>Inert · 73,357 · 36%</span>
+  <span><i style="background:var(--gray)"></i>Inert · 90,189 · 44%</span>
  </div>
 </div>
 
-<h2>The layer flow — 32×32, 10 agents</h2>
-<p class="note">Read top-to-bottom. Each bar is a layer's parameter count, drawn to one linear scale across the whole sheet (widest = the 45,568-param inert GCRN), so bar length is the honest relative size; the exact count is on the right.</p>
+<!-- ===================== BAND 1: PER AGENT — perception ===================== -->
+<div class="band" style="--bc:var(--blue)"><span class="dot"></span>PER AGENT · decentralized<span class="sc">runs on each robot — this is the deployed policy</span></div>
+<p class="bandnote">Each agent turns its own 7-channel local view into one 64-number summary. No other agent is involved.</p>
+<div class="stage" style="--sc:var(--blue)">
+ <div class="shead"><span class="t"><b>①</b>Perception — CNN encoder</span><span class="s">41,024</span></div>
+ <div class="lrow"><div class="lname"><div class="nm">conv1</div><div class="op">Conv2d 3×3, stride 1, pad 1 · ReLU</div></div>
+  <div class="xform"><span class="tsr">7×32×32</span><span class="arrow">→</span><span class="tsr">64×32×32</span></div>
+  <div class="pcell"><div class="track"><i style="width:9.0%"></i></div><span class="pnum">4,096</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">conv2</div><div class="op">Conv2d 3×3, stride 1, pad 1 · ReLU</div></div>
+  <div class="xform"><span class="tsr">64×32×32</span><span class="arrow">→</span><span class="tsr">64×32×32</span></div>
+  <div class="pcell"><div class="track"><i style="width:81.0%"></i></div><span class="pnum">36,928</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">global avg-pool</div><div class="op">spatial mean</div></div>
+  <div class="xform"><span class="tsr">64×32×32</span><span class="arrow">→</span><span class="tsr">64 feature</span></div>
+  <div class="pcell"><span class="none">no weights</span><span class="pnum z">0</span></div></div>
+</div>
 
-<div class="flow">
+<!-- ===================== BAND 2: ACROSS THE TEAM — the GNN ===================== -->
+<div class="band" style="--bc:var(--purp)"><span class="dot"></span>ACROSS THE TEAM · the communication graph<span class="sc">the only step where agents exchange information</span></div>
+<p class="bandnote">Two rounds of message-passing over the in-range comm graph fuse each agent's feature with its neighbours' into a 64-number <b>belief</b>. Size-invariant (any team size). The attention query/key maps are built but unused under max-aggregation.</p>
+<div class="stage" style="--sc:var(--purp)">
+ <div class="shead"><span class="t"><b>②</b>GNN — 2 rounds of message-passing</span><span class="s">24,960 used · 16,640 idle</span></div>
+ <div class="lrow"><div class="lname"><div class="nm">round 1 · message</div><div class="op">Linear per agent, then max over neighbours</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:9.1%"></i></div><span class="pnum">4,160</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">round 1 · update</div><div class="op">Linear on [own ‖ aggregated] · ReLU</div></div>
+  <div class="xform"><span class="tsr">128</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:18.1%"></i></div><span class="pnum">8,256</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">round 2 · message</div><div class="op">Linear per agent, then max over neighbours</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:9.1%"></i></div><span class="pnum">4,160</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">round 2 · update</div><div class="op">Linear on [own ‖ aggregated] · ReLU</div></div>
+  <div class="xform"><span class="tsr">128</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:18.1%"></i></div><span class="pnum">8,256</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">belief LayerNorm</div><div class="op">normalize the 64-d belief</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64 belief</span></div>
+  <div class="pcell"><div class="track"><i style="width:0.3%"></i></div><span class="pnum">128</span></div></div>
+ <div class="lrow" style="opacity:.62"><div class="lname"><div class="nm">attention query / key <span class="mono" style="font-weight:400">· idle</span></div><div class="op">2 rounds × (Linear 64→64 ×2) — only used under attention aggregation, off here</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:36.5%;background:var(--gray)"></i></div><span class="pnum">16,640</span></div></div>
+</div>
 
- <div class="stage" style="--sc:var(--blue)">
-  <div class="shead"><span class="t"><b>①</b>Perception — CNN encoder</span><span class="s">subtotal <b>41,088</b></span></div>
-  <div class="lrow"><div class="lname"><div class="nm">conv1</div><div class="op">Conv2d 3×3, stride 1, pad 1 · ReLU</div></div>
-   <div class="xform"><span class="tsr">7×32×32</span><span class="arrow">→</span><span class="tsr">64×32×32</span></div>
-   <div class="pcell"><div class="track"><i style="width:9.1%"></i></div><span class="pnum">4,160</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">conv2</div><div class="op">Conv2d 3×3, stride 1, pad 1 · ReLU</div></div>
-   <div class="xform"><span class="tsr">64×32×32</span><span class="arrow">→</span><span class="tsr">64×32×32</span></div>
-   <div class="pcell"><div class="track"><i style="width:81.0%"></i></div><span class="pnum">36,928</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">global avg-pool</div><div class="op">spatial mean · no parameters</div></div>
-   <div class="xform"><span class="tsr">64×32×32</span><span class="arrow">→</span><span class="tsr">64</span></div>
-   <div class="pcell"><div class="track"></div><span class="pnum z">0</span></div></div>
- </div>
+<!-- ===================== BAND 3: PER AGENT — decision & action ===================== -->
+<div class="band" style="--bc:var(--green)"><span class="dot"></span>PER AGENT · decision &amp; action<span class="sc">each agent chooses from its own belief</span></div>
+<p class="bandnote">Two things are sampled — a waypoint and a role. Everything else in this band feeds the waypoint. The planner then turns the waypoint into a single move.</p>
+<div class="stage" style="--sc:var(--green)">
+ <div class="shead"><span class="t"><b>③</b>Actions — sampled from the belief</span><span class="s">4,566</span></div>
+ <div class="lrow"><div class="lname"><div class="nm">goal head <span style="color:var(--green)">· action</span></div><div class="op">Linear · picks 1 of 9 waypoints</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">9</span></div>
+  <div class="pcell"><div class="track"><i style="width:1.3%"></i></div><span class="pnum">585</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">↳ compass features</div><div class="op">feed the goal head — direction stencil</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">feat</span></div>
+  <div class="pcell"><div class="track"><i style="width:2.7%"></i></div><span class="pnum">1,217</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">↳ goal-residual</div><div class="op">feed the goal head — refinement</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">feat</span></div>
+  <div class="pcell"><div class="track"><i style="width:5.8%"></i></div><span class="pnum">2,634</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">role head <span style="color:var(--green)">· action</span></div><div class="op">Linear · explorer or relay</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">2</span></div>
+  <div class="pcell"><div class="track"><i style="width:0.3%"></i></div><span class="pnum">130</span></div></div>
+</div>
+<div class="stage" style="--sc:var(--orange)">
+ <div class="shead"><span class="t"><b>④</b>Planner &amp; move — waypoint → one step</span><span class="s">19 · frozen</span></div>
+ <div class="lrow"><div class="lname"><div class="nm">MVProp planner</div><div class="op">floods a value field to the waypoint · frozen (distilled)</div></div>
+  <div class="xform"><span class="tsr">goal 2×32×32</span><span class="arrow">→</span><span class="tsr">field 32×32</span></div>
+  <div class="pcell"><div class="track"><i style="width:0.04%"></i></div><span class="pnum">19</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">move readout</div><div class="op">climb the field to the best of 5 neighbours + collision veto</div></div>
+  <div class="xform"><span class="tsr">field 32×32</span><span class="arrow">→</span><span class="tsr">move ∈ 5</span></div>
+  <div class="pcell"><span class="none">no weights</span><span class="pnum z">0</span></div></div>
+</div>
 
- <div class="stage" style="--sc:var(--purp)">
-  <div class="shead"><span class="t"><b>②</b>Communication — GNN</span><span class="s">subtotal <b>41,728</b></span></div>
-  <div class="lrow"><div class="lname"><div class="nm">GNN · 2 rounds</div><div class="op">message + max-aggregate over comm graph · size-invariant</div></div>
-   <div class="xform"><span class="tsr">64 + neighbours</span><span class="arrow">→</span><span class="tsr">64 belief</span></div>
-   <div class="pcell"><div class="track"><i style="width:91.6%"></i></div><span class="pnum">41,728</span></div></div>
- </div>
+<!-- ===================== BAND 4: CENTRALIZED — training only ===================== -->
+<div class="band" style="--bc:var(--red)"><span class="dot"></span>CENTRALIZED · training only<span class="sc">sees all agents — discarded at deployment</span></div>
+<p class="bandnote">The critic scores the whole team's state to compute the training signal; it never runs on a robot. The two small readouts sit on the actor but only supply training signal — they are not actions, which is why they do not belong with the decision heads above.</p>
+<div class="stage" style="--sc:var(--red)">
+ <div class="shead"><span class="t"><b>⑤</b>CTDE critic</span><span class="s">45,505</span></div>
+ <div class="lrow"><div class="lname"><div class="nm">shared CNN</div><div class="op">Conv2d 7→64→64, applied to every agent</div></div>
+  <div class="xform"><span class="tsr">10×7×32×32</span><span class="arrow">→</span><span class="tsr">10×64</span></div>
+  <div class="pcell"><div class="track"><i style="width:90.0%"></i></div><span class="pnum">41,024</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">mean-pool</div><div class="op">average over agents · count-invariant</div></div>
+  <div class="xform"><span class="tsr">10×64</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><span class="none">no weights</span><span class="pnum z">0</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">LayerNorm + MLP</div><div class="op">[64 ‖ 2 scalars] → 64 → 1 · one team value</div></div>
+  <div class="xform"><span class="tsr">66</span><span class="arrow">→</span><span class="tsr">1</span></div>
+  <div class="pcell"><div class="track"><i style="width:9.8%"></i></div><span class="pnum">4,481</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">value readout <span class="mono" style="font-weight:400;color:var(--faint)">· on actor</span></div><div class="op">Linear · training signal, not an action</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">1</span></div>
+  <div class="pcell"><div class="track"><i style="width:0.14%"></i></div><span class="pnum">65</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">λ̂₂ connectivity readout <span class="mono" style="font-weight:400;color:var(--faint)">· on actor</span></div><div class="op">Linear · predicts team connectivity for training</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">1</span></div>
+  <div class="pcell"><div class="track"><i style="width:0.14%"></i></div><span class="pnum">65</span></div></div>
+</div>
 
- <div class="stage" style="--sc:var(--green)">
-  <div class="shead"><span class="t"><b>③</b>Decision — L3 heads (off the 64-d belief)</span><span class="s">subtotal <b>4,696</b></span></div>
-  <div class="lrow"><div class="lname"><div class="nm">goal head</div><div class="op">Linear · sampled action — 9-way waypoint</div></div>
-   <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">9</span></div>
-   <div class="pcell"><div class="track"><i style="width:1.3%"></i></div><span class="pnum">585</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">role head</div><div class="op">Linear · sampled action — {explorer, relay}</div></div>
-   <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">2</span></div>
-   <div class="pcell"><div class="track"><i style="width:0.3%"></i></div><span class="pnum">130</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">value head</div><div class="op">Linear · training readout</div></div>
-   <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">1</span></div>
-   <div class="pcell"><div class="track"><i style="width:0.14%"></i></div><span class="pnum">65</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">λ̂₂ aux head</div><div class="op">Linear · connectivity estimate (training)</div></div>
-   <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">1</span></div>
-   <div class="pcell"><div class="track"><i style="width:0.14%"></i></div><span class="pnum">65</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">compass + goal-residual</div><div class="op">linear features into the goal head</div></div>
-   <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">—</span></div>
-   <div class="pcell"><div class="track"><i style="width:8.5%"></i></div><span class="pnum">3,851</span></div></div>
- </div>
-
- <div class="stage" style="--sc:var(--orange)">
-  <div class="shead"><span class="t"><b>④</b>Planner &amp; action — L2 → L1</span><span class="s">subtotal <b>19</b> · frozen</span></div>
-  <div class="lrow"><div class="lname"><div class="nm">MVProp planner</div><div class="op">σ(Conv2d) passability · K=32 max-prop sweeps · frozen (distilled)</div></div>
-   <div class="xform"><span class="tsr">goal 2×32×32</span><span class="arrow">→</span><span class="tsr">field 32×32</span></div>
-   <div class="pcell"><div class="track"><i style="width:0.04%"></i></div><span class="pnum">19</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">L1 readout</div><div class="op">argmax over 5 neighbours + collision veto · no parameters</div></div>
-   <div class="xform"><span class="tsr">field 32×32</span><span class="arrow">→</span><span class="tsr">move ∈ 5</span></div>
-   <div class="pcell"><div class="track"></div><span class="pnum z">0</span></div></div>
- </div>
-
- <div class="stage" style="--sc:var(--red)">
-  <div class="shead"><span class="t"><b>⑤</b>CTDE critic — training only, discarded at deployment</span><span class="s">subtotal <b>45,505</b></span></div>
-  <div class="lrow"><div class="lname"><div class="nm">shared CNN</div><div class="op">Conv2d 7→64→64, vmap over 10 agents (centralized)</div></div>
-   <div class="xform"><span class="tsr">10×7×32×32</span><span class="arrow">→</span><span class="tsr">10×64</span></div>
-   <div class="pcell"><div class="track"><i style="width:90.0%"></i></div><span class="pnum">41,024</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">mean-pool</div><div class="op">average over agents · count-invariant · no parameters</div></div>
-   <div class="xform"><span class="tsr">10×64</span><span class="arrow">→</span><span class="tsr">64</span></div>
-   <div class="pcell"><div class="track"></div><span class="pnum z">0</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">LayerNorm + MLP</div><div class="op">concat[64 ‖ 2 scalars] → 64 → 1 (joint-state value)</div></div>
-   <div class="xform"><span class="tsr">66</span><span class="arrow">→</span><span class="tsr">1</span></div>
-   <div class="pcell"><div class="track"><i style="width:9.8%"></i></div><span class="pnum">4,481</span></div></div>
- </div>
-
- <div class="stage inert" style="--sc:var(--gray)">
-  <div class="shead"><span class="t"><b>✕</b>Inert — built but no gradient (feedforward + goal-head config)</span><span class="s">subtotal <b>73,357</b></span></div>
-  <div class="lrow"><div class="lname"><div class="nm">GRU cell</div><div class="op">recurrent hidden state held at 0 (recurrence = feedforward)</div></div>
-   <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64</span></div>
-   <div class="pcell"><div class="track"><i style="width:54.5%"></i></div><span class="pnum">24,832</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">GCRN</div><div class="op">recurrent graph belief · disabled</div></div>
-   <div class="xform"><span class="tsr">—</span><span class="arrow">→</span><span class="tsr">—</span></div>
-   <div class="pcell"><div class="track"><i style="width:100%"></i></div><span class="pnum">45,568</span></div></div>
-  <div class="lrow"><div class="lname"><div class="nm">frontier-attn / selector / flock</div><div class="op">alternative tool heads · disabled</div></div>
-   <div class="xform"><span class="tsr">—</span><span class="arrow">→</span><span class="tsr">—</span></div>
-   <div class="pcell"><div class="track"><i style="width:6.5%"></i></div><span class="pnum">2,957</span></div></div>
- </div>
-
+<!-- ===================== BAND 5: INERT ===================== -->
+<div class="band" style="--bc:var(--gray)"><span class="dot"></span>INERT · built, no gradient in this configuration<span class="sc">switched off by the current settings</span></div>
+<p class="bandnote">Options the architecture can turn on — recurrence, attention aggregation, alternative explorer tools — that are off in this run and receive no gradient. They are why the network looks larger than it works.</p>
+<div class="stage inert" style="--sc:var(--gray)">
+ <div class="shead"><span class="t">Off this run</span><span class="s">90,189</span></div>
+ <div class="lrow"><div class="lname"><div class="nm">GCRN</div><div class="op">recurrent belief over the graph · recurrence is off</div></div>
+  <div class="xform"><span class="tsr">—</span></div>
+  <div class="pcell"><div class="track"><i style="width:100%"></i></div><span class="pnum">45,568</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">GRU cell</div><div class="op">per-agent memory · recurrence is off (feedforward)</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:54.5%"></i></div><span class="pnum">24,832</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">GNN attention query/key</div><div class="op">only used under attention aggregation · max is used here</div></div>
+  <div class="xform"><span class="tsr">64</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:36.5%"></i></div><span class="pnum">16,640</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">alternative explorer tools</div><div class="op">frontier-attention / selector / flock · not the chosen tool</div></div>
+  <div class="xform"><span class="tsr">—</span></div>
+  <div class="pcell"><div class="track"><i style="width:6.5%"></i></div><span class="pnum">2,957</span></div></div>
+ <div class="lrow"><div class="lname"><div class="nm">position projection</div><div class="op">position-grounding feature · off</div></div>
+  <div class="xform"><span class="tsr">2</span><span class="arrow">→</span><span class="tsr">64</span></div>
+  <div class="pcell"><div class="track"><i style="width:0.4%"></i></div><span class="pnum">192</span></div></div>
 </div>
 
 <h2>Why 32² needs the big GPU — activations, not weights</h2>
-<p class="body">The weights are under 1 MB, so the 50 GB isn't the model — it's the <b>activations</b>. Recurrence is <code>feedforward</code>, so there's <b>no backprop-through-time</b>: one PPO update differentiates the whole batch at once and must hold every feature map from stages ①–② in memory at the same time for a single backward pass.</p>
-<div class="eq">16 rollouts × 100 steps × 10 agents = 16,000 forwards · actor convs ≈ 16,000 × 2·(64·32·32)·4 B ≈ 8.4 GB alone</div>
+<p class="body">The weights are under 1 MB, so the 50 GB is not the model — it is the <b>activations</b>. There is no backprop-through-time (the recurrence above is off), so one training update differentiates the whole batch at once and must hold every feature map from perception and the graph in memory at the same time for a single backward pass.</p>
+<div class="eq">16 rollouts × 100 steps × 10 agents = 16,000 forwards · perception activations ≈ 16,000 × 2·(64·32·32)·4 B ≈ 8.4 GB alone</div>
 <div class="two">
  <div class="mcard"><h4>24² · 6 agents</h4><span class="big mono">576</span> cells → peak ≈ <b>~17 GB</b> · <span class="g">fits gaius (49 GB)</span></div>
  <div class="mcard"><h4>32² · 10 agents</h4><span class="big mono">1024</span> cells → peak ≈ <b>~50 GB</b> · <span class="rd">needs balthar (98 GB)</span></div>
 </div>
-<p class="body">The jump is <code>(1024/576)×(10/6) ≈ 3×</code>. Levers that keep all 16 rollouts and change zero numbers: <b>minibatch the loss</b> or <b>remat</b>; bf16 is the numeric-change fallback.</p>
+<p class="body">The jump is <code>(1024/576)×(10/6) ≈ 3×</code>. Levers that keep all 16 rollouts and change zero numbers: minibatch the loss, or recompute activations in the backward pass; half-precision is the fallback that does change numbers.</p>
 
-<div class="foot">Parameter counts and shapes are exact — introspected via <code>jax.tree_util</code> over the Equinox modules. The <b>206,374</b> trainable total is actor (160,869) + critic (45,505); the frozen distilled MVProp planner (19 params) runs in the forward pass but carries no gradient and is not part of that total. Output shapes assume 32×32 input with same-padding (stride 1, pad 1 preserves spatial size). Param bars share one linear scale (max = the 45,568-param GCRN); zero-parameter layers show an empty track. Activation-memory figures are order-of-magnitude from the dominant CNN + stored-trajectory terms.</div>
+<div class="foot">Counts are exact — derived from the module shapes and reconciled against the introspected actor (160,869) and critic (45,505) totals. "Active" vs "inert" is for this run's settings (feedforward, max-aggregation, goal-head explorer tool); flipping a setting moves parameters between the two. The 19-parameter MVProp planner is frozen and injected at training time, so it is not part of the 206,374 trainable total. Output shapes assume 32×32 input, same-padding. Param bars share one linear scale (max = the 45,568 GCRN). Activation-memory figures are order-of-magnitude.</div>
 </div>
 <script>try{document.documentElement.getAttribute('data-theme');}catch(e){}</script>
 </body></html>
