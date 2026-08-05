@@ -3,247 +3,205 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Zymera policy — architecture (detailed)</title>
+<title>Zymera policy — architecture specification</title>
 <style>
 :root{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#d9d3c4;--card:#fffdf8;--accent:#2f6d57;--red:#a2472c;--blue:#2e6ea8;--purp:#6a4fae;--orange:#b5721b;--chip:#eef1ea;--eqbg:#f3f0e8}
-@media(prefers-color-scheme:dark){:root{--bg:#12141a;--ink:#e7e9ef;--soft:#a7adb8;--faint:#727783;--rule:#333846;--card:#1a1d25;--accent:#5cc9a0;--red:#e0714f;--blue:#6ba9e0;--purp:#a98cf0;--orange:#d99a44;--chip:#20242c;--eqbg:#1e222a}}
-:root[data-theme="dark"]{--bg:#12141a;--ink:#e7e9ef;--soft:#a7adb8;--faint:#727783;--rule:#333846;--card:#1a1d25;--accent:#5cc9a0;--red:#e0714f;--blue:#6ba9e0;--purp:#a98cf0;--orange:#d99a44;--chip:#20242c;--eqbg:#1e222a}
+@media(prefers-color-scheme:dark){:root{--bg:#12141a;--ink:#e7e9ef;--soft:#a7adb8;--faint:#7b808c;--rule:#333846;--card:#1a1d25;--accent:#5cc9a0;--red:#e0714f;--blue:#6ba9e0;--purp:#a98cf0;--orange:#d99a44;--chip:#20242c;--eqbg:#1e222a}}
+:root[data-theme="dark"]{--bg:#12141a;--ink:#e7e9ef;--soft:#a7adb8;--faint:#7b808c;--rule:#333846;--card:#1a1d25;--accent:#5cc9a0;--red:#e0714f;--blue:#6ba9e0;--purp:#a98cf0;--orange:#d99a44;--chip:#20242c;--eqbg:#1e222a}
 :root[data-theme="light"]{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#d9d3c4;--card:#fffdf8;--accent:#2f6d57;--red:#a2472c;--blue:#2e6ea8;--purp:#6a4fae;--orange:#b5721b;--chip:#eef1ea;--eqbg:#f3f0e8}
 *{box-sizing:border-box}body{background:var(--bg);color:var(--ink);margin:0;font:16px/1.55 Charter,Georgia,serif}
-.wrap{max-width:1080px;margin:0 auto;padding:40px 18px 90px}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 18px 90px}
 .eyebrow{font:600 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
 h1{font-size:26px;line-height:1.15;margin:0 0 6px;text-wrap:balance}
-.lede{color:var(--soft);font-style:italic;margin:0 0 16px;font-size:17px}
-h2{font-size:14px;margin:28px 0 6px;font:700 13px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);padding-top:14px;border-top:1px solid var(--rule)}
+.lede{color:var(--soft);font-style:italic;margin:0 0 16px;font-size:16px}
+h2{font-size:14px;margin:30px 0 6px;font:700 13px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);padding-top:14px;border-top:1px solid var(--rule)}
 p.body{font:15px/1.62 Charter,Georgia,serif;margin:8px 0}
-.figwrap{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:6px;margin:12px 0;overflow-x:auto}
-svg{display:block;min-width:1000px;width:100%;height:auto}
-/* iso feature-map faces */
+.figwrap{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:8px;margin:12px 0;overflow-x:auto}
+svg{display:block;min-width:900px;width:100%;height:auto}
 .f-front{fill:color-mix(in srgb,var(--blue) 22%,var(--card));stroke:var(--blue);stroke-width:1.3}
-.f-top{fill:color-mix(in srgb,var(--blue) 38%,var(--card));stroke:var(--blue);stroke-width:1.1}
+.f-top{fill:color-mix(in srgb,var(--blue) 40%,var(--card));stroke:var(--blue);stroke-width:1.1}
 .f-side{fill:color-mix(in srgb,var(--blue) 12%,var(--card));stroke:var(--blue);stroke-width:1.1}
-.g-front{fill:color-mix(in srgb,var(--faint) 20%,var(--card));stroke:var(--faint);stroke-width:1.3}
-.g-top{fill:color-mix(in srgb,var(--faint) 34%,var(--card));stroke:var(--faint)}
-.g-side{fill:color-mix(in srgb,var(--faint) 12%,var(--card));stroke:var(--faint)}
-/* neurons + synapses */
-.neu{fill:color-mix(in srgb,var(--accent) 26%,var(--card));stroke:var(--accent);stroke-width:1.2}
-.neu-b{fill:color-mix(in srgb,var(--purp) 30%,var(--card));stroke:var(--purp);stroke-width:1.2}
-.neu-o{fill:color-mix(in srgb,var(--accent) 55%,var(--card));stroke:var(--accent);stroke-width:1.3}
-.syn{stroke:var(--accent);stroke-width:.7;opacity:.28;fill:none}
-.gnode{fill:color-mix(in srgb,var(--purp) 45%,var(--card));stroke:var(--purp);stroke-width:1.4}
-.gedge{stroke:var(--purp);stroke-width:1.4;opacity:.55}
-.plan-c{fill:color-mix(in srgb,var(--orange) 18%,var(--card));stroke:var(--orange);stroke-width:1.4}
-.crit-c{fill:color-mix(in srgb,var(--red) 14%,var(--card));stroke:var(--red);stroke-width:1.4}
+.i-front{fill:color-mix(in srgb,var(--faint) 20%,var(--card));stroke:var(--faint);stroke-width:1.3}
+.i-top{fill:color-mix(in srgb,var(--faint) 34%,var(--card));stroke:var(--faint)}
+.i-side{fill:color-mix(in srgb,var(--faint) 12%,var(--card));stroke:var(--faint)}
+.neu-b{fill:color-mix(in srgb,var(--purp) 30%,var(--card));stroke:var(--purp);stroke-width:1.1}
+.gnode{fill:color-mix(in srgb,var(--purp) 45%,var(--card));stroke:var(--purp);stroke-width:1.3}
+.gedge{stroke:var(--purp);stroke-width:1.3;opacity:.5}
+.syn{stroke:var(--accent);stroke-width:.8;opacity:.35;fill:none}
+.head{fill:color-mix(in srgb,var(--accent) 13%,var(--card));stroke:var(--accent);stroke-width:1.3}
+.plan{fill:color-mix(in srgb,var(--orange) 15%,var(--card));stroke:var(--orange);stroke-width:1.3}
+.crit{fill:color-mix(in srgb,var(--red) 13%,var(--card));stroke:var(--red);stroke-width:1.3}
 .ar{stroke:var(--soft);stroke-width:1.7;fill:none}.arf{fill:var(--soft)}
-.t-nm{fill:var(--ink);font:700 13px ui-sans-serif,system-ui,sans-serif}
-.t-nm-s{fill:var(--ink);font:700 11.5px ui-sans-serif,system-ui,sans-serif}
-.t-op{fill:var(--soft);font:11px ui-sans-serif,system-ui,sans-serif}
+.t-title{fill:var(--ink);font:700 13px ui-sans-serif,system-ui,sans-serif}
+.t-stage{fill:var(--faint);font:700 10px ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em}
+.t-nm{fill:var(--ink);font:700 12px ui-sans-serif,system-ui,sans-serif}
+.t-op{fill:var(--soft);font:10.5px ui-sans-serif,system-ui,sans-serif}
 .t-sh{fill:var(--faint);font:10.5px ui-monospace,Menlo,monospace}
-.t-pp{font:700 10.5px ui-sans-serif,system-ui,sans-serif}
-.t-band{fill:var(--faint);font:700 11px ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em}
-.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--soft);margin:8px 2px 0}
-.legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:13px;height:13px;border-radius:3px;border:1.5px solid}
+.t-pp{font:700 10px ui-sans-serif,system-ui,sans-serif}
 .scroll{overflow-x:auto;margin:12px 0}
-table{border-collapse:collapse;width:100%;font:13px/1.4 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
-th,td{border-bottom:1px solid var(--rule);padding:7px 10px;text-align:right;white-space:nowrap}
+table{border-collapse:collapse;width:100%;font:12.5px/1.4 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--rule);padding:6px 9px;text-align:right;white-space:nowrap}
 th:first-child,td.l{text-align:left}th{color:var(--soft);border-bottom:2px solid var(--rule)}
-.g{color:var(--accent);font-weight:700}.dim{color:var(--faint)}tr.tot{border-top:2px solid var(--rule);font-weight:700}
+.grp td{background:color-mix(in srgb,var(--accent) 7%,transparent);font-weight:700;color:var(--accent);text-align:left}
+.g{color:var(--accent);font-weight:700}.dim{color:var(--faint)}tr.tot td{border-top:2px solid var(--rule);font-weight:700}
 .eq{background:var(--eqbg);border-radius:8px;padding:11px 15px;margin:10px 0;font:14px/1.7 ui-monospace,Menlo,monospace;overflow-x:auto}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}@media(max-width:720px){.two{grid-template-columns:1fr}}
-.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px 15px}.card h4{margin:0 0 6px;font:700 13px ui-sans-serif,system-ui,sans-serif}
-.lg{font:700 21px/1 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}@media(max-width:700px){.two{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px 15px}.card h4{margin:0 0 6px;font:700 13px ui-sans-serif,system-ui,sans-serif}.lg{font:700 21px/1 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
 code{font:12.5px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px/1.4 ui-sans-serif,system-ui,sans-serif;color:var(--soft);margin:8px 2px 0}.legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:12px;height:12px;border-radius:3px;border:1.5px solid}
 .foot{margin-top:28px;padding-top:14px;border-top:1px solid var(--rule);font:12px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--faint)}
 </style>
 </head>
 <body><div class="wrap">
 
-<p class="eyebrow">Zymera · policy architecture · detailed</p>
-<h1>The policy, layer by layer and neuron by neuron</h1>
-<p class="lede">The real trained network: feature-map volumes for perception, a message-passing graph for communication, and fully-connected neuron layers for the decision heads — with every tensor shape and parameter count.</p>
+<p class="eyebrow">Zymera · policy architecture specification</p>
+<h1>The policy network — exact shapes, exact parameters</h1>
+<p class="lede">Introspected from a trained checkpoint. Shapes shown for a concrete <b>32×32 grid, 10 agents</b>; the figure is the dataflow, the table is the authoritative spec.</p>
 
 <div class="figwrap">
-<svg viewBox="0 0 1040 640" role="img" aria-label="detailed policy architecture">
-  <defs>
-    <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arf"/></marker>
-  </defs>
+<svg viewBox="0 0 920 560" role="img" aria-label="policy dataflow">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arf"/></marker></defs>
 
-  <!-- ============ BAND 1: PERCEPTION (CNN volumes) ============ -->
-  <text x="20" y="24" class="t-band">PERCEPTION — convolutional encoder (shared weights, runs per agent)</text>
+  <!-- ===== ROW 1: ACTOR ===== -->
+  <text x="18" y="26" class="t-title">ACTOR — one forward pass, per agent, per step</text>
+  <text x="150" y="46" class="t-stage" text-anchor="middle">PERCEPTION (CNN)</text>
+  <text x="470" y="46" class="t-stage" text-anchor="middle">COMMUNICATION (GNN)</text>
+  <text x="740" y="46" class="t-stage" text-anchor="middle">DECISION (FC heads)</text>
 
-  <!-- obs volume 7ch -->
-  <polygon class="g-top"  points="40,96 54,84 82,84 68,96"/>
-  <polygon class="g-side" points="68,96 82,84 82,150 68,162"/>
-  <rect class="g-front" x="40" y="96" width="28" height="66" rx="2"/>
-  <text x="54" y="182" class="t-nm-s" text-anchor="middle">obs</text>
-  <text x="54" y="195" class="t-sh" text-anchor="middle">7×H×W</text>
+  <!-- input volume -->
+  <polygon class="i-top" points="36,84 48,74 74,74 62,84"/><polygon class="i-side" points="62,84 74,74 74,140 62,150"/>
+  <rect class="i-front" x="36" y="84" width="26" height="66" rx="2"/>
+  <text x="49" y="166" class="t-nm" text-anchor="middle">obs</text><text x="49" y="179" class="t-sh" text-anchor="middle">7×32×32</text>
+  <path class="ar" d="M84,117 H108" marker-end="url(#ah)"/>
 
-  <path class="ar" d="M96,128 H128" marker-end="url(#ah)"/>
-  <text x="112" y="118" class="t-op" text-anchor="middle">conv</text>
-  <text x="112" y="146" class="t-sh" text-anchor="middle">3×3</text>
+  <!-- conv1 -->
+  <polygon class="f-top" points="108,80 128,66 168,66 148,80"/><polygon class="f-side" points="148,80 168,66 168,150 148,164"/>
+  <rect class="f-front" x="108" y="80" width="40" height="70" rx="2"/>
+  <text x="128" y="112" class="t-nm" text-anchor="middle">Conv</text><text x="128" y="126" class="t-op" text-anchor="middle">7→64</text>
+  <text x="128" y="180" class="t-sh" text-anchor="middle">64×32×32</text><text x="128" y="193" class="t-pp" text-anchor="middle" fill="var(--blue)">4,160</text>
+  <path class="ar" d="M170,117 H196" marker-end="url(#ah)"/>
 
-  <!-- conv1 volume 64ch -->
-  <polygon class="f-top"  points="128,92 152,72 196,72 172,92"/>
-  <polygon class="f-side" points="172,92 196,72 196,158 172,178"/>
-  <rect class="f-front" x="128" y="92" width="44" height="86" rx="2"/>
-  <text x="150" y="126" class="t-nm-s" text-anchor="middle">Conv 7→64</text>
-  <text x="150" y="198" class="t-sh" text-anchor="middle">64×H×W</text>
-  <text x="150" y="211" class="t-pp" text-anchor="middle" fill="var(--blue)">4,160 p</text>
+  <!-- conv2 -->
+  <polygon class="f-top" points="196,80 216,66 256,66 236,80"/><polygon class="f-side" points="236,80 256,66 256,150 236,164"/>
+  <rect class="f-front" x="196" y="80" width="40" height="70" rx="2"/>
+  <text x="216" y="112" class="t-nm" text-anchor="middle">Conv</text><text x="216" y="126" class="t-op" text-anchor="middle">64→64</text>
+  <text x="216" y="180" class="t-sh" text-anchor="middle">64×32×32</text><text x="216" y="193" class="t-pp" text-anchor="middle" fill="var(--blue)">36,928</text>
+  <path class="ar" d="M258,117 H300" marker-end="url(#ah)"/>
+  <text x="279" y="108" class="t-op" text-anchor="middle">GAP</text>
 
-  <path class="ar" d="M200,128 H236" marker-end="url(#ah)"/>
-  <text x="218" y="118" class="t-op" text-anchor="middle">conv</text>
-  <text x="218" y="146" class="t-sh" text-anchor="middle">3×3</text>
+  <!-- feature column -->
+  <circle class="neu-b" cx="312" cy="94" r="4"/><circle class="neu-b" cx="312" cy="108" r="4"/><circle class="neu-b" cx="312" cy="122" r="4"/><circle class="neu-b" cx="312" cy="136" r="4"/>
+  <text x="312" y="160" class="t-sh" text-anchor="middle">⋮ 64</text>
+  <path class="ar" d="M324,115 H352" marker-end="url(#ah)"/>
 
-  <!-- conv2 volume 64ch -->
-  <polygon class="f-top"  points="236,92 260,72 304,72 280,92"/>
-  <polygon class="f-side" points="280,92 304,72 304,158 280,178"/>
-  <rect class="f-front" x="236" y="92" width="44" height="86" rx="2"/>
-  <text x="258" y="126" class="t-nm-s" text-anchor="middle">Conv 64→64</text>
-  <text x="258" y="198" class="t-sh" text-anchor="middle">64×H×W</text>
-  <text x="258" y="211" class="t-pp" text-anchor="middle" fill="var(--blue)">36,928 p</text>
+  <!-- GNN graph -->
+  <line class="gedge" x1="376" y1="128" x2="410" y2="88"/><line class="gedge" x1="410" y1="88" x2="446" y2="128"/><line class="gedge" x1="376" y1="128" x2="446" y2="128"/><line class="gedge" x1="376" y1="128" x2="411" y2="156"/><line class="gedge" x1="446" y1="128" x2="411" y2="156"/><line class="gedge" x1="410" y1="88" x2="411" y2="156"/>
+  <circle class="gnode" cx="376" cy="128" r="8"/><circle class="gnode" cx="410" cy="88" r="8"/><circle class="gnode" cx="446" cy="128" r="8"/><circle class="gnode" cx="411" cy="156" r="8"/>
+  <text x="411" y="180" class="t-op" text-anchor="middle" fill="var(--purp)">msg → max-agg ×2</text><text x="411" y="193" class="t-pp" text-anchor="middle" fill="var(--purp)">41,728</text>
+  <path class="ar" d="M456,115 H484" marker-end="url(#ah)"/>
 
-  <path class="ar" d="M308,128 H346" marker-end="url(#ah)"/>
-  <text x="327" y="118" class="t-op" text-anchor="middle">global</text>
-  <text x="327" y="146" class="t-op" text-anchor="middle">avg-pool</text>
+  <!-- belief column -->
+  <circle class="neu-b" cx="498" cy="88" r="4.5"/><circle class="neu-b" cx="498" cy="103" r="4.5"/><circle class="neu-b" cx="498" cy="118" r="4.5"/><circle class="neu-b" cx="498" cy="133" r="4.5"/><circle class="neu-b" cx="498" cy="148" r="4.5"/>
+  <text x="498" y="172" class="t-sh" text-anchor="middle">belief · 64</text>
 
-  <!-- per-agent feature column (64) -->
-  <text x="372" y="70" class="t-sh" text-anchor="middle">feat 64</text>
-  <circle class="neu" cx="372" cy="86" r="4.5"/><circle class="neu" cx="372" cy="102" r="4.5"/><circle class="neu" cx="372" cy="118" r="4.5"/><circle class="neu" cx="372" cy="134" r="4.5"/><circle class="neu" cx="372" cy="150" r="4.5"/><circle class="neu" cx="372" cy="166" r="4.5"/>
-  <text x="372" y="190" class="t-sh" text-anchor="middle">⋮ 64</text>
+  <!-- synapses (short, into head boxes) -->
+  <path class="syn" d="M504,100 L636,86"/><path class="syn" d="M504,118 L636,86"/><path class="syn" d="M504,133 L636,120"/><path class="syn" d="M504,103 L636,154"/><path class="syn" d="M504,148 L636,188"/>
 
-  <!-- ============ BAND 1b: COMMUNICATION (GNN) ============ -->
-  <text x="418" y="24" class="t-band">COMMUNICATION — GNN, 2 rounds of message-passing over the comm graph</text>
-  <path class="ar" d="M384,126 H414" marker-end="url(#ah)"/>
+  <!-- head boxes -->
+  <rect class="head" x="636" y="72" width="120" height="28" rx="6"/><text x="644" y="90" class="t-nm">goal · L3</text><text x="748" y="90" class="t-sh" text-anchor="end">→9</text>
+  <rect class="head" x="636" y="106" width="120" height="28" rx="6"/><text x="644" y="124" class="t-nm">role · L3</text><text x="748" y="124" class="t-sh" text-anchor="end">→2</text>
+  <rect class="head" x="636" y="140" width="120" height="28" rx="6"/><text x="644" y="158" class="t-nm">value</text><text x="748" y="158" class="t-sh" text-anchor="end">→1</text>
+  <rect class="head" x="636" y="174" width="120" height="28" rx="6"/><text x="644" y="192" class="t-nm">λ̂₂ aux</text><text x="748" y="192" class="t-sh" text-anchor="end">→1</text>
+  <text x="770" y="90" class="t-op">585 p</text><text x="770" y="124" class="t-op">130 p</text><text x="770" y="158" class="t-op">65 p</text><text x="770" y="192" class="t-op">65 p</text>
 
-  <!-- gnn graph -->
-  <line class="gedge" x1="446" y1="150" x2="486" y2="96"/><line class="gedge" x1="486" y1="96" x2="520" y2="150"/>
-  <line class="gedge" x1="446" y1="150" x2="520" y2="150"/><line class="gedge" x1="446" y1="150" x2="484" y2="176"/><line class="gedge" x1="520" y1="150" x2="484" y2="176"/><line class="gedge" x1="486" y1="96" x2="484" y2="176"/>
-  <circle class="gnode" cx="446" cy="150" r="9"/><circle class="gnode" cx="486" cy="96" r="9"/><circle class="gnode" cx="520" cy="150" r="9"/><circle class="gnode" cx="484" cy="176" r="9"/>
-  <text x="484" y="132" class="t-nm-s" text-anchor="middle" fill="var(--purp)">agents</text>
-  <text x="484" y="208" class="t-op" text-anchor="middle" fill="var(--purp)">msg→max-aggregate ×2</text>
-  <text x="484" y="221" class="t-pp" text-anchor="middle" fill="var(--purp)">41,728 p</text>
+  <!-- ===== ROW 2: PLANNER -> ACTION ===== -->
+  <line x1="18" y1="248" x2="902" y2="248" stroke="var(--rule)" stroke-width="1"/>
+  <text x="18" y="276" class="t-title">L2 PLANNER → L1 ACTION — the goal head's cell becomes a move (planner is frozen)</text>
 
-  <path class="ar" d="M534,140 H566" marker-end="url(#ah)"/>
+  <rect class="plan" x="36" y="300" width="120" height="52" rx="6" style="fill:color-mix(in srgb,var(--accent) 12%,var(--card))"/>
+  <text x="96" y="322" class="t-nm" text-anchor="middle">goal cell</text><text x="96" y="336" class="t-op" text-anchor="middle">from L3 goal head</text>
+  <path class="ar" d="M156,326 H196" marker-end="url(#ah)"/>
 
-  <!-- belief column z (64) -->
-  <text x="592" y="60" class="t-sh" text-anchor="middle">belief z</text>
-  <circle class="neu-b" cx="592" cy="76" r="5"/><circle class="neu-b" cx="592" cy="94" r="5"/><circle class="neu-b" cx="592" cy="112" r="5"/><circle class="neu-b" cx="592" cy="130" r="5"/><circle class="neu-b" cx="592" cy="148" r="5"/><circle class="neu-b" cx="592" cy="166" r="5"/><circle class="neu-b" cx="592" cy="184" r="5"/>
-  <text x="592" y="206" class="t-sh" text-anchor="middle">⋮ 64</text>
+  <rect class="plan" x="196" y="296" width="130" height="60" rx="7"/>
+  <text x="261" y="316" class="t-nm" text-anchor="middle" fill="var(--orange)">MVProp planner</text>
+  <text x="261" y="330" class="t-op" text-anchor="middle">σ(conv)·passability, K=32 sweeps</text>
+  <text x="261" y="346" class="t-sh" text-anchor="middle">→ value field 32×32 · 19 p</text>
+  <path class="ar" d="M326,326 H366" marker-end="url(#ah)"/>
 
-  <!-- ============ BAND 1c: DECISION (FC heads) ============ -->
-  <text x="700" y="24" class="t-band">DECISION — fully-connected heads off the belief</text>
-  <!-- synapses belief -> heads (representative) -->
-  <g>
-    <path class="syn" d="M597,76 L748,58"/><path class="syn" d="M597,94 L748,70"/><path class="syn" d="M597,112 L748,58"/><path class="syn" d="M597,130 L748,82"/><path class="syn" d="M597,148 L748,70"/><path class="syn" d="M597,166 L748,94"/><path class="syn" d="M597,184 L748,82"/>
-    <path class="syn" d="M597,94 L748,132"/><path class="syn" d="M597,130 L748,150"/><path class="syn" d="M597,166 L748,132"/>
-    <path class="syn" d="M597,112 L748,196"/><path class="syn" d="M597,148 L748,196"/>
-    <path class="syn" d="M597,130 L748,232"/><path class="syn" d="M597,184 L748,232"/>
-  </g>
-  <!-- goal head neurons (9) -->
-  <text x="812" y="46" class="t-nm-s">goal head · L3</text><text x="812" y="42" class="t-nm-s" fill="var(--accent)"></text>
-  <circle class="neu-o" cx="752" cy="58" r="4.5"/><circle class="neu-o" cx="752" cy="72" r="4.5"/><circle class="neu-o" cx="752" cy="86" r="4.5"/>
-  <text x="768" y="76" class="t-sh">→ 9 waypoints</text>
-  <text x="768" y="90" class="t-pp" fill="var(--accent)">585 p</text>
-  <!-- role head (2) -->
-  <circle class="neu-o" cx="752" cy="132" r="4.5"/><circle class="neu-o" cx="752" cy="146" r="4.5"/>
-  <text x="768" y="134" class="t-nm-s">role head · L3</text><text x="768" y="148" class="t-sh">→ 2 {explorer, relay} · 130 p</text>
-  <!-- value (1) -->
-  <circle class="neu-o" cx="752" cy="196" r="4.5"/>
-  <text x="768" y="200" class="t-nm-s">value head</text><text x="864" y="200" class="t-sh">→ 1</text>
-  <!-- aux (1) -->
-  <circle class="neu-o" cx="752" cy="232" r="4.5"/>
-  <text x="768" y="236" class="t-nm-s">λ̂₂ aux head</text><text x="864" y="236" class="t-sh">→ 1</text>
+  <rect class="plan" x="366" y="300" width="130" height="52" rx="7"/>
+  <text x="431" y="322" class="t-nm" text-anchor="middle" fill="var(--orange)">L1 readout</text><text x="431" y="336" class="t-op" text-anchor="middle">argmax 5-nbr + collision veto</text>
+  <path class="ar" d="M496,326 H536" marker-end="url(#ah)"/>
+  <rect class="plan" x="536" y="308" width="86" height="36" rx="7"/><text x="579" y="331" class="t-nm" text-anchor="middle" fill="var(--orange)">move ∈ 5</text>
 
-  <!-- ============ BAND 2: PLANNER -> ACTION ============ -->
-  <text x="20" y="300" class="t-band">L2 PLANNER → L1 ACTION — the chosen goal becomes a move (planner is frozen, no gradient)</text>
-  <path class="ar" d="M760,90 C760,150 720,250 700,318" marker-end="url(#ah)"/>
-  <text x="740" y="250" class="t-op">goal (9-way)</text>
+  <!-- ===== ROW 3: CRITIC ===== -->
+  <line x1="18" y1="392" x2="902" y2="392" stroke="var(--rule)" stroke-width="1"/>
+  <text x="18" y="420" class="t-title">CTDE CRITIC — scores the joint state; training only, discarded at deployment</text>
 
-  <rect class="crit-c" x="470" y="318" width="86" height="52" rx="6" style="fill:color-mix(in srgb,var(--faint) 12%,var(--card));stroke:var(--faint)"/>
-  <text x="513" y="340" class="t-nm-s" text-anchor="middle">known walls</text><text x="513" y="354" class="t-op" text-anchor="middle">occupancy map</text>
-  <path class="ar" d="M556,344 H618" marker-end="url(#ah)"/>
+  <polygon class="i-top" points="36,452 48,442 78,442 66,452" style="fill:color-mix(in srgb,var(--red) 30%,var(--card));stroke:var(--red)"/><polygon class="i-side" points="66,452 78,442 78,510 66,520" style="fill:color-mix(in srgb,var(--red) 12%,var(--card));stroke:var(--red)"/>
+  <rect x="36" y="452" width="30" height="66" rx="2" style="fill:color-mix(in srgb,var(--red) 18%,var(--card));stroke:var(--red);stroke-width:1.3"/>
+  <text x="51" y="534" class="t-sh" text-anchor="middle">10×7×32×32</text>
+  <path class="ar" d="M90,485 H126" marker-end="url(#ah)"/>
 
-  <!-- MVProp value-field grid -->
-  <rect class="plan-c" x="620" y="312" width="96" height="72" rx="7"/>
-  <text x="668" y="306" class="t-nm-s" text-anchor="middle" fill="var(--orange)">MVProp · L2 (frozen)</text>
-  <g>
-    <rect x="630" y="324" width="12" height="12" fill="var(--orange)" opacity="0.25"/><rect x="644" y="324" width="12" height="12" fill="var(--orange)" opacity="0.4"/><rect x="658" y="324" width="12" height="12" fill="var(--orange)" opacity="0.55"/><rect x="672" y="324" width="12" height="12" fill="var(--orange)" opacity="0.7"/><rect x="686" y="324" width="12" height="12" fill="var(--orange)" opacity="0.85"/><rect x="700" y="324" width="12" height="12" fill="var(--orange)"/>
-    <rect x="630" y="338" width="12" height="12" fill="var(--orange)" opacity="0.35"/><rect x="644" y="338" width="12" height="12" fill="var(--orange)" opacity="0.5"/><rect x="658" y="338" width="12" height="12" fill="var(--orange)" opacity="0.65"/><rect x="672" y="338" width="12" height="12" fill="var(--orange)" opacity="0.8"/><rect x="686" y="338" width="12" height="12" fill="var(--orange)"/><rect x="700" y="338" width="12" height="12" fill="var(--orange)" opacity="0.9"/>
-    <rect x="630" y="352" width="12" height="12" fill="var(--orange)" opacity="0.2"/><rect x="644" y="352" width="12" height="12" fill="var(--orange)" opacity="0.35"/><rect x="658" y="352" width="12" height="12" fill="var(--orange)" opacity="0.5"/><rect x="672" y="352" width="12" height="12" fill="var(--orange)" opacity="0.65"/><rect x="686" y="352" width="12" height="12" fill="var(--orange)" opacity="0.8"/><rect x="700" y="352" width="12" height="12" fill="var(--orange)" opacity="0.7"/>
-  </g>
-  <text x="668" y="380" class="t-sh" text-anchor="middle" fill="var(--orange)">value field H·W · 19 p</text>
+  <rect class="crit" x="126" y="458" width="122" height="54" rx="6"/><text x="187" y="480" class="t-nm" text-anchor="middle" fill="var(--red)">shared CNN</text><text x="187" y="494" class="t-op" text-anchor="middle">7→64→64, vmap 10</text><text x="187" y="507" class="t-pp" text-anchor="middle" fill="var(--red)">41,024</text>
+  <path class="ar" d="M248,485 H284" marker-end="url(#ah)"/><text x="266" y="478" class="t-sh" text-anchor="middle">10×64</text>
 
-  <path class="ar" d="M716,348 H752" marker-end="url(#ah)"/>
-  <rect class="plan-c" x="752" y="322" width="120" height="52" rx="7"/>
-  <text x="812" y="343" class="t-nm-s" text-anchor="middle" fill="var(--orange)">L1 readout</text><text x="812" y="358" class="t-op" text-anchor="middle">argmax 5-nbr + veto</text>
-  <path class="ar" d="M872,348 H908" marker-end="url(#ah)"/>
-  <text x="924" y="344" class="t-nm-s" text-anchor="middle" fill="var(--orange)">move</text><text x="924" y="358" class="t-sh" text-anchor="middle">∈ 5</text>
+  <rect class="crit" x="284" y="458" width="106" height="54" rx="6"/><text x="337" y="482" class="t-nm" text-anchor="middle" fill="var(--red)">mean-pool</text><text x="337" y="497" class="t-op" text-anchor="middle">over 10 agents</text>
+  <path class="ar" d="M390,485 H426" marker-end="url(#ah)"/><text x="408" y="478" class="t-sh" text-anchor="middle">64</text>
 
-  <!-- ============ BAND 3: CTDE CRITIC ============ -->
-  <text x="20" y="452" class="t-band">CTDE CRITIC — scores the joint state; TRAINING ONLY, discarded at deployment</text>
-
-  <!-- obs stack volume -->
-  <polygon class="g-top"  points="44,480 60,468 100,468 84,480" style="fill:color-mix(in srgb,var(--red) 30%,var(--card));stroke:var(--red)"/>
-  <polygon class="g-side" points="84,480 100,468 100,548 84,560" style="fill:color-mix(in srgb,var(--red) 12%,var(--card));stroke:var(--red)"/>
-  <rect x="44" y="480" width="40" height="80" rx="2" style="fill:color-mix(in srgb,var(--red) 18%,var(--card));stroke:var(--red);stroke-width:1.3"/>
-  <text x="64" y="516" class="t-nm-s" text-anchor="middle">obs stack</text>
-  <text x="64" y="580" class="t-sh" text-anchor="middle">N×7×H×W</text>
-  <path class="ar" d="M118,516 H154" marker-end="url(#ah)"/>
-
-  <rect class="crit-c" x="154" y="486" width="118" height="60" rx="6"/>
-  <text x="213" y="510" class="t-nm-s" text-anchor="middle" fill="var(--red)">shared CNN</text><text x="213" y="526" class="t-op" text-anchor="middle">7→64→64 (vmap N)</text>
-  <text x="213" y="560" class="t-pp" text-anchor="middle" fill="var(--red)">41,024 p</text>
-  <path class="ar" d="M272,516 H308" marker-end="url(#ah)"/><text x="290" y="509" class="t-sh" text-anchor="middle">N·64</text>
-
-  <rect class="crit-c" x="308" y="486" width="104" height="60" rx="6"/>
-  <text x="360" y="510" class="t-nm-s" text-anchor="middle" fill="var(--red)">mean-pool</text><text x="360" y="526" class="t-op" text-anchor="middle">over N agents</text>
-  <path class="ar" d="M412,516 H448" marker-end="url(#ah)"/><text x="430" y="509" class="t-sh" text-anchor="middle">64</text>
-
-  <rect class="crit-c" x="448" y="486" width="150" height="60" rx="6"/>
-  <text x="523" y="510" class="t-nm-s" text-anchor="middle" fill="var(--red)">concat + MLP</text><text x="523" y="526" class="t-op" text-anchor="middle">[64‖2 scalars] → 64 → 1</text>
-  <text x="523" y="560" class="t-pp" text-anchor="middle" fill="var(--red)">4,481 p</text>
-  <path class="ar" d="M598,516 H634" marker-end="url(#ah)"/>
-  <rect class="crit-c" x="634" y="498" width="80" height="36" rx="6"/><text x="674" y="521" class="t-nm-s" text-anchor="middle" fill="var(--red)">value ()</text>
-  <text x="760" y="520" class="t-op">→ GAE advantages → PPO loss</text>
-
-  <text x="20" y="612" class="t-op">Built but INERT here (feedforward + goal-head config): GRU 24.8K · GCRN 45.6K · frontier-attn/selector/flock 3.0K → ~73K params carry no gradient.</text>
+  <rect class="crit" x="426" y="458" width="150" height="54" rx="6"/><text x="501" y="480" class="t-nm" text-anchor="middle" fill="var(--red)">concat + MLP</text><text x="501" y="494" class="t-op" text-anchor="middle">[64‖2] → 64 → 1</text><text x="501" y="507" class="t-pp" text-anchor="middle" fill="var(--red)">4,481</text>
+  <path class="ar" d="M576,485 H612" marker-end="url(#ah)"/>
+  <rect class="crit" x="612" y="467" width="84" height="36" rx="6"/><text x="654" y="490" class="t-nm" text-anchor="middle" fill="var(--red)">value ()</text>
+  <text x="712" y="489" class="t-op">→ advantages → PPO loss</text>
 </svg>
 </div>
-
 <div class="legend">
-<span><span class="sw" style="background:color-mix(in srgb,var(--faint) 20%,transparent);border-color:var(--faint)"></span>input volume</span>
+<span><span class="sw" style="background:color-mix(in srgb,var(--faint) 20%,transparent);border-color:var(--faint)"></span>input</span>
 <span><span class="sw" style="background:color-mix(in srgb,var(--blue) 22%,transparent);border-color:var(--blue)"></span>CNN feature map</span>
-<span><span class="sw" style="background:color-mix(in srgb,var(--purp) 30%,transparent);border-color:var(--purp)"></span>GNN graph / belief neurons</span>
-<span><span class="sw" style="background:color-mix(in srgb,var(--accent) 40%,transparent);border-color:var(--accent)"></span>FC head neurons</span>
-<span><span class="sw" style="background:color-mix(in srgb,var(--orange) 18%,transparent);border-color:var(--orange)"></span>planner + action</span>
-<span><span class="sw" style="background:color-mix(in srgb,var(--red) 14%,transparent);border-color:var(--red)"></span>CTDE critic (train-only)</span>
+<span><span class="sw" style="background:color-mix(in srgb,var(--purp) 30%,transparent);border-color:var(--purp)"></span>GNN / belief</span>
+<span><span class="sw" style="background:color-mix(in srgb,var(--accent) 13%,transparent);border-color:var(--accent)"></span>FC heads</span>
+<span><span class="sw" style="background:color-mix(in srgb,var(--orange) 15%,transparent);border-color:var(--orange)"></span>planner / action</span>
+<span><span class="sw" style="background:color-mix(in srgb,var(--red) 13%,transparent);border-color:var(--red)"></span>critic (train-only)</span>
 </div>
 
-<h2>Parameter budget (introspected from a trained checkpoint)</h2>
+<h2>Layer specification (the authoritative numbers, @ 32×32 · 10 agents)</h2>
 <div class="scroll"><table>
-<tr><th class="l">block</th><th>params</th><th class="l">what it is</th></tr>
-<tr><td class="l">Conv 7→64 (3×3)</td><td>4,160</td><td class="l">first perception layer</td></tr>
-<tr><td class="l">Conv 64→64 (3×3)</td><td>36,928</td><td class="l">second perception layer</td></tr>
-<tr><td class="l">GNN message-pass (×2)</td><td class="g">41,728</td><td class="l">fuse neighbour beliefs → 64-d belief</td></tr>
-<tr><td class="l">goal + role + value + λ̂₂ heads</td><td>845</td><td class="l">L3 decision heads (9, 2, 1, 1)</td></tr>
-<tr><td class="l">compass + goal-residual</td><td>3,851</td><td class="l">directional feature + goal refine</td></tr>
-<tr><td class="l">MVProp planner (L2)</td><td>19</td><td class="l">frozen 3×3 passability conv (+ fixed flood operator)</td></tr>
-<tr><td class="l">CTDE critic (CNN + pool + MLP)</td><td class="g">45,505</td><td class="l">joint-state value, training-only</td></tr>
-<tr><td class="l dim">GRU + GCRN + tools (inert)</td><td class="dim">73,357</td><td class="l dim">built but off in feedforward + goal-head mode</td></tr>
-<tr class="tot"><td class="l">TOTAL</td><td>206,374</td><td class="l">~133 K active · &lt;1 MB of weights</td></tr>
+<tr><th class="l">layer</th><th class="l">operation</th><th>k / s / p</th><th>in→out ch</th><th>output shape</th><th>params</th></tr>
+<tr class="grp"><td colspan="6">ACTOR — backbone (perception + communication)</td></tr>
+<tr><td class="l">conv1</td><td class="l">Conv2d + ReLU</td><td>3×3 / 1 / 1</td><td>7 → 64</td><td>64 × 32 × 32</td><td>(7·9+1)·64 = 4,160</td></tr>
+<tr><td class="l">conv2</td><td class="l">Conv2d + ReLU</td><td>3×3 / 1 / 1</td><td>64 → 64</td><td>64 × 32 × 32</td><td>(64·9+1)·64 = 36,928</td></tr>
+<tr><td class="l">GAP</td><td class="l">global average pool</td><td>—</td><td>64 → 64</td><td>64</td><td>0</td></tr>
+<tr><td class="l">GNN ×2</td><td class="l">message + max-aggregate over comm graph</td><td>—</td><td>64 → 64</td><td>64 (belief)</td><td class="g">41,728</td></tr>
+<tr class="grp"><td colspan="6">ACTOR — L3 decision heads (linear, off the 64-d belief)</td></tr>
+<tr><td class="l">goal head</td><td class="l">Linear</td><td>—</td><td>64 → 9</td><td>9 (waypoint logits)</td><td>64·9+9 = 585</td></tr>
+<tr><td class="l">role head</td><td class="l">Linear</td><td>—</td><td>64 → 2</td><td>2 {explorer, relay}</td><td>64·2+2 = 130</td></tr>
+<tr><td class="l">value head</td><td class="l">Linear</td><td>—</td><td>64 → 1</td><td>1</td><td>65</td></tr>
+<tr><td class="l">λ̂₂ aux head</td><td class="l">Linear</td><td>—</td><td>64 → 1</td><td>1</td><td>65</td></tr>
+<tr><td class="l">compass + goal-residual</td><td class="l">Linear features</td><td>—</td><td>—</td><td>—</td><td>3,851</td></tr>
+<tr class="grp"><td colspan="6">ACTOR — L2 planner (frozen) → L1 action</td></tr>
+<tr><td class="l">MVProp planner</td><td class="l">σ(Conv2d)=passability, then K=32 max-prop sweeps</td><td>3×3 / 1 / 1</td><td>2 → 1</td><td>value field 32 × 32</td><td>2·9+1 = 19 <span class="dim">(frozen)</span></td></tr>
+<tr><td class="l">L1 readout</td><td class="l">argmax over 5 neighbours + collision veto</td><td>—</td><td>—</td><td>action ∈ {0..4}</td><td>0</td></tr>
+<tr class="grp"><td colspan="6">CTDE CRITIC — training only</td></tr>
+<tr><td class="l">conv1 + conv2</td><td class="l">Conv2d, vmap over agents</td><td>3×3 / 1 / 1</td><td>7→64→64</td><td>10 × 64 × 32 × 32</td><td class="g">41,024</td></tr>
+<tr><td class="l">mean-pool</td><td class="l">average over 10 agents</td><td>—</td><td>—</td><td>64</td><td>0</td></tr>
+<tr><td class="l">LayerNorm + MLP</td><td class="l">concat[64‖2 scalars] → Linear → ReLU → Linear</td><td>—</td><td>66 → 64 → 1</td><td>1 (value)</td><td>128 + 4,288 + 65 = 4,481</td></tr>
+<tr class="grp"><td colspan="6">Built but INERT (feedforward + goal-head config — no gradient)</td></tr>
+<tr class="dim"><td class="l">GRU cell</td><td class="l">recurrent hidden (h stays 0)</td><td>—</td><td>64 → 64</td><td>—</td><td>24,832</td></tr>
+<tr class="dim"><td class="l">GCRN</td><td class="l">recurrent graph belief (off)</td><td>—</td><td>—</td><td>—</td><td>45,568</td></tr>
+<tr class="dim"><td class="l">frontier-attn / selector / flock</td><td class="l">alternative tools (off)</td><td>—</td><td>—</td><td>—</td><td>2,957</td></tr>
+<tr class="tot"><td class="l">TOTAL</td><td class="l" colspan="4">actor 160,869 + critic 45,505 · ~133 K active, ~73 K inert · &lt;1 MB weights</td><td>206,374</td></tr>
 </table></div>
 
 <h2>Why 32² needs the big GPU — activations, not weights</h2>
-<p class="body">Weights are &lt;1 MB, so the 50 GB is not the model. And there's <b>no backprop-through-time</b> (recurrence is <code>feedforward</code>). One PPO update differentiates the whole batch at once — every feature map above, held simultaneously for a single backward pass:</p>
-<div class="eq">16 rollouts × 100 steps × N agents = <b>16,000</b> forwards &nbsp;·&nbsp; activations ≈ rollouts × horizon × N × <b>grid²</b> × width × 4 B</div>
+<p class="body">The weights are &lt;1 MB, so the 50 GB isn't the model. Recurrence is <code>feedforward</code> → <b>no backprop-through-time</b>: one PPO update differentiates the whole batch at once and holds every feature map above for a single backward pass.</p>
+<div class="eq">16 rollouts × 100 steps × 10 agents = <b>16,000</b> forwards &nbsp;·&nbsp; activations ≈ 16,000 × 2·(64·32·32) × 4 B ≈ <b>8.4 GB</b> for the actor convs alone</div>
 <div class="two">
  <div class="card"><h4>24² · 6 agents</h4><p class="body" style="margin:2px 0"><span class="lg">576</span> cells → peak ≈ <b>~17 GB</b> · <span class="g">fits gaius (49 GB)</span></p></div>
  <div class="card"><h4>32² · 10 agents</h4><p class="body" style="margin:2px 0"><span class="lg">1024</span> cells → peak ≈ <b>~50 GB</b> · <span style="color:var(--red);font-weight:700">needs balthar (98 GB)</span></p></div>
 </div>
-<p class="body">The jump is <code>(1024/576)×(10/6) ≈ 3×</code>. Fixes that keep all 16 rollouts and change <b>zero numbers</b>: <b>minibatch the loss</b> (chunk the wide batch, accumulate gradient) or <b>remat</b> (recompute in backward). bf16 is the numeric-change fallback.</p>
+<p class="body">The jump is <code>(1024/576) × (10/6) ≈ 3×</code>. Fixes that keep all 16 rollouts and change zero numbers: <b>minibatch the loss</b> or <b>remat</b>. bf16 is the numeric-change fallback.</p>
 
 <div class="foot">
-Feature-map volumes = perception (blue); message-passing graph = communication (purple); neuron circles + synapses = the fully-connected decision heads (green); heatmap grid = the planner's value field (orange); critic in red. Parameter counts are exact (introspected via <code>jax.tree_util</code>); neuron columns are drawn abbreviated (6–7 of 64 units, ⋮). Memory figures are order-of-magnitude from the dominant CNN-activation + stored-trajectory terms.
+Parameter counts and shapes are exact — introspected from a trained checkpoint via <code>jax.tree_util</code> over the Equinox modules; the arithmetic is shown so each is verifiable. Output shapes assume 32×32 input with same-padding (stride 1, pad 1 → spatial size preserved). Neuron columns in the figure are drawn abbreviated (4–5 of 64 units, ⋮). Activation-memory figures are order-of-magnitude from the dominant CNN + stored-trajectory terms.
 </div>
 </div>
 <script>try{document.documentElement.getAttribute('data-theme');}catch(e){}</script>
