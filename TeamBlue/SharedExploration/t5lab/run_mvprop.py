@@ -37,6 +37,7 @@ NOBST = int(os.environ.get("NOBST", 40))     # obstacle count for clutter/mixed/
 ROOMS = int(os.environ.get("ROOMS", 3))      # rooms for rooms/mixed
 SEED = int(os.environ.get("SEED", 0))
 PLANNER = os.environ.get("PLANNER", "mvprop_distilled.eqx")
+PLANNER_ARCH = os.environ.get("PLANNER_ARCH", "")   # ""=legacy mvprop_distilled.eqx; else raw-net arm checkpoint
 KPROP = int(os.environ.get("KPROP", 32))
 CONTROLLER = os.environ.get("CONTROLLER", "mvprop")   # mvprop | greedy | navfield (the ONE swap axis)
 CRITIC = os.environ.get("CRITIC", "setpool")          # central critic arch: setpool | setattn | conv
@@ -94,7 +95,16 @@ def main():
     cfg = build_cfg()
     env = eu.build_env(cfg)
     # planner only needed for the mvprop controller; greedy/navfield baselines run with None.
-    planner = load_planner(PLANNER, in_ch=2, K=KPROP, gamma=0.9) if CONTROLLER == "mvprop" else None
+    if CONTROLLER != "mvprop":
+        planner = None
+    elif PLANNER_ARCH:                                    # arm checkpoint (raw net) -> wrap
+        import equinox as eqx
+        from t5lab.planner_arms import make_net
+        from t5lab.planner import MVPropPlanner
+        net = make_net(PLANNER_ARCH, 2, KPROP, key=jax.random.PRNGKey(0), gamma=0.9)
+        planner = MVPropPlanner(eqx.tree_deserialise_leaves(PLANNER, net))
+    else:                                                 # legacy MVPropPlanner checkpoint
+        planner = load_planner(PLANNER, in_ch=2, K=KPROP, gamma=0.9)
     print(f"=== run_mvprop [{TAG}] grid={GRID} N={NAG} iters={ITERS} controller={cfg.action_head.controller} "
           f"critic={cfg.critic_mode}/{cfg.critic_arch} mech={cfg.mission_safety.mechanism}/"
           f"{cfg.mission_safety.conn_signal} planner={PLANNER} ===", flush=True)
