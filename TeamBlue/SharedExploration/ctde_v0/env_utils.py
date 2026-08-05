@@ -154,7 +154,7 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
     # disconnection edge, COMPOSED with whatever else is active. weight==0 -> skipped
     # entirely (no op added; out byte-identical). k=barrier_weight is inside the term.
     if r.barrier_weight > 0:
-        out = out - connectivity_barrier(world.body.position, cfg)
+        out = out - connectivity_barrier(world.body.position, cfg, world.wall)
     return out.astype(jnp.float32)
 
 
@@ -163,12 +163,51 @@ def compose_reward(reward_terms: dict, world, cfg: CTDEConfig,
 # =============================================================================
 
 
-def true_lambda2(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
-    """Scalar true Fiedler value of the soft comm-graph at ``position`` (N,2)."""
+def occlusion_penalty(position: jax.Array, wall: jax.Array, cfg: CTDEConfig) -> jax.Array:
+    """(N,N) float32 — additive comm-distance penalty ``c*k`` from wall occlusion ("wall RF").
+
+    ``k`` = number of wall-runs crossed on the straight i-j segment; ``c`` =
+    ``cfg.world.occlusion_c`` (or ``comm_r/3``). A link that passes through walls has an
+    inflated EFFECTIVE distance ``d_eff = d + c*k`` and so attenuates / drops. Zero on the
+    diagonal and for any clear-line-of-sight pair. Pure JAX (vmap/jit-safe); ``wall`` (H,W) bool.
+    """
+    N = position.shape[0]; H, W = wall.shape
+    comm_r = jnp.asarray(cfg.world.comm_r, jnp.float32)
+    c = comm_r / 3.0 if cfg.world.occlusion_c is None else jnp.asarray(cfg.world.occlusion_c, jnp.float32)
+    T = 2 * max(int(H), int(W))                                   # static: oversample the segment
+    pos = position.astype(jnp.float32)
+    pi = pos[:, None, None, :]; pj = pos[None, :, None, :]        # (N,1,1,2)/(1,N,1,2)
+    ts = jnp.linspace(0.0, 1.0, T)[None, None, :, None]          # (1,1,T,1)
+    seg = pi + ts * (pj - pi)                                     # (N,N,T,2) points along each ray
+    cell = jnp.clip(jnp.round(seg).astype(jnp.int32), 0, jnp.asarray([H - 1, W - 1]))
+    wc = wall.astype(bool)[cell[..., 0], cell[..., 1]]           # (N,N,T) wall along the ray
+    k = (wc[..., 1:] & ~wc[..., :-1]).sum(-1).astype(jnp.float32)  # wall-runs entered
+    return (c * k) * (1.0 - jnp.eye(N, dtype=jnp.float32))        # (N,N), diag 0
+
+
+def _eff_cheby(position: jax.Array, cfg: CTDEConfig, wall) -> jax.Array:
+    """(N,N) Chebyshev comm-distance, wall-occluded to ``d + c*k`` when ``cfg.world.occlusion``
+    and a wall grid are supplied; otherwise the raw distance (occlusion-off is identical)."""
+    d = jnp.max(jnp.abs(position[:, None, :] - position[None, :, :]), axis=-1).astype(jnp.float32)
+    if wall is not None and cfg.world.occlusion:
+        d = d + occlusion_penalty(position, wall, cfg)
+    return d
+
+
+def true_lambda2(position: jax.Array, cfg: CTDEConfig, wall=None) -> jax.Array:
+    """Scalar true Fiedler value of the soft comm-graph at ``position`` (N,2). With
+    ``wall`` + ``cfg.world.occlusion`` the graph is wall-occluded (``d_eff``); else the
+    plain distance graph (delegates to the shared ``_lambda2`` — byte-identical)."""
+    if wall is not None and cfg.world.occlusion:
+        n = position.shape[0]
+        w = jax.nn.sigmoid(cfg.connectivity.lambda2_sharp * (cfg.world.comm_r - _eff_cheby(position, cfg, wall)))
+        w = w * (1.0 - jnp.eye(n))                               # matches _soft_weights (diag 0)
+        lap = jnp.diag(w.sum(-1)) - w
+        return jnp.linalg.eigvalsh(lap)[1]
     return _lambda2(position, cfg.world.comm_r, cfg.connectivity.lambda2_sharp)
 
 
-def local_edge_margin(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+def local_edge_margin(position: jax.Array, cfg: CTDEConfig, wall=None) -> jax.Array:
     """(N,) float32 — the PER-AGENT "you're at the edge of comms range" signal.
 
     Where ``true_lambda2`` is a GLOBAL scalar (the team's λ₂ floor) broadcast
@@ -195,14 +234,19 @@ def local_edge_margin(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     averaged/broadcast: ``p_i`` is agent i's own margin, so the rollout can charge
     the stretching agent specifically. Pure JAX (vmap/scan/jit-safe).
     """
-    soft_deg = _ctrl._local_conn_score(
-        position, cfg.world.comm_r, cfg.connectivity.lambda2_sharp
-    )                                                          # (N,) soft degree
+    if wall is not None and cfg.world.occlusion:
+        n = position.shape[0]
+        w = jax.nn.sigmoid(cfg.connectivity.lambda2_sharp * (cfg.world.comm_r - _eff_cheby(position, cfg, wall)))
+        soft_deg = (w * (1.0 - jnp.eye(n))).sum(-1)            # (N,) occluded soft degree
+    else:
+        soft_deg = _ctrl._local_conn_score(
+            position, cfg.world.comm_r, cfg.connectivity.lambda2_sharp
+        )                                                      # (N,) soft degree
     target = jnp.asarray(cfg.mission_safety.degree_target, dtype=jnp.float32)
     return jax.nn.relu(target - soft_deg).astype(jnp.float32)  # (N,) per-agent margin
 
 
-def connectivity_barrier(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+def connectivity_barrier(position: jax.Array, cfg: CTDEConfig, wall=None) -> jax.Array:
     """(N,) float32 — the per-agent **connectivity FLOOR barrier** ("Hyper-Singularity").
 
     A one-sided interior-point wall on each agent's NEAREST-NEIGHBOUR distance: it is
@@ -244,9 +288,10 @@ def connectivity_barrier(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     eps = jnp.asarray(1e-3, dtype=jnp.float32)
 
     n = position.shape[0]
-    # Chebyshev pairwise distance (same metric as the comm graph / controller._cheby).
-    d = jnp.max(jnp.abs(position[:, None, :] - position[None, :, :]),
-                axis=-1).astype(jnp.float32)                          # (N,N)
+    # Chebyshev pairwise distance (same metric as the comm graph / controller._cheby),
+    # wall-OCCLUDED to d_eff when cfg.world.occlusion + wall are supplied so the barrier
+    # guards the REAL (line-of-sight) link, not a through-wall one.
+    d = _eff_cheby(position, cfg, wall)                               # (N,N)
     # mask self with +inf so a lone agent yields x_i=+inf -> caught by the x>=M branch.
     # (jnp.where, NOT eye*inf: 0*inf would be NaN on the OFF-diagonal and poison the min.)
     d = jnp.where(jnp.eye(n, dtype=bool), jnp.inf, d)                # (N,N), diag +inf
@@ -262,20 +307,21 @@ def connectivity_barrier(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     return f.astype(jnp.float32)                                      # (N,)
 
 
-def kb_adjacency(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+def kb_adjacency(position: jax.Array, cfg: CTDEConfig, wall=None) -> jax.Array:
     """(N,N) bool — in-range neighbours at ``comm_r`` with the diagonal CLEARED.
 
     This is the comm graph the GNN-KB message-passing fuses over (the formalism's
     *bridge*). Chebyshev disk, derived from positions — matches the env's
-    DiskTopology / the true-λ₂ soft graph support.
+    DiskTopology / the true-λ₂ soft graph support. With ``wall`` + ``cfg.world.occlusion``
+    the effective distance is wall-inflated (``d_eff``) so links through walls drop.
     """
     n = position.shape[0]
-    d = jnp.max(jnp.abs(position[:, None, :] - position[None, :, :]), axis=-1)
+    d = _eff_cheby(position, cfg, wall)
     adj = d <= cfg.world.comm_r
     return adj & ~jnp.eye(n, dtype=bool)
 
 
-def kb_distance(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
+def kb_distance(position: jax.Array, cfg: CTDEConfig, wall=None) -> jax.Array:
     """(N,N) float32 — the comm-graph sender→receiver Chebyshev distance, NORMALIZED
     by ``comm_r`` (so in-range edges land in [0,1]) with the diagonal CLEARED to 0.
 
@@ -288,8 +334,7 @@ def kb_distance(position: jax.Array, cfg: CTDEConfig) -> jax.Array:
     Pure JAX (vmap/scan/jit-safe).
     """
     n = position.shape[0]
-    d = jnp.max(jnp.abs(position[:, None, :] - position[None, :, :]),
-                axis=-1).astype(jnp.float32)                              # (N,N) cheby
+    d = _eff_cheby(position, cfg, wall)                                   # (N,N) cheby, wall-occluded if on
     d = d / jnp.maximum(jnp.asarray(cfg.world.comm_r, jnp.float32), 1.0)  # normalize -> [0,1] in-range
     return jnp.where(jnp.eye(n, dtype=bool), 0.0, d).astype(jnp.float32)  # (N,N), diag 0
 

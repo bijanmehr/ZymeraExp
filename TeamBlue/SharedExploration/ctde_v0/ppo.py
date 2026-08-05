@@ -122,7 +122,8 @@ def _navfield_blocked(state, cfg: CTDEConfig):
     return shared & wall[None]                                    # (N,H,W) known walls per agent
 
 
-def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig = None):
+def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig = None,
+                  mvplanner=None):
     """((N,) move, (N,) bool was-valid) from chosen goals (+optional roles) via the
     L1 controllers. ``was_valid[i]`` audits the emitted move is env-valid.
 
@@ -157,7 +158,20 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     # KNOWN walls it routes around them. The reactive controller vetoes agent collisions
     # intrinsically (its own 3×3 safety check), so it always forbids collisions.
     use_navfield = cfg is not None and cfg.action_head.controller == "navfield"
-    if use_navfield:
+    # L1 controller axis "mvprop": route the EXPLORER move through the LEARNED MVProp planner
+    # (a frozen, distilled value field) toward the SAME goal cell — the "exact previous
+    # architecture, greedy -> planner" swap. Reads V at each action's committed cell and
+    # ascends it (argmax), with the same hard collision veto + STAY fallback as navfield. The
+    # planner module is threaded in (``mvplanner``); the RL loss never touches it (the move is
+    # a deterministic readout during collection), so its distilled weights stay frozen.
+    use_mvprop = cfg is not None and cfg.action_head.controller == "mvprop"
+    if use_mvprop:
+        if mvplanner is None:
+            raise ValueError("action_head.controller='mvprop' needs a planner (pass mvplanner=)")
+        blocked = _navfield_blocked(state, cfg)                       # (N,H,W) known walls
+        expl_move = mvplanner.move(pos, goal, blocked, valid_targets, action_valid,
+                                   forbid_collision=True)             # (N,) learned-field descent
+    elif use_navfield:
         blocked = _navfield_blocked(state, cfg)                       # (N,H,W) known walls
         expl_move = ctrl.navfield_move(pos, goal, blocked, valid_targets, action_valid,
                                        planner=cfg.action_head.planner,
@@ -183,8 +197,8 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
     # HARD collision completion: break simultaneous same-EMPTY-cell convergence by deterministic
     # index priority (occupied_cell_mask upstream only forbids moving onto a NOW-occupied cell).
     # Together they GUARANTEE no two agents share a cell after the step. Active whenever collision
-    # avoidance is on (collision_mask == 'on', or the navfield reactive controller).
-    if forbid or use_navfield:
+    # avoidance is on (collision_mask == 'on', or the navfield/mvprop reactive controller).
+    if forbid or use_navfield or use_mvprop:
         move = ctrl.resolve_target_conflicts(move, valid_targets)
     was_valid = jnp.take_along_axis(action_valid, move[:, None], axis=1)[:, 0]
     return move, was_valid
@@ -195,7 +209,7 @@ def _goal_to_move(env, state, goal_idx, stencil, role_idx=None, cfg: CTDEConfig 
 # =============================================================================
 
 
-def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lambda):
+def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lambda, mvplanner=None):
     """Collect ONE episode under the current (actor, critic). Pure (vmap over key).
 
     ``dual_lambda`` is the CURRENT dual-variable λ from the train state (a scalar):
@@ -252,10 +266,10 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         # role key `rk` via fold_in, so the MAIN key stream (k/ak/rk/sk) is untouched and
         # the off-path RNG draw is byte-identical to v0 (no extra split consumed).
         ck = jax.random.fold_in(rk, 0x5E1)
-        adj_off = _eu.kb_adjacency(state.body.position, cfg)          # (N,N) KB graph
+        adj_off = _eu.kb_adjacency(state.body.position, cfg, state.wall)  # (N,N) KB graph (wall-occluded if on)
         # normalized sender->receiver distance for the non-default message_content modes;
         # None for 'learned' (the backbone ignores it -> byte-identical to v0).
-        dist = _eu.kb_distance(state.body.position, cfg) if edge_msg else None  # (N,N)|None
+        dist = _eu.kb_distance(state.body.position, cfg, state.wall) if edge_msg else None  # (N,N)|None
         n = state.n_agents
         # Feed the carried hidden h in and get the step's NEW hidden out (h_next). On
         # the feedforward path h_next is the zero passthrough (h stays zeros all
@@ -317,7 +331,7 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
             role_logp = jnp.zeros((n,), jnp.float32)
             role_idx = None                                          # v0 routing (+ selector)
 
-        move, move_valid = _goal_to_move(env, state, goal, stencil, role_idx, cfg)
+        move, move_valid = _goal_to_move(env, state, goal, stencil, role_idx, cfg, mvplanner)
         obs_next, state_next, _rew, done, info = env.step(state, move, sk)
 
         # connectivity penalty (subtracted in compose_reward); 0 unless a penalty
@@ -329,9 +343,9 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         #   local_edge_margin       -> a PER-AGENT margin p (N,), NOT broadcast: each
         #                              agent i gets its own p_i so the rollout charges
         #                              the agent that is stretching the bridge.
-        l2_true = _eu.true_lambda2(state_next.body.position, cfg)     # ()
+        l2_true = _eu.true_lambda2(state_next.body.position, cfg, state_next.wall)     # ()
         if local_signal:
-            margin = _eu.local_edge_margin(state_next.body.position, cfg)  # (N,) per-agent
+            margin = _eu.local_edge_margin(state_next.body.position, cfg, state_next.wall)  # (N,) per-agent
         if cfg.mission_safety.mechanism == "soft_lambda":
             if local_signal:
                 l2_penalty = margin                                  # (N,) per-agent, fixed weight
@@ -418,8 +432,8 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     )
     if decentral:
         # bootstrap the final-state value from the actor too (matches the v_team source).
-        adj_T = _eu.kb_adjacency(state_T.body.position, cfg)
-        dist_T = _eu.kb_distance(state_T.body.position, cfg) if edge_msg else None
+        adj_T = _eu.kb_adjacency(state_T.body.position, cfg, state_T.wall)
+        dist_T = _eu.kb_distance(state_T.body.position, cfg, state_T.wall) if edge_msg else None
         _g, _r, value_agent_T, _l2, _z, _h = actor(obs_T, adj_T, dist=dist_T, h=h_T,
                                                     inference=True)
         traj["v_last"] = value_agent_T.mean()                        # () GAE bootstrap
@@ -427,8 +441,8 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
         # DeepSets bootstrap needs the per-agent obs stack + team scalars at T; the central
         # branch does not run the actor at T, so do it once here to recover l2_hat_T (the aux
         # head, identical whether or not the selector is on — mirrors the decentral branch).
-        adj_T = _eu.kb_adjacency(state_T.body.position, cfg)
-        dist_T = _eu.kb_distance(state_T.body.position, cfg) if edge_msg else None
+        adj_T = _eu.kb_adjacency(state_T.body.position, cfg, state_T.wall)
+        dist_T = _eu.kb_distance(state_T.body.position, cfg, state_T.wall) if edge_msg else None
         _g, _r, _v, l2_hat_T, _z, _h = actor(obs_T, adj_T, dist=dist_T, h=h_T,
                                              inference=True)
         traj["v_last"] = _critic_value(critic, cfg, central=None, obs=obs_T, state=state_T,
@@ -450,15 +464,16 @@ def _single_rollout(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lamb
     return traj
 
 
-def collect(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lambda):
+def collect(env, actor, critic, cfg: CTDEConfig, stencil, key, dual_lambda, mvplanner=None):
     """Vmap ``_single_rollout`` over B seeds -> batched trajectory (leading B,T).
 
     ``dual_lambda`` (scalar) is the current train-state dual variable, broadcast to
     every rollout (it weights the adaptive connectivity penalty; see
-    :func:`_single_rollout`)."""
+    :func:`_single_rollout`). ``mvplanner`` (default None) is the frozen learned L1
+    planner used only when ``action_head.controller == 'mvprop'``."""
     keys = jax.random.split(key, cfg.rollouts_per_iter)
     return jax.vmap(
-        lambda k: _single_rollout(env, actor, critic, cfg, stencil, k, dual_lambda)
+        lambda k: _single_rollout(env, actor, critic, cfg, stencil, k, dual_lambda, mvplanner)
     )(keys)
 
 
@@ -1141,13 +1156,13 @@ def _update_epoch(carry, flat, perm, key, cfg: CTDEConfig, opt):
     return carry, metrics
 
 
-def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
+def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil, mvplanner=None):
     """One PPO iteration: collect -> GAE -> ppo_epochs of minibatch updates ->
     dual update (adaptive mechanisms). The dual variable read at rollout time is
     the CURRENT ``state.dual.lam``; it is updated AFTER the policy step from the
     realized connectivity violation and carried forward in the returned state."""
     ck, pk = jax.random.split(key)
-    traj = collect(env, state.actor, state.critic, cfg, stencil, ck, state.dual.lam)
+    traj = collect(env, state.actor, state.critic, cfg, stencil, ck, state.dual.lam, mvplanner)
     adv, ret = compute_advantages(traj, cfg)
     # v3 per-agent credit: swap the shared team advantage for a PER-AGENT one (B,T,N). ``ret``
     # stays team (the critic target is unchanged). Gated -> default (credit=="shared" AND
@@ -1324,7 +1339,8 @@ def train_step(env, state: TrainState, cfg: CTDEConfig, key, opt, stencil):
     return state, logs
 
 
-def train(env, cfg: CTDEConfig, *, key=None, log_fn=None, init_from: str | None = None):
+def train(env, cfg: CTDEConfig, *, key=None, log_fn=None, init_from: str | None = None,
+          mvplanner=None):
     """Full training loop over ``cfg.iters`` PPO iterations.
 
     ``log_fn(it, host_logs)`` is called each iteration. Returns (TrainState, history).
@@ -1346,7 +1362,7 @@ def train(env, cfg: CTDEConfig, *, key=None, log_fn=None, init_from: str | None 
 
     @eqx.filter_jit
     def jitted_step(state, k):
-        return train_step(env, state, cfg, k, opt, stencil)
+        return train_step(env, state, cfg, k, opt, stencil, mvplanner)
 
     history = []
     k = key

@@ -19,8 +19,41 @@ from ctde_v0.ppo import make_stencil, _navfield_blocked          # READ-ONLY
 from ctde_v0.controller import goal_targets                       # READ-ONLY
 
 
-def rollout(env, actor, cfg, key, stencil=None):
-    """One fixed-length episode (cfg.world.horizon steps). Returns a trajectory pytree."""
+def resolve_conflicts(moves, targets):
+    """Priority-based collision resolver (self-contained; no ctde_v0 dependency, since the two
+    run-boxes' ctde_v0 clones differ). moves (N,), targets (N,A,2) = the cell each action lands
+    on. Process agents in index order: an agent keeps its move unless its target cell was already
+    claimed by a lower-index agent this step, in which case it STAYs (action 0). Guarantees no two
+    agents share a cell after the step (STAY lands on the agent's own, distinct, cell)."""
+    N = moves.shape[0]
+    committed = targets[jnp.arange(N), moves]                     # (N,2)
+    stay_cell = targets[:, 0]                                     # (N,2) STAY = own cell
+    def body(claimed, i):
+        cell = committed[i]
+        taken = jnp.all(claimed == cell[None, :], axis=-1).any()  # claimed by an earlier agent?
+        mv = jnp.where(taken, 0, moves[i])
+        newcell = jnp.where(taken, stay_cell[i], cell)
+        return claimed.at[i].set(newcell), mv
+    claimed0 = jnp.full((N, 2), -999, dtype=committed.dtype)
+    _, out = jax.lax.scan(body, claimed0, jnp.arange(N))
+    return out
+
+
+_DELTAS5 = jnp.array([[0, 0], [-1, 0], [0, 1], [1, 0], [0, -1]])   # ACTION_DELTAS
+
+
+def greedy_toward(pos, goal):
+    """(N,) deterministic action that most reduces Chebyshev distance to the goal — the
+    NO-PLANNER control (drops MVProp). On open terrain this is optimal navigation."""
+    cand = pos[:, None, :] + _DELTAS5[None, :, :]                # (N,5,2)
+    d = jnp.max(jnp.abs(cand - goal[:, None, :]), -1)            # (N,5)
+    return jnp.argmin(d, -1).astype(jnp.int32)                   # (N,)
+
+
+def rollout(env, actor, cfg, key, stencil=None, controller="mvprop"):
+    """One fixed-length episode (cfg.world.horizon steps). Returns a trajectory pytree.
+    controller: "mvprop" (learned planner, move is a PG action) or "greedy" (deterministic
+    step-toward-goal, goal is the only PG action) — the no-planner control."""
     if stencil is None:
         stencil = make_stencil(cfg)
     reset_key, scan_key = jax.random.split(key)
@@ -45,12 +78,18 @@ def rollout(env, actor, cfg, key, stencil=None):
         goal_cells = goal_targets(pos, stencil, h, w)                          # (N,K,2)
         goal = goal_cells[jnp.arange(n), goal_idx]                             # (N,2)
 
-        move_logits = actor.move_logits(pos, goal, blocked)                    # (N,5)
-        move = jax.random.categorical(mk, move_logits, axis=-1)               # (N,)
-        move_logp = jnp.take_along_axis(
-            jax.nn.log_softmax(move_logits, -1), move[:, None], -1)[:, 0]      # (N,)
-
-        obs_n, state_n, _rew, done, info = env.step(state, move, sk)
+        if controller == "greedy":
+            move = greedy_toward(pos, goal)                                    # deterministic
+            move_logp = jnp.zeros(n)                                           # goal = only PG action
+        else:
+            move_logits = actor.move_logits(pos, goal, blocked)                # (N,5)
+            move = jax.random.categorical(mk, move_logits, axis=-1)           # (N,) SAMPLED (for PG)
+            move_logp = jnp.take_along_axis(
+                jax.nn.log_softmax(move_logits, -1), move[:, None], -1)[:, 0]  # (N,)
+        # hard COLLISION resolution: the env permits cell overlap, so break simultaneous
+        # same-cell convergence (allowed for collisions; NEVER for connectivity).
+        exec_move = resolve_conflicts(move, env.dynamics.targets(state))
+        obs_n, state_n, _rew, done, info = env.step(state, exec_move, sk)
         rew_agent = _eu.compose_reward(info["reward_terms"], state_n, cfg)     # (N,)
         rew_team = rew_agent.mean()                                            # () DTE target
         v_team = value.mean()                                                  # () DTE value

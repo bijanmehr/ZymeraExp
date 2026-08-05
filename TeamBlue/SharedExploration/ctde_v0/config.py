@@ -67,6 +67,13 @@ class World:
     rooms: int = 3                 # number of rooms when terrain in {"rooms","mixed"}
     pillar_spacing: int = 4        # lattice period when terrain == "pillars"
     pillar_size: int = 2           # obstacle-block size when terrain == "pillars"
+    # Wall occlusion of the comm graph ("wall RF"): a wall on the straight i-j segment
+    # inflates the EFFECTIVE comm distance d_eff = d + occlusion_c * k (k = #wall-runs
+    # crossed), so a link through walls attenuates and drops. Applied consistently to
+    # kb_adjacency (GNN graph), true_lambda2 / local_edge_margin (metric+reward), and
+    # kb_distance (edge feature). Default OFF -> pure-distance comms, identical to before.
+    occlusion: bool = False
+    occlusion_c: float | None = None   # per-wall distance penalty; None -> comm_r / 3
 
 
 @dataclass(frozen=True)
@@ -150,6 +157,11 @@ class ActionHead:
         - "navfield": a nav-field + reactive controller — a navigation field is planned
           toward the goal (see ``planner``) and the agent descends it with reactive local
           avoidance. Only consulted when ``controller == 'navfield'``.
+        - "mvprop": the LEARNED MVProp planner (t5lab) — a frozen, distilled value field is
+          flooded toward the goal and the agent ascends it (argmax value) with the same
+          reactive collision veto + STAY fallback. The planner module is passed to
+          ``ppo.train(..., mvplanner=)``; the RL loss never touches it (frozen). This is the
+          "exact previous architecture, greedy -> planner" swap.
     * ``planner`` — the nav-field planner used ONLY when ``controller == 'navfield'``
                        (inert under the default greedy controller): "wavefront" (default) |
                        "bfs" | "fmm" (fast-marching) | "astar".

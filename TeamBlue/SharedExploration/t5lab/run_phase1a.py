@@ -31,6 +31,7 @@ SD = os.environ.get("SD", ".")
 def base_config(terrain="clutter", grid=32, n_agents=10, iters=400):
     return from_dict(dict(
         seed=0, iters=iters, rollouts_per_iter=16, critic_mode="decentral",
+        collision_mask="on",   # hard collision-mask ALWAYS on (like the previous architecture)
         world=dict(recipe="comm-coverage", grid=grid, n_agents=n_agents, comm_r=5,
                    cover_r=1, terrain=terrain, sense_walls=True, sense_free=True, horizon=100),
         backbone=dict(width=64, depth=2, mp_rounds=2, agg="max", heads=4, norm="layer"),

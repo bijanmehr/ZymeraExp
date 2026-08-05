@@ -9,3 +9,25 @@ data/
 .venv/
 venv/
 *.pdf
+
+# --- generated artifacts / large binaries (never commit) ---
+.venv/
+*.pyc
+*.eqx
+*.log
+**/runs/
+**/runs_*/
+**/planners/
+**/zeroshot_ckpts/
+**/*_ckpts/
+**/maps/
+report/gifs/
+report/old100gifs/
+report/combined/
+report/light/
+**/report/gifs/
+**/report/old100gifs/
+**/report/combined/
+**/report/light/
+TeamBlue/BlueAgentV3/
+*.gif

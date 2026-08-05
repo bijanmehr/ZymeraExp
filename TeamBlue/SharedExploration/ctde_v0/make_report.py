@@ -31,7 +31,7 @@ else:
     from .config import from_dict
 
 
-def rollout_worlds(run_dir: str, *, steps: int = 100, seed: int = 0, world_override=None):
+def rollout_worlds(run_dir: str, *, steps: int = 100, seed: int = 0, world_override=None, corner=None):
     """Replay the trained policy in ``run_dir``; return (cfg, [World,...]) with each
     World's ``group`` recoloured by the agent's chosen skill (selector) / role.
 
@@ -54,6 +54,23 @@ def rollout_worlds(run_dir: str, *, steps: int = 100, seed: int = 0, world_overr
 
     rk0, kk = jax.random.split(jax.random.PRNGKey(seed + 7))
     obs, st = env.reset(rk0)
+    if corner:
+        # override the wall-straddling cluster spawn with a CONTIGUOUS corner block:
+        # BFS-flood N free cells from the corner-most free cell -> one region, one side.
+        import numpy as _np
+        from collections import deque
+        wall = _np.asarray(st.wall).astype(bool); H, W = wall.shape
+        cr = range(H - 1, -1, -1) if corner == "bl" else range(H)
+        start = next(((r, c) for r in cr for c in range(W) if not wall[r, c]), (0, 0))
+        seen = {start}; q = deque([start]); cells = []
+        n = int(st.n_agents)
+        while q and len(cells) < n:
+            r, c = q.popleft(); cells.append((r, c))
+            for dr, dc in ((0, 1), (1, 0), (0, -1), (-1, 0)):
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < H and 0 <= nc < W and not wall[nr, nc] and (nr, nc) not in seen:
+                    seen.add((nr, nc)); q.append((nr, nc))
+        st = st.replace(body=st.body.replace(position=jnp.asarray(_np.array(cells[:n], dtype=_np.int32))))
     h = actor.init_hidden(st.n_agents)
     worlds = [st]
     for _ in range(steps):
@@ -200,6 +217,8 @@ def main(argv=None):
     p.add_argument("--out", default="report")
     p.add_argument("--steps", type=int, default=100)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--corner", default=None, choices=["tl", "bl"],
+                   help="spawn all agents in one contiguous corner block (tl/bl)")
     a = p.parse_args(argv)
     os.makedirs(a.out, exist_ok=True)
     if a.manifest:
@@ -214,7 +233,7 @@ def main(argv=None):
             continue
         try:
             cfg, worlds = rollout_worlds(rd, steps=a.steps, seed=a.seed,
-                                         world_override=r.get("world"))
+                                         world_override=r.get("world"), corner=a.corner)
         except Exception as exc:                                  # one bad run shouldn't kill the report
             print(f"SKIP {label}: {type(exc).__name__}: {exc}", flush=True)
             continue
