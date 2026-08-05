@@ -70,7 +70,7 @@ code{font:12.5px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1
 <h1>Two networks: one per agent, one for the team</h1>
 <p class="lede">The actor is the policy — it runs on every agent, with the same shared weights. The critic runs once over the whole team, only during training. Shapes are for a 32×32 grid with 10 agents; every count is exact.</p>
 
-<div class="key"><b>The number that matters for scaling:</b> adding an agent adds <b>zero parameters</b>. The actor's weights are shared by every agent, and the critic averages over agents in a way that does not depend on how many there are — so the system is <b>206,374 parameters whether the team is 1 agent or 100</b>. What each extra agent adds is <b>compute and memory</b>, not weights. Both panels below are counted; the scaling is worked out underneath.</p>
+<div class="key"><b>The number that matters for scaling:</b> adding an agent adds <b>zero parameters</b>. The actor's weights are shared by every agent, and the critic averages over agents in a way that does not depend on how many there are — so the system is <b>206,374 parameters whether the team is 1 agent or 100</b>. What each extra agent adds is <b>compute and memory</b>, not weights. Both panels below are counted; the scaling is worked out underneath.</div>
 
 <h2>The two networks, side by side</h2>
 <div class="panels">
