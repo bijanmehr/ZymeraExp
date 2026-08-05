@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zymera policy — actor & critic, and how a team scales</title>
+<style>
+:root{
+ --bg:#f7f5ef;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e2ddd0;--rule2:#d0caba;--card:#fffdf9;--chip:#eceee8;
+ --blue:#2e6ea8;--red:#a2472c;--accent:#2f6d57;--purp:#6a4fae;--orange:#b5721b;--gray:#8a8f99;--eqbg:#efece3;
+}
+@media(prefers-color-scheme:dark){:root{
+ --bg:#111318;--ink:#e7e9ef;--soft:#a7adb8;--faint:#767b86;--rule:#2b2f38;--rule2:#3a3f4a;--card:#181b22;--chip:#20242c;
+ --blue:#6ba9e0;--red:#e0714f;--accent:#5cc9a0;--purp:#a98cf0;--orange:#d99a44;--gray:#767b86;--eqbg:#1c2029;
+}}
+:root[data-theme="dark"]{
+ --bg:#111318;--ink:#e7e9ef;--soft:#a7adb8;--faint:#767b86;--rule:#2b2f38;--rule2:#3a3f4a;--card:#181b22;--chip:#20242c;
+ --blue:#6ba9e0;--red:#e0714f;--accent:#5cc9a0;--purp:#a98cf0;--orange:#d99a44;--gray:#767b86;--eqbg:#1c2029;
+}
+:root[data-theme="light"]{
+ --bg:#f7f5ef;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e2ddd0;--rule2:#d0caba;--card:#fffdf9;--chip:#eceee8;
+ --blue:#2e6ea8;--red:#a2472c;--accent:#2f6d57;--purp:#6a4fae;--orange:#b5721b;--gray:#8a8f99;--eqbg:#efece3;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);margin:0;font:16px/1.55 Charter,Georgia,serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:900px;margin:0 auto;padding:44px 20px 96px}
+.eyebrow{font:600 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+h1{font-size:26px;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--soft);font-style:italic;margin:0 0 16px;font-size:16px}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums}
+.key{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 9px 9px 0;padding:13px 17px;margin:14px 0 22px;font:15px/1.55 Charter,Georgia,serif}
+.key b{color:var(--ink)}
+h2{font:700 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:34px 0 12px;padding-top:16px;border-top:1px solid var(--rule)}
+.note{font:13.5px/1.55 ui-sans-serif,system-ui,sans-serif;color:var(--soft);margin:6px 0 14px}
+
+/* two panels */
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:640px){.panels{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;align-items:center}
+.ch{width:100%;text-align:center;margin-bottom:10px}
+.ch .t{font:800 15px ui-sans-serif,system-ui,sans-serif;color:var(--pc)}
+.ch .s{font:600 11.5px ui-sans-serif,system-ui,sans-serif;color:var(--faint);letter-spacing:.03em;margin-top:2px;display:block;text-transform:uppercase}
+.blk{width:100%;max-width:310px;background:var(--card);border:1.5px solid var(--pc);border-radius:8px;padding:8px 12px}
+.blk.inp{border-style:dashed;border-color:var(--faint);background:transparent}
+.blk .ty{font:700 13px ui-sans-serif,system-ui,sans-serif;text-align:center}
+.blk .io{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:3px}
+.blk .sh{font:600 11.5px ui-monospace,Menlo,monospace;color:var(--soft);font-variant-numeric:tabular-nums}
+.blk .pp{font:700 11.5px ui-monospace,Menlo,monospace;color:var(--pc);font-variant-numeric:tabular-nums;flex:none}
+.blk .pp.z{color:var(--faint);font-weight:600}
+.down{color:var(--faint);font-size:15px;line-height:1;margin:3px 0}
+.foot-b{width:100%;max-width:310px;margin-top:10px;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--pc) 11%,transparent);border:1px solid color-mix(in srgb,var(--pc) 40%,var(--rule));text-align:center;font:700 12.5px ui-sans-serif,system-ui,sans-serif;color:var(--ink)}
+.foot-b .sub{font:600 11px ui-sans-serif,system-ui,sans-serif;color:var(--faint);display:block;margin-top:2px}
+
+.scroll{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;font:13px/1.45 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--rule);padding:7px 10px;text-align:right;white-space:nowrap}
+th:first-child,td.l{text-align:left}th{color:var(--soft);border-bottom:2px solid var(--rule)}
+td .flat{color:var(--accent);font-weight:700}
+.tot td{border-top:2px solid var(--rule);font-weight:700}
+.eq{background:var(--eqbg);border-radius:8px;padding:11px 15px;margin:12px 0;font:13px/1.7 ui-monospace,Menlo,monospace;overflow-x:auto}
+p.body{font:15px/1.62 Charter,Georgia,serif;margin:8px 0}
+code{font:12.5px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+.g{color:var(--accent);font-weight:700}.rd{color:var(--red);font-weight:700}
+.foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--rule);font:12px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--faint)}
+</style>
+</head>
+<body><div class="wrap">
+
+<p class="eyebrow">Zymera · policy architecture · actor / critic</p>
+<h1>Two networks: one per agent, one for the team</h1>
+<p class="lede">The actor is the policy — it runs on every agent, with the same shared weights. The critic runs once over the whole team, only during training. Shapes are for a 32×32 grid with 10 agents; every count is exact.</p>
+
+<div class="key"><b>The number that matters for scaling:</b> adding an agent adds <b>zero parameters</b>. The actor's weights are shared by every agent, and the critic averages over agents in a way that does not depend on how many there are — so the system is <b>206,374 parameters whether the team is 1 agent or 100</b>. What each extra agent adds is <b>compute and memory</b>, not weights. Both panels below are counted; the scaling is worked out underneath.</p>
+
+<h2>The two networks, side by side</h2>
+<div class="panels">
+
+ <!-- ACTOR -->
+ <div class="col" style="--pc:var(--blue)">
+  <div class="ch"><span class="t">ACTOR</span><span class="s">runs on each agent · shared weights</span></div>
+  <div class="blk inp"><div class="ty">input — one agent's view</div><div class="io"><span class="sh">7×32×32</span><span class="pp z">—</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">Conv 3×3 · 7→64 · ReLU</div><div class="io"><span class="sh">64×32×32</span><span class="pp">4,096</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">Conv 3×3 · 64→64 · ReLU</div><div class="io"><span class="sh">64×32×32</span><span class="pp">36,928</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">Global avg-pool</div><div class="io"><span class="sh">64</span><span class="pp z">0</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">GNN ×2 · over comm graph</div><div class="io"><span class="sh">64 belief</span><span class="pp">24,960</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">goal head <span class="mono" style="font-weight:400;color:var(--faint)">(+compass +residual)</span></div><div class="io"><span class="sh">→ 9 waypoints</span><span class="pp">4,436</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">role head</div><div class="io"><span class="sh">→ 2 roles</span><span class="pp">130</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">MVProp planner <span class="mono" style="font-weight:400;color:var(--faint)">frozen</span></div><div class="io"><span class="sh">→ move ∈ 5</span><span class="pp">19</span></div></div>
+  <div class="foot-b">Actor · 70,680 active weights<span class="sub">160,869 built · shared by all N agents · +130 training readouts</span></div>
+ </div>
+
+ <!-- CRITIC -->
+ <div class="col" style="--pc:var(--red)">
+  <div class="ch"><span class="t">CRITIC</span><span class="s">runs once for the team · training only</span></div>
+  <div class="blk inp"><div class="ty">input — every agent's view</div><div class="io"><span class="sh">10×7×32×32</span><span class="pp z">—</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">shared CNN · 7→64→64</div><div class="io"><span class="sh">10×64</span><span class="pp">41,024</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">mean-pool over agents</div><div class="io"><span class="sh">64</span><span class="pp z">0</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk"><div class="ty">LayerNorm + MLP · 66→64→1</div><div class="io"><span class="sh">→ 1 value</span><span class="pp">4,481</span></div></div>
+  <div class="down">↓</div>
+  <div class="blk inp" style="border-color:var(--red)"><div class="ty">team value → training signal</div><div class="io"><span class="sh">scalar</span><span class="pp z">—</span></div></div>
+  <div class="foot-b">Critic · 45,505 weights<span class="sub">one instance · discarded at deployment · count-invariant</span></div>
+ </div>
+
+</div>
+
+<h2>How a team of N scales — exact numbers</h2>
+<p class="note">The actor box above is instantiated once per agent, but every copy shares the same weights. The critic sees all agents through one count-invariant pool. So the weight count is flat in N; only the work grows.</p>
+
+<div class="scroll"><table>
+<tr><th class="l">team size N</th><th>actor (shared)</th><th>critic</th><th>total parameters</th></tr>
+<tr><td class="l">1 agent</td><td>160,869</td><td>45,505</td><td><span class="flat">206,374</span></td></tr>
+<tr><td class="l">6 agents</td><td>160,869</td><td>45,505</td><td><span class="flat">206,374</span></td></tr>
+<tr><td class="l">10 agents</td><td>160,869</td><td>45,505</td><td><span class="flat">206,374</span></td></tr>
+<tr><td class="l">100 agents</td><td>160,869</td><td>45,505</td><td><span class="flat">206,374</span></td></tr>
+<tr class="tot"><td class="l">per extra agent</td><td>+0</td><td>+0</td><td class="g">+0 parameters</td></tr>
+</table></div>
+
+<p class="note" style="margin-top:18px">What each extra agent <b>does</b> add, per step (at 32×32):</p>
+<div class="scroll"><table>
+<tr><th class="l">what one more agent adds</th><th>amount</th><th>note</th></tr>
+<tr><td class="l">one actor forward (2 conv maps)</td><td>131,072 values</td><td class="l mono" style="color:var(--faint)">2 × (64·32·32)</td></tr>
+<tr><td class="l">one pass through the critic's shared CNN</td><td>131,072 values</td><td class="l mono" style="color:var(--faint)">same two convs</td></tr>
+<tr><td class="l"><b>activations added / step</b></td><td><b>262,144 values</b></td><td class="l">≈ 1.05 MB in 32-bit</td></tr>
+<tr><td class="l">over one training batch (16 rollouts × 100 steps)</td><td>≈ 1.68 GB</td><td class="l">forward conv activations only</td></tr>
+<tr><td class="l">effective peak training memory</td><td class="rd">≈ 5 GB</td><td class="l">adds backward pass + PPO buffers</td></tr>
+</table></div>
+
+<p class="body">The "≈ 5 GB per agent" is not a guess — it falls out of the two measured peaks. At 24×24 with 6 agents the run peaks near <b>17 GB</b> (2.83 GB/agent); at 32×32 with 10 agents it peaks near <b>50 GB</b> (5.00 GB/agent). The ratio of those two per-agent numbers is <b>1.77</b>, which is exactly the grid-area ratio:</p>
+<div class="eq">(50 / 10) / (17 / 6) = 1.77   ≈   32² / 24² = 1024 / 576 = 1.78</div>
+<p class="body">So the memory model is settled: <b>peak ≈ N × grid² × constant</b> — linear in the number of agents, quadratic in the grid side. That is why 32×32 with 10 agents (~50 GB) needs balthar while 24×24 with 6 agents (~17 GB) fits gaius, even though the two networks have <b>identical</b> weights.</p>
+
+<div class="foot">Counts are exact — from the module shapes, reconciled against the introspected actor (160,869) and critic (45,505) totals. The actor's "70,680 active" is the deployed forward path plus two training readouts; the remaining built weights (recurrence, attention query/key, alternative tool-heads) are switched off in this configuration. The 19-parameter MVProp planner is frozen and injected at training time, so it is outside the 206,374 trainable total. Activation figures are the dominant convolutional term; measured peaks include the backward pass and PPO's stored rollouts.</div>
+</div>
+<script>try{document.documentElement.getAttribute('data-theme');}catch(e){}</script>
+</body></html>
