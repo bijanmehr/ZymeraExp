@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zymera policy — full architecture &amp; training-memory depiction</title>
+<style>
+:root{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e5e0d4;--card:#fffdf8;--accent:#2f6d57;--accent2:#a2472c;--blue:#2b6fe0;--purp:#7a5cc9;--chip:#eef1ea;--eqbg:#f3f0e8}
+@media(prefers-color-scheme:dark){:root{--bg:#14161b;--ink:#e7e9ef;--soft:#a7adb8;--faint:#71767f;--rule:#2a2e37;--card:#1a1d24;--accent:#5cc9a0;--accent2:#e0714f;--blue:#6ba3ff;--purp:#b39cf0;--chip:#20242c;--eqbg:#1e222a}}
+:root[data-theme="dark"]{--bg:#14161b;--ink:#e7e9ef;--soft:#a7adb8;--faint:#71767f;--rule:#2a2e37;--card:#1a1d24;--accent:#5cc9a0;--accent2:#e0714f;--blue:#6ba3ff;--purp:#b39cf0;--chip:#20242c;--eqbg:#1e222a}
+:root[data-theme="light"]{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e5e0d4;--card:#fffdf8;--accent:#2f6d57;--accent2:#a2472c;--blue:#2b6fe0;--purp:#7a5cc9;--chip:#eef1ea;--eqbg:#f3f0e8}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);margin:0;font:16px/1.55 Charter,"Iowan Old Style",Georgia,serif}
+.wrap{max-width:940px;margin:0 auto;padding:44px 22px 96px}
+.eyebrow{font:600 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+h1{font-size:27px;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--soft);font-style:italic;margin:0 0 4px;font-size:17px}
+.meta{font:12.5px/1.5 ui-sans-serif,system-ui,sans-serif;color:var(--faint);margin:6px 0 22px}
+.bl{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:13px 17px;margin:14px 0}.bl b{color:var(--ink)}
+h2{font-size:14px;margin:34px 0 8px;font:700 13px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);padding-top:16px;border-top:1px solid var(--rule)}
+p.body{font:15px/1.62 Charter,Georgia,serif;margin:8px 0}
+/* flow diagram */
+.flow{display:flex;flex-direction:column;align-items:stretch;gap:0;margin:14px 0}
+.lay{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--edge,var(--accent));border-radius:9px;padding:10px 14px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
+.lay .nm{font:700 14px/1.2 ui-sans-serif,system-ui,sans-serif}
+.lay .op{font:12px/1.3 ui-monospace,Menlo,monospace;color:var(--soft)}
+.lay .sh{font:12px/1.2 ui-monospace,Menlo,monospace;color:var(--faint);text-align:right;white-space:nowrap}
+.lay .pp{font:700 12px/1.2 ui-sans-serif,system-ui,sans-serif;text-align:right;color:var(--edge,var(--accent));white-space:nowrap}
+.arrow{align-self:center;color:var(--faint);font-size:15px;line-height:1;margin:3px 0}
+.neu{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px}
+.neu i{width:7px;height:7px;border-radius:50%;background:var(--edge,var(--accent));opacity:.55;display:inline-block}
+.stage{font:700 10px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:14px 0 4px}
+.scroll{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font:13px/1.4 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--rule);padding:7px 10px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child,td.l{text-align:left}
+th{color:var(--soft);border-bottom:2px solid var(--rule)}
+.g{color:var(--accent);font-weight:700}.dim{color:var(--faint)}
+tr.tot{border-top:2px solid var(--rule);font-weight:700}
+.eq{background:var(--eqbg);border-radius:8px;padding:11px 15px;margin:10px 0;font:14px/1.7 ui-monospace,Menlo,monospace;overflow-x:auto}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}@media(max-width:720px){.two{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px 15px}
+.card h4{margin:0 0 6px;font:700 13px/1.3 ui-sans-serif,system-ui,sans-serif}
+small{color:var(--faint)}code{font:12.5px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+.foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--rule);font:12px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--faint)}
+.lg{font:700 22px/1 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body><div class="wrap">
+
+<p class="eyebrow">Zymera · policy architecture &amp; training memory</p>
+<h1>Every layer, every parameter, and where the 50 GB actually comes from</h1>
+<p class="lede">The real trained model (introspected, not sketched): the perception–action–communication policy, the CTDE critic, the frozen planner, and why 32² blows past a 49 GB GPU.</p>
+<p class="meta">LPAC backbone · depth 2 · width 64 · mp_rounds 2 · <b>feedforward (no BPTT)</b> · obs = 7 channels · 206,374 params total</p>
+
+<div class="bl"><b>The one-paragraph version.</b> Each agent sees a <b>7×H×W</b> local picture. A tiny CNN (2 conv layers, 64 channels) turns it into a 64-number feature; a GNN fuses that with in-range neighbours over the comm graph into a 64-number <b>belief</b>. Off that belief hang small heads — a <b>9-way goal head (L3)</b>, a 2-way role head, and value/λ̂₂ readouts. The chosen goal goes to a <b>frozen 19-parameter MVProp planner (L2)</b> that floods a value field, and a parameterless argmax picks the move (L1). A separate <b>CTDE critic</b> (used only in training) scores the joint state. Total learnable weights: <b>206 K</b> — but only ~133 K are <i>active</i> (the GRU + GCRN recurrent modules are built but off). The weights are tiny; <b>the memory is all activations</b>, and that's what scales with the grid.</div>
+
+<h2>The forward pass — layer by layer</h2>
+<p class="body">Widths shown as dots (each dot = 8 neurons). Params are the exact introspected counts. The stack is <b>L3 goal → L2 planner → L1 move</b>; the critic is a separate training-only branch.</p>
+
+<div class="stage">Actor · perception → belief (the LPAC backbone, 82,816 params)</div>
+<div class="flow">
+ <div class="lay" style="--edge:var(--blue)"><div><div class="nm">Input — local observation</div><div class="op">per agent, 7 channels: known · own-pos · known-walls · neighbours · frontier · occupancy · boundary</div><div class="neu"><i></i></div></div><div class="sh">(7, H, W)</div><div class="pp">—</div></div>
+ <div class="arrow">↓</div>
+ <div class="lay" style="--edge:var(--blue)"><div><div class="nm">CNN encoder</div><div class="op">Conv 7→64 (3×3) → ReLU → Conv 64→64 (3×3) → global-avg-pool</div><div class="neu"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="sh">→ (64,)</div><div class="pp">41,088</div></div>
+ <div class="arrow">↓ &nbsp;<small>per-agent feature</small></div>
+ <div class="lay" style="--edge:var(--blue)"><div><div class="nm">GNN message-passing</div><div class="op">2 rounds over the in-range comm graph · learned message + max-aggregate (size-invariant)</div><div class="neu"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="sh">belief z (64,)</div><div class="pp">41,728</div></div>
+</div>
+
+<div class="stage">Actor · the L3 heads (off the 64-d belief)</div>
+<div class="flow">
+ <div class="lay" style="--edge:var(--accent)"><div><div class="nm">goal head <span class="dim">· L3</span></div><div class="op">Linear 64→9 · logits over 9 stride-3 compass waypoints (+ compass 1,217 &amp; goal-residual 2,634 features)</div></div><div class="sh">(9,)</div><div class="pp">585</div></div>
+ <div class="lay" style="--edge:var(--accent)"><div><div class="nm">role head <span class="dim">· L3</span></div><div class="op">Linear 64→2 · {explorer, relay}</div></div><div class="sh">(2,)</div><div class="pp">130</div></div>
+ <div class="lay" style="--edge:var(--accent)"><div><div class="nm">value head + λ̂₂ aux head</div><div class="op">Linear 64→1 each · actor-side value + connectivity estimate</div></div><div class="sh">(1,)+(1,)</div><div class="pp">130</div></div>
+</div>
+
+<div class="stage">Actor · L2 planner → L1 move (no learned weights in the loop)</div>
+<div class="flow">
+ <div class="lay" style="--edge:var(--purp)"><div><div class="nm">MVProp planner <span class="dim">· L2 · FROZEN</span></div><div class="op">σ(conv(map))=passability, then K=32 max-prop sweeps flood a value field to the goal · only a 3×3 conv is learned</div></div><div class="sh">field (H, W)</div><div class="pp">19</div></div>
+ <div class="arrow">↓</div>
+ <div class="lay" style="--edge:var(--purp)"><div><div class="nm">move readout <span class="dim">· L1</span></div><div class="op">argmax value over the 5 env-valid neighbours + hard collision veto + STAY fallback</div></div><div class="sh">action ∈ {0..4}</div><div class="pp">0</div></div>
+</div>
+
+<div class="stage">Critic · CTDE, training-only (45,505 params) — discarded at deployment</div>
+<div class="flow">
+ <div class="lay" style="--edge:var(--accent2)"><div><div class="nm">shared CNN encoder</div><div class="op">reads the per-agent obs stack (N,7,H,W); Conv 7→64 → Conv 64→64 → GAP, vmapped over agents</div></div><div class="sh">(N, 64)</div><div class="pp">41,024</div></div>
+ <div class="arrow">↓ &nbsp;<small>mean-pool over N agents (count-invariant)</small></div>
+ <div class="lay" style="--edge:var(--accent2)"><div><div class="nm">pool → MLP → value</div><div class="op">concat[pooled ‖ 2 team scalars: coverage, mean-λ̂₂] → Linear 66→64 → ReLU → Linear 64→1</div></div><div class="sh">value ()</div><div class="pp">4,481</div></div>
+</div>
+
+<h2>Every parameter, accounted</h2>
+<div class="scroll"><table>
+<tr><th class="l">module</th><th>params</th><th>shape(s)</th><th class="l">role</th><th class="l">active?</th></tr>
+<tr><td class="l">backbone (CNN+GNN)</td><td class="g">82,816</td><td>conv 7→64, 64→64; msg 64→64</td><td class="l">perception + comm fusion → belief</td><td class="l g">yes</td></tr>
+<tr><td class="l">goal_head</td><td>585</td><td>(9,64)+(9,)</td><td class="l">L3 waypoint logits</td><td class="l g">yes</td></tr>
+<tr><td class="l">compass + goal_residual</td><td>3,851</td><td>(64,18); (32,72)+(9,32)</td><td class="l">directional feature + goal refine</td><td class="l g">yes</td></tr>
+<tr><td class="l">role_head</td><td>130</td><td>(2,64)+(2,)</td><td class="l">L3 explorer/relay</td><td class="l g">yes</td></tr>
+<tr><td class="l">value_head + aux_head</td><td>130</td><td>(1,64)×2</td><td class="l">actor value + λ̂₂ estimate</td><td class="l g">yes</td></tr>
+<tr><td class="l dim">gru</td><td class="dim">24,832</td><td class="dim">(192,64)×2</td><td class="l dim">recurrent hidden (feedforward → off)</td><td class="l dim">inert</td></tr>
+<tr><td class="l dim">gcrn</td><td class="dim">45,568</td><td class="dim">(64,64),(64,128)…</td><td class="l dim">recurrent graph belief (off)</td><td class="l dim">inert</td></tr>
+<tr><td class="l dim">frontier_attn / selector / flock</td><td class="dim">2,957</td><td class="dim">—</td><td class="l dim">alternative tools (off)</td><td class="l dim">inert</td></tr>
+<tr><td class="l"><b>MVProp planner</b> (L2)</td><td>19</td><td>(1,2,3,3)+(1,)</td><td class="l">frozen distilled value-field planner</td><td class="l g">yes · frozen</td></tr>
+<tr><td class="l">critic: conv</td><td class="g">41,024</td><td>conv 7→64, 64→64</td><td class="l">CTDE state encoder</td><td class="l g">train-only</td></tr>
+<tr><td class="l">critic: ln + mlp1 + mlp2</td><td>4,481</td><td>(64,66)+(1,64)</td><td class="l">pool → value</td><td class="l g">train-only</td></tr>
+<tr class="tot"><td class="l">TOTAL</td><td>206,374</td><td colspan="3" class="l">actor 160,869 + critic 45,505 &nbsp;·&nbsp; ~133 K active, ~73 K inert</td></tr>
+</table></div>
+<p class="body"><b>Takeaway:</b> the network is <i>tiny</i> — 206 K weights, less than a megabyte. Nothing here is memory-heavy by itself. So the 50 GB is not the weights; it's what the weights <i>produce</i> during a training step.</p>
+
+<h2>Where the 50 GB comes from — a wide batch, not a deep chain</h2>
+<p class="body">There is <b>no backprop-through-time</b>: recurrence is <code>feedforward</code>, so each step's forward depends only on that step's observation (the GRU is built but its hidden state stays zero). Instead, one PPO update re-runs the actor + critic forward over the <b>entire batch at once</b> and differentiates it in a single backward pass:</p>
+<div class="eq">16 rollouts &times; 100 steps &times; N agents = <b>16,000</b> agent-forwards (at N=10)&nbsp; — all differentiated together</div>
+<p class="body">Every intermediate activation of all 16,000 forwards must be held simultaneously for that backward. The dominant term is the CNN feature maps, which carry the grid:</p>
+<div class="eq">activation bytes &asymp; rollouts &times; horizon &times; N &times; <b>(grid&sup2;)</b> &times; width &times; layers &times; 4</div>
+<div class="two">
+ <div class="card"><h4>24² · 6 agents</h4>
+  <p class="body" style="margin:2px 0"><span class="lg">576</span> <small>cells</small> &times; 6 agents<br>actor CNN activations &asymp; <b>2.8 GB</b><br>stored obs trajectory &asymp; <b>1.5 GB</b><br><small>+ critic + GNN + optimizer + XLA</small><br><b>peak &asymp; ~17 GB → fits gaius (49 GB)</b></p></div>
+ <div class="card"><h4>32² · 10 agents</h4>
+  <p class="body" style="margin:2px 0"><span class="lg">1024</span> <small>cells</small> &times; 10 agents<br>actor CNN activations &asymp; <b>8.4 GB</b><br>stored obs trajectory &asymp; <b>4.6 GB</b><br><small>+ critic + GNN + optimizer + XLA</small><br><b>peak &asymp; ~50 GB → over gaius, needs balthar (98 GB)</b></p></div>
+</div>
+<p class="body">The jump is <b>grid² × N</b>: <code>(1024/576) × (10/6) ≈ 1.8 × 1.7 ≈ 3×</code>. That single ~3× is the whole reason 32² needs the big GPU. (The 73 GB you see on balthar is mostly XLA <i>pre-grabbing</i> ~75% of its 98 GB — the true peak is ~50 GB.)</p>
+
+<h2>How to fit 32² on the 49 GB GPU — three levers, none touching the 16 rollouts</h2>
+<div class="scroll"><table>
+<tr><th class="l">lever</th><th class="l">what it does</th><th class="l">changes the numbers?</th></tr>
+<tr><td class="l g">minibatch the loss</td><td class="l">steps are independent (feedforward) → backprop the 16×100 in chunks, accumulate the gradient → peak ÷ #chunks</td><td class="l g">no — identical gradient</td></tr>
+<tr><td class="l g">remat = True</td><td class="l">recompute each forward's activations <i>during</i> backward instead of storing them (trade compute for memory)</td><td class="l g">no — identical gradient</td></tr>
+<tr><td class="l">bf16 activations</td><td class="l">store activations in 2 bytes not 4 → ~halves them (keep λ̂₂ eigendecomp + advantages in fp32)</td><td class="l">yes — needs a validation run</td></tr>
+</table></div>
+<p class="body">Because it's a <b>wide feedforward batch, not a temporal chain</b>, the first two are the clean fixes — they change <i>what is stored vs recomputed</i>, not a single number, so no re-validation is needed. The recurrent training path in this codebase already minibatches over episodes; the feedforward path just doesn't yet. bf16 is the fallback if a numerical change is acceptable.</p>
+
+<div class="foot">
+Introspected from a trained checkpoint (`runs/mvprop/rooms24_mvprop_occ/model.eqx`): exact per-module parameter counts and shapes via <code>jax.tree_util</code> over the Equinox modules. Param counts are grid-independent (convolutional/GNN → size-invariant); activation memory is grid-dependent, which is the entire point. Memory figures are order-of-magnitude estimates from the dominant CNN-activation + stored-trajectory terms; the true peak includes GNN activations, the CTDE critic, optimizer state, and XLA workspace. "Inert" modules are built for a stable parameter surface but carry no gradient in the <code>feedforward</code> + <code>goal_head</code> configuration these runs use.
+</div>
+</div>
+<script>try{document.documentElement.getAttribute('data-theme');}catch(e){}</script>
+</body></html>
