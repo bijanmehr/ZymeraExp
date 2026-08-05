@@ -680,3 +680,66 @@ Okabe-Ito colourblind-safe agent palette, serif captions. **146 tiles**, every d
 
 **Next.** Housekeeping (this commit). Then the architecture discussion (user has ideas), then scope the locality
 experiment with the orchestration fork (B) as the centerpiece.
+
+---
+
+## 2026-06-29 → 06-30 — the occupancy build, the metric reckoning, and the warm-start win
+
+**Overnight pipeline — RAN, 5 experiments / ~104 runs @32²/10** (bench → frontier → occ → warmbig, + r9090 reruns),
+chained serially on the one GPU. All rendered into a new *categorized* gallery (by experiment type). Verdicts below.
+
+**Recipe ablation (`run_bench`, 36 runs, 3 seeds) — RAN + CONFIRMED.** role/base × soft/lag × bump/flat ×
+open/rooms/crowded. Coverage (connectivity ~98–100% throughout): **role_lag_bump ≈ role_soft_bump** (tied top:
+open 44/42, rooms 20/21, crowded 27/25) · base_soft_bump lower (open 33) · **role_soft_flat the floor** (open 29,
+rooms 15, crowded 15). **The bump-explore term (`--w-coverage 3`) is the single biggest lever (+12/+6/+10 vs flat);
+role-split helps open+crowded; soft = lagrangian (no winner).** The single-seed story, now 3-seed solid.
+
+**Occupancy / boundary belief (#72) — BUILT, then FALSIFIED (clean NEGATIVE).** Built `sense_free` (full
+free/occupied/unknown belief) + `occ_frontier` (Yamauchi — the egocentric `local_frontier` collapses under
+occupancy) + `boundary` (field-edge channel), opt-in, 235 lab tests green, committed + deployed. A/B vs SLAM-only
+(16 runs, 2 seeds): **occupancy is WORSE on all four terrains by ~3–7 pts** (open 42→35, rooms 21→19, mixed 18→15,
+crowded 26→22), both seeds agreeing, connectivity unchanged — *and* in the warm-start arm (occ < base ~12 pts on
+open). **A clean failed experiment: the extra channels are net noise at 2000 iters; the occupancy/mission-field
+idea does not help coverage. Shelved.** (Stronger than the earlier "SLAM-as-coverage = null".)
+
+**MAAC / COMA attention critic (#68) — BUILT, then SHELVED (wrong tool, informative dead-end).** Built the
+attention critic + COMA counterfactual + `contribution.py` (per-agent share/gini), 12 tests, composes with the real
+actor. Then the user's instinct — *"our setup is too sparse for this"* — plus a skeptical lit review killed it:
+COMA's per-agent counterfactual is high-variance and degrades under sparse/team-summed/delayed reward (SQDDPG
+measured COMA credit↔truth at **r≈0.13**; Dr.Reinforce exists because the learned Q is the weak link). **Verdict:
+for set-cover coverage the contribution is the EXACT difference reward (unique cells, submodular → closed-form, no
+critic) — measurement AND difference-reward training unify on it. The attention critic is shelved for a future
+dense-per-agent-reward mission, not this one.** Whole transformer/attention axis DROPPED (mission token parked till
+mission #2).
+
+**The "% of optimal" reckoning — the metric was nonsense; killed it.** We'd scored `cov ÷ god-view oracle`
+(open=72%). The user pushed: a god agent should clear far more. Falsified empirically — the oracle was a weak greedy
+Voronoi: it clears 8×8/1-agent optimally, but at 32²/10/100-steps a planned boustrophedon beats it (greedy **72% →
+planned 80%** same spawn → **87%** scatter), and the visit-budget bound is **98.6%**. So "59% of optimal" was really
+"cov ÷ our mediocre controller" — a denominator that moves when you write a better controller. The real picture is
+the ladder: learned ~42 < dec-scripted ~54 < cent-greedy 72 < cent-planned 87 < budget 98.6. **Dropped "% of
+optimal" — report raw cov + conn, compare within-map.** New framing the user liked: bracket everything in **[L, U]**
+(L = scripted floor, U = budget ∧ reachability), incl. resilience `G(k)` — PARKED for later.
+
+**Cov↔conn frontier (`run_frontier`, 24 runs, 4 seeds) — RAN.** Built the right dial: exposed `--soft-lambda-penalty`
+as the cov:conn knob (connectivity from that penalty only), swept [0,0.25,0.5,1,2,4]. **Clean monotone
+interpolation: coverage 60→52%, strict connectivity (λ₂>0.5) 7→30%, giant-comp conn 65→79%.** But **connectivity
+SATURATES ~30% at 32²/10 no matter how hard you push — the connectivity wall, now quantified as a frontier.**
+(First w-coverage dial was wrong — it pins connectivity at every point; caught + fixed before launch.)
+
+**Warm-start into the bigger world (`run_warmbig`, 16 runs) — RAN — THE WIN.** Train 16²/4 → warm-start 32²/10
+(`--init-from`), occ vs base. **The warm-started base hits open ~60% coverage AND ~100% connectivity (strict λ₂
+~99%)** — vs from-scratch ~44% (+16 pts), reaching the coverage ceiling *while holding strict connectivity*.
+**Warm-start BREAKS the coverage↔connectivity trade-off the frontier shows** — the one intervention that moved both
+axes at once. **The thing to build on.**
+
+**Operational failures.** 4 of 12 r9090 runs OOM'd at launch (`ollama` + a lingering proc holding the 98 GB next to
+the run's 71 GB) → reran after the pipeline (r9090 back to 12/12). Self-pkill + JAX-preallocation footguns navigated.
+
+**Net of the day:** the architecture chase is over and most of it was *negative* (occupancy hurts · MAAC is the
+wrong tool · "% of optimal" was meaningless · connectivity saturates) — and that clarity is the value. The two
+positives: **role+bump is the recipe**, and **warm-start is the lever that breaks the trade-off**.
+
+**Next.** Categorized gallery (rendering). Then the exact difference-reward contribution + remove-`k` resilience
+curve (the #70 bridge), the [L,U] bounds, and the adversarial/red core — building on warm-start, shelving occupancy
++ the attention critic.

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LLM/SLM for cooperative multi-agent RL — survey-grounded decision brief</title>
+<style>
+:root{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e5e0d4;--card:#fffdf8;--accent:#2f6d57;--accent2:#a2472c;--warn:#9a6a00;--chip:#eef1ea}
+@media(prefers-color-scheme:dark){:root{--bg:#14161b;--ink:#e7e9ef;--soft:#a7adb8;--faint:#71767f;--rule:#2a2e37;--card:#1a1d24;--accent:#5cc9a0;--accent2:#e0714f;--warn:#d9a441;--chip:#20242c}}
+:root[data-theme="dark"]{--bg:#14161b;--ink:#e7e9ef;--soft:#a7adb8;--faint:#71767f;--rule:#2a2e37;--card:#1a1d24;--accent:#5cc9a0;--accent2:#e0714f;--warn:#d9a441;--chip:#20242c}
+:root[data-theme="light"]{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e5e0d4;--card:#fffdf8;--accent:#2f6d57;--accent2:#a2472c;--warn:#9a6a00;--chip:#eef1ea}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);margin:0;font:16px/1.55 Charter,"Iowan Old Style",Georgia,serif}
+.wrap{max-width:1060px;margin:0 auto;padding:44px 22px 96px}
+.eyebrow{font:600 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+h1{font-size:28px;line-height:1.14;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--soft);font-style:italic;margin:0 0 4px;font-size:18px}
+.meta{font:12.5px/1.5 ui-sans-serif,system-ui,sans-serif;color:var(--faint);margin:6px 0 24px}
+.bl{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0}.bl b{color:var(--ink)}
+.bl.warn{border-left-color:var(--accent2)}
+h2{font-size:14px;margin:34px 0 4px;font:700 13px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.11em;text-transform:uppercase;color:var(--soft);padding-top:16px;border-top:1px solid var(--rule)}
+h2 .q{color:var(--accent);margin-right:.5em}
+.sub{color:var(--soft);font-size:14.5px;margin:2px 0 10px}
+.scroll{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font:13px/1.4 ui-sans-serif,system-ui,sans-serif}
+th,td{border-bottom:1px solid var(--rule);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--soft);font-weight:600;border-bottom:2px solid var(--rule);white-space:nowrap}
+.g{color:var(--accent);font-weight:600}.b{color:var(--accent2);font-weight:600}.w{color:var(--warn);font-weight:600}
+.rank{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+.step{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px 15px;display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+.step .n{font:800 20px/1 ui-sans-serif,system-ui,sans-serif;color:var(--accent);font-variant-numeric:tabular-nums}
+.step .tag{display:inline-block;font:700 10px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;padding:2px 6px;border-radius:999px;background:var(--chip);color:var(--soft);margin-left:6px;vertical-align:middle}
+.step b{color:var(--ink)}.step p{margin:4px 0 0;font:13.5px/1.5 ui-sans-serif,system-ui,sans-serif;color:var(--soft)}
+.step .pit{color:var(--accent2)}
+small{color:var(--faint)}code{font:12px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+.chip{display:inline-block;font:600 11px/1.3 ui-sans-serif,system-ui,sans-serif;padding:1px 7px;border-radius:999px;background:var(--chip);color:var(--soft)}
+.foot{margin-top:32px;padding-top:14px;border-top:1px solid var(--rule);font:12px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--faint)}
+p.body{font:15px/1.62 Charter,Georgia,serif}
+</style>
+</head>
+<body><div class="wrap">
+
+<p class="eyebrow">Zymera · Survey-grounded decision brief</p>
+<h1>What the field actually knows about LLM/SLM for cooperative multi-agent RL</h1>
+<p class="lede">Not a paper list — the synthesized verdicts of the review literature, so we can decide what to build first without testing everything.</p>
+<p class="meta">7-area survey sweep · ~40 review / systematic / benchmark sources · organized by the three questions · 2026-08</p>
+
+<div class="bl"><b>Bottom line.</b> The one architecture the whole literature converges on is <b>already the vision</b>: use the LLM/SLM as a <b>slow-clock</b> component that emits a <i>reusable artifact</i> — reward code, a goal/role/region spec, a plan — which a <b>fast RL controller executes</b>, and <b>never</b> query it per control step. What is refuted: putting the model <i>in</i> the loop or expecting capability to <i>emerge</i> from language (per-step LLM control ≈20% on 8-agent MAPF, 0% in mazes; debate loses to a single strong agent at equal budget; small models ≤~13B <b>cannot self-optimize or reliably multi-step-plan</b> — a hard floor). The highest-payoff, lowest-risk first move is <b>LLM-as-reward-designer in program space</b> (Eureka: beat human experts on <b>83% of 29 tasks, +52% avg</b>), which runs <b>offline on a capable model</b> so the on-device SLM never carries it.</div>
+
+<div class="bl warn"><b>The Zymera-specific catch.</b> Every relevant survey <b>names</b> covert/stealthy internal adversaries + partial-observability/lossy-comms as an <b>open gap</b>, and <b>none operationalize it</b> — genuinely unclaimed territory that maps onto our thesis. But two red lines: (1) <b>distillation silently erodes</b> calibration + on-rollout robustness — the exact properties a covert-adversary defense depends on; (2) higher explanation fidelity ⇒ higher attackability — the explanation channel is itself an attack surface. Co-measure what the small model <i>lost</i>, not just its accuracy.</div>
+
+<h2>Try this first — ranked by evidence × fit × low risk</h2>
+<div class="rank">
+ <div class="step"><div class="n">1</div><div><b>LLM-as-reward-designer in program space, run offline</b><span class="tag">Q3</span><p>A <i>capable</i> model writes/edits the coverage-connectivity reward + curriculum as <b>executable code</b>, scored against the real mission rollout, reflect → mutate (Eureka/EoH). Strongest single result in the corpus (83%/+52%), entirely off the fast loop, and offline execution sidesteps the small-model optimization floor. <span class="pit">Pitfall: Eureka misaligns when reflection sees only coarse reward stats — feed it the mission-level signal + keep a rule validator rejecting invalid configs.</span></p></div></div>
+ <div class="step"><div class="n">2</div><div><b>Surrogate-constrained explanation with the on-agent SLM</b><span class="tag">Q2</span><p>Distill each agent's fast RL controller into a shallow decision tree/path; the small LM verbalizes <i>that</i>. Best-validated Q2 recipe — ~2× less hallucination, and <b>gains largest on small models</b> (n=29 human study). The one Q2 result that <i>rewards</i> the small-LM premise. <span class="pit">Pitfall: it explains the surrogate, not the policy internals — pair with an intervention/StateMask fidelity test from day one; treat any self-report as unverified.</span></p></div></div>
+ <div class="step"><div class="n">3</div><div><b>Slow-clock SLM emits artifacts (goal region / role / allocation) over the fast RL controller; event-triggered</b><span class="tag">Q1</span><p>Strongest cross-survey consensus and literally our architecture; field-validated for embodied resource-constrained teams. <span class="pit">Pitfall: never per-step (control collapses; formation-center bug). Validate on ≤10 agents before scaling — no LLM coordination is demonstrated at swarm scale.</span></p></div></div>
+ <div class="step"><div class="n">4</div><div><b>Hybrid centralized-plan / decentralized-execute + explicit capability grounding</b><span class="tag">Q1</span><p>Central allocator + local validators; ground capability ("robot resumes") to stop assign-to-incapable hallucination. HMAS-2 <b>82.5% vs 25%</b> for fully-decentralized; a constraint-aware <i>small</i> model beat a larger ungrounded one. <span class="pit">Pitfall: flat peer-to-peer dialog exhausts context as the team grows — don't default to a flat swarm.</span></p></div></div>
+ <div class="step"><div class="n">5</div><div><b>LLM warm-start → classical optimizer for any numeric HPO</b><span class="tag">Q3</span><p>LM seeds an initial config / prunes the space; TPE/GP-BO does the search. <span class="pit">Pitfall: the "win" is the default-config seed, not the model (p=0.92); budget-match against a sensible default first, and never let a small LM be the numeric optimizer.</span></p></div></div>
+ <div class="step"><div class="n">6</div><div><b>Instrument the covert-adversary regime the surveys name but none test</b><span class="tag">Q1/Q2 · the novel claim</span><p>Run a comm-channel ablation early (drop/degrade the channel → measure the coordination cliff); treat <b>covert-micro → macro propagation</b> as the primary robustness target. Survey-certified unclaimed territory that <i>is</i> the Zymera thesis. <span class="pit">Pitfall: distillation erodes the calibration/robustness this depends on — co-measure what the SLM lost.</span></p></div></div>
+</div>
+
+<h2><span class="q">Q1</span>Coordinate — agents &amp; humans</h2>
+<div class="scroll"><table>
+<tr><th>Best practice</th><th class="g">What worked</th><th class="b">What didn't</th><th>Gap</th></tr>
+<tr><td>LLM as slow translator → <b>persistent artifact</b> (behavior tree, role/goal spec); fast controller executes</td><td class="g">Constraint-aware <b>small</b> LLM beat a larger <i>ungrounded</i> model on task success + generalization</td><td class="b">LLM <b>in per-step loop</b> collapses: ~20% 8-agent MAPF, 0% maze; formation control drives to the <i>center</i></td><td>No LLM coordination at swarm scale — validated ceiling ~10 robots / ~30 flocking agents</td></tr>
+<tr><td><b>Hybrid</b> centralized-plan / decentralized-execute; match topology to task</td><td class="g">HMAS-2 <b>82.5% vs 25%</b> vs fully-decentralized</td><td class="b">Fully-decentralized peer-to-peer <b>exhausts context</b>; cascading errors as team grows</td><td>Human-oversight cognitive load vs team size unquantified</td></tr>
+<tr><td>Invoke LLM <b>event-triggered</b> (deadlock/conflict/replan), not densely</td><td class="g">Hybrid <b>rule+LLM</b> swarm ~95 vs ~85 for either pure variant</td><td class="b">Multi-agent <b>debate ≈ or &lt; single agent</b> at equal token budget</td><td>Sim-to-real: benchmarks assume lossless synchronous comms + full observability</td></tr>
+<tr><td><b>Ground capability explicitly</b> ("robot resumes") to stop assign-to-incapable hallucination</td><td class="g">Human <b>verification loops</b> raise reliability + zero-shot generalization</td><td class="b">Failures are <b>organizational</b> (MAST: ~42% spec/design, ~37% misalignment, ~21% verification)</td><td>Covert/internal adversary in coordination <b>unaddressed</b></td></tr>
+<tr><td><b>Diversity over count</b> — 2 diverse ≈ 16 homogeneous <small>(⚠ unverified)</small></td><td class="g">Emergent norms / reputation <i>do</i> appear in language-mediated societies</td><td class="b">Emergent cooperation is <b>fragile</b>, prompt-dependent; deception also emerges un-programmed</td><td>"Artificial collective intelligence" undefined — no team &gt; sum-of-agents metric</td></tr>
+</table></div>
+<p class="body"><b>Consensus:</b> cooperation must be <b>engineered</b> (roles, SOPs, protocols), not assumed to emerge from prompting — confirming the earlier "capability-floor refutes emergent-from-negotiation" finding at survey level. <b>Communication is the coordination bottleneck</b> — dropping the channel collapses success, which doubles as our direct covert-message probe.</p>
+
+<h2><span class="q">Q2</span>Explain the decision pipeline</h2>
+<div class="scroll"><table>
+<tr><th>Best practice</th><th class="g">What worked</th><th class="b">What didn't</th><th>Gap</th></tr>
+<tr><td><b>Separate faithfulness from plausibility</b> — declare which you optimize (most-repeated instruction in the corpus)</td><td class="g"><b>Distilled-surrogate → LM verbalization</b>: hallucination ~10–20% (path) vs 30–50% (raw); users predicted actions ~14× better; <b>gain largest on small models</b></td><td class="b"><b>CoT is not faithful</b> — reorder options → answer flips, justification never mentions it (4 documented failure modes)</td><td>No agreed <b>faithfulness metric</b>; true faithfulness needs mechanistic interp (unsolved at scale)</td></tr>
+<tr><td>Constrain the LM to verbalize a <b>faithful structured intermediate</b> (tree / path / concepts), not free-form from raw traces</td><td class="g">Intervention-based fidelity (<b>StateMask</b>, feature-removal) gives a real signal cheaply</td><td class="b"><b>Attention ≠ faithful importance</b>; saliency "exploratory not explanatory" without causal grounding</td><td><b>Multi-agent / MARL explanation is nascent</b> — nearest-empty in exactly our swarm setting</td></tr>
+<tr><td><b>Measure by intervention</b> (ablate cited feature → confirm performance drops), not by "looks right"</td><td class="g"><b>CC-SHAP</b> (answer↔explanation consistency) closer to inner workings, no labels; chat-tuned &gt; base</td><td class="b"><b>Humans cannot police faithfulness</b> — can't detect hallucination; preference decoupled from correctness</td><td>Faithfulness under distribution-shift / adversarial pressure untested</td></tr>
+</table></div>
+<p class="body"><b>Consensus:</b> a small LM verbalizing a <i>distilled faithful surrogate</i> is the validated pattern (and the one place small models help most) — but never trust the self-report; bolt an intervention-based fidelity check onto it from the start.</p>
+
+<h2><span class="q">Q3</span>Adjust machinery / train / tune</h2>
+<div class="scroll"><table>
+<tr><th>Best practice</th><th class="g">What worked</th><th class="b">What didn't</th><th>Gap</th></tr>
+<tr><td><b>Program space, not number space</b>: LM writes/edits <i>code</i> (reward, heuristic, config) scored by a real external evaluator, iterated</td><td class="g"><b>Eureka</b>: beat human-expert rewards on <b>83% of 29 tasks, +52% avg</b>; sparse case 90% vs 50%</td><td class="b"><b>Stand-alone LLM numeric optimizer collapses with dimension</b>: r=0.90 (dim 2) → 0.52 (dim 10)</td><td>No formal theory of when LLM-opt beats classical; continuous/high-dim/tight-budget is open failure region</td></tr>
+<tr><td><b>Always keep a hard external verifier</b> (execution/tests, fitness, rule filter); never trust raw output</td><td class="g">Agentic algorithm-gen (FunSearch/EoH/ReEvo) beat classical solver on &gt;half of instances</td><td class="b"><b>Small LMs cannot self-optimize</b> — OPRO ineffective ≤~13B; authors say fall back to direct instructions</td><td>Small-model optimization floor unsolved — current answer: "use a bigger model or direct instructions"</td></tr>
+<tr><td><b>Warm-start / prior only</b>, then hand off to classical search — and <b>budget-match</b> before paying</td><td class="g">LLM warm-start genuinely helps at <b>very low eval budgets</b></td><td class="b">LLM-HPO's "win" is the <b>warm start, not the model</b> (p=0.92); classical matches by ~12 evals, beats by ~40</td><td>Energy/compute of LLM-opt vs classical unresolved — collides with the on-device budget</td></tr>
+<tr><td><b>Route by structure</b>: LM for discrete/code/reward/curriculum; classical BO/EA/TPE for continuous hyperparameters</td><td class="g">LLM low-level controller with <b>discrete</b> actions beat trained MetaBBO baselines</td><td class="b"><b>Reward pathologies</b>: reward-hacking/overoptimization, poor cross-task transfer</td><td>No verifiable objective to fine-tune an LM-optimizer without regression</td></tr>
+</table></div>
+<p class="body"><b>Consensus:</b> LLM-optimization beats classical <b>only in program space with a real evaluator in the loop</b> (Eureka/FunSearch), and <b>loses to BO/TPE everywhere numeric or high-dimensional</b> — exactly where an RL sweep lives. So: a small on-device LM must <b>not</b> do numeric HPO; the viable path is <b>offline reward-code/curriculum search by a capable model</b> against the real coverage-connectivity rollout, classical BO/TPE for the numeric grind.</p>
+
+<h2>The SLM crux — the capability-vs-size floor</h2>
+<p class="sub">Where the vision lives or dies. The small-model / on-device / distillation surveys give a sharp quantitative verdict.</p>
+<div class="scroll"><table>
+<tr><th>Axis</th><th class="g">Where SLMs are green</th><th class="b">Where they hit the cliff</th></tr>
+<tr><td><b>Capability by size</b> (70-model bench)</td><td class="g">0.5–3B hit 64–68% commonsense; classification/retrieval/drafting solid on-device; 1–1.5B sweet spot (Apple 3B, Gemini Nano ship)</td><td class="b"><b>Math / multi-step reasoning collapses below ~2B</b> — the exact ability a coordinator/negotiator needs is the one that degrades most</td></tr>
+<tr><td><b>What data buys</b></td><td class="g"><b>Data quality dominates parameter count</b> — Qwen2-1.5B beats several 3B; over-train far past Chinchilla</td><td class="b">Chinchilla is the wrong law for device SLMs; no deployment-aware scaling law exists</td></tr>
+<tr><td><b>Distillation — preserves</b></td><td class="g">Instruction-following, CoT, tool-use, domain specialization, alignment; a distilled student can <b>exceed its teacher</b> in data-limited regimes</td><td class="b"><b>Cannot conjure emergent abilities absent at student scale</b> — no distilling past the reasoning cliff without parameters</td></tr>
+<tr><td><b>Distillation — silently loses</b></td><td class="g">—</td><td class="b"><b>Calibration, on-rollout robustness (exposure bias), grounding, safety, output diversity</b>. A student looks "smaller" but is actually "narrower, less calibrated, less safe"</td></tr>
+<tr><td><b>Energy → mandates slow clock</b></td><td class="g">4-bit weight-only ~free at ≥1B; GQA+RMSNorm+SiLU standard</td><td class="b"><b>~700 tokens per phone battery</b>; response length is the #1 energy predictor; always-on per-agent LM is not viable</td></tr>
+<tr><td><b>Hardware reality</b></td><td class="g">—</td><td class="b"><b>NPUs lose decode</b> (20–23 vs 51–76 tok/s on CPU); framework choice = up to 15× throughput gap on identical silicon</td></tr>
+</table></div>
+<p class="body"><b>Make-or-break reading:</b> the energy budget doesn't just <i>permit</i> slow-clock-over-fast-RL — it <b>mandates</b> it (the field's implicit validation of the premise). But the small model cannot be the <i>reasoner</i> of the swarm — it must emit structured artifacts under external verification (the LLM-Modulo pattern: SLM proposes, a connectivity-check/planner verifies, loop on failure). And on-device full-gradient training is off the table (Adam ≈12× inference memory); field adaptation means LoRA/QLoRA or zeroth-order MeZO only.</p>
+
+<h2>Key surveys — the primary sources</h2>
+<div class="scroll"><table>
+<tr><th>Survey (short)</th><th>Year</th><th>Covers</th><th>✓</th></tr>
+<tr><td><b>Why Do Multi-Agent LLM Systems Fail? (MAST)</b> — Cemri et al.</td><td>2025</td><td>Empirical failure taxonomy, 1,642 traces, 14 modes</td><td class="g">✓</td></tr>
+<tr><td><b>LLMs for Multi-Robot Systems: A Survey</b> — Li et al. (2502.03814)</td><td>2025</td><td>Most on-target: slow-LLM/fast-controller, scale, latency, HRI</td><td class="g">✓</td></tr>
+<tr><td><b>Survey on LLM-Enhanced RL</b> — Cao et al. (TNNLS)</td><td>2024</td><td>Flagship LLM4RL: reward-designer / decision / generator roles</td><td class="g">✓</td></tr>
+<tr><td><b>Multi-Agent Collaboration Mechanisms</b> — Tran et al.</td><td>2025</td><td>Systematic collaboration taxonomy; emergence, ToM, human-AI</td><td class="g">✓</td></tr>
+<tr><td><b>Small LMs: Survey, Measurements, Insights</b> — Lu et al.</td><td>2024</td><td>Flagship SLM benchmark, 70 models; the reasoning cliff</td><td class="g">✓</td></tr>
+<tr><td><b>Knowledge Distillation of LLMs</b> — Xu et al.</td><td>2024</td><td>What transfers vs what is silently lost</td><td class="g">✓</td></tr>
+<tr><td><b>Model-Agnostic Policy Explanations w/ LLMs</b> — Zhang Xi-Jia et al.</td><td>2025</td><td>LLM-explains-RL, n=29; gains largest on small models</td><td class="g">✓</td></tr>
+<tr><td><b>LLM-Modulo / LLMs Can't Plan</b> — Kambhampati et al. (ICML)</td><td>2024</td><td>Generate-test w/ external verifier; Blocksworld ~12%→~82%</td><td class="g">✓</td></tr>
+<tr><td><b>LLMs for Evolutionary Optimization</b> — Zhang, Cheng et al.</td><td>2025</td><td>When-to-use-vs-classical decision tree + degradation curves</td><td class="g">✓</td></tr>
+<tr><td><b>Revisiting OPRO</b> — Zhang et al. (ACL Findings)</td><td>2024</td><td>Key negative: small LMs (≤13B) can't self-optimize</td><td class="g">✓</td></tr>
+<tr><td><b>When Is an LLM Worth It for HPO?</b> — Rodrigues et al.</td><td>2026</td><td>Budget-matched: the LLM "win" is the default seed</td><td class="w">~</td></tr>
+<tr><td><b>Small LMs are the Future of Agentic AI</b> — Belcak et al. (NVIDIA)</td><td>2025</td><td>Position: heterogeneous SLM+LLM; LLM→SLM conversion</td><td class="g">✓</td></tr>
+<tr><td><b>A Survey of Explainable RL</b> — Milani et al. (ACM CSUR)</td><td>2024</td><td>Foundational XRL taxonomy; evaluation deficit</td><td class="g">✓</td></tr>
+<tr><td><b>CoT Is Not Explainability</b> — Barez et al.</td><td>2025</td><td>1,000-paper audit; 4 CoT-unfaithfulness modes</td><td class="w">~ preprint</td></tr>
+<tr><td><b>Trust in LLM-controlled Robotics</b> (2601.02377)</td><td>2026</td><td>Threat taxonomy; names covert multi-robot attacks as open</td><td class="b">⚠ unverified</td></tr>
+</table></div>
+<p><small>✓ verified · ~ preprint / single-fetch · ⚠ unverified (search/PDF-summary only — confirm before citing). Also verified &amp; secondary: Guo et al. IJCAI'24 (LLM-MAS), Xi et al. 2025 (Rise of LLM Agents), Jimenez-Romero 2025 (rule+LLM swarm emergence), Parcalabescu &amp; Frank ACL'24 (faithfulness measurement), Zhou 2024 / Van Nguyen 2024 (SLM edge energy).</small></p>
+
+<div class="foot">
+<b>How to read this.</b> Synthesized from a 7-area survey sweep (LLM-multi-agent · LLM-for-RL · agent capabilities/benchmarks · SLM/on-device/distillation · explainable-RL · LLM-optimizer/AutoML · human-swarm/HRI), extracting each review's own conclusions rather than listing methods. Numbers are as reported by the cited surveys. Where a source is flagged unverified, it was read at search/abstract level only. This complements two earlier point-paper searches; the value here is the field-level consensus for deciding what to build first.
+</div>
+</div>
+<script>try{document.documentElement.getAttribute('data-theme');}catch(e){}</script>
+</body></html>

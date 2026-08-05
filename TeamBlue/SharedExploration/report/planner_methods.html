@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>T5 Phase-2 — L2 planner ablation: methods, math, code, experiments</title>
+<style>
+:root{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e5e0d4;--card:#fffdf8;--accent:#2f6d57;--accent2:#a2472c;--eqbg:#f3f0e8;--chip:#eef1ea}
+@media(prefers-color-scheme:dark){:root{--bg:#14161b;--ink:#e7e9ef;--soft:#a7adb8;--faint:#71767f;--rule:#2a2e37;--card:#1a1d24;--accent:#5cc9a0;--accent2:#e0714f;--eqbg:#1e222a;--chip:#20242c}}
+:root[data-theme="dark"]{--bg:#14161b;--ink:#e7e9ef;--soft:#a7adb8;--faint:#71767f;--rule:#2a2e37;--card:#1a1d24;--accent:#5cc9a0;--accent2:#e0714f;--eqbg:#1e222a;--chip:#20242c}
+:root[data-theme="light"]{--bg:#faf8f3;--ink:#1b1e24;--soft:#565b64;--faint:#8a8f99;--rule:#e5e0d4;--card:#fffdf8;--accent:#2f6d57;--accent2:#a2472c;--eqbg:#f3f0e8;--chip:#eef1ea}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);margin:0;font:16px/1.55 Charter,"Iowan Old Style",Georgia,serif}
+.wrap{max-width:900px;margin:0 auto;padding:44px 22px 96px}
+.eyebrow{font:600 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+h1{font-size:27px;line-height:1.15;margin:0 0 8px;text-wrap:balance}
+.lede{color:var(--soft);font-style:italic;margin:0 0 4px;font-size:17px}
+.meta{font:12.5px/1.5 ui-sans-serif,system-ui,sans-serif;color:var(--faint);margin:6px 0 24px}
+.bl{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0}.bl b{color:var(--ink)}
+h2{font-size:20px;margin:34px 0 4px;padding-top:16px;border-top:1px solid var(--rule)}
+h2 .n{color:var(--accent);margin-right:.4em;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font:700 10px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.06em;padding:2px 7px;border-radius:999px;background:var(--chip);color:var(--soft);vertical-align:middle;margin-left:8px}
+.win{color:var(--accent)}.lose{color:var(--accent2)}
+h3{font:700 12px/1.4 ui-sans-serif,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin:16px 0 4px}
+p.body{font:15px/1.6 Charter,Georgia,serif;margin:8px 0}
+.eq{background:var(--eqbg);border-radius:8px;padding:10px 14px;margin:10px 0;font:14.5px/1.7 ui-monospace,Menlo,monospace;overflow-x:auto}
+pre{background:var(--eqbg);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;overflow-x:auto;margin:10px 0;font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+pre .c{color:var(--faint)}pre .k{color:var(--accent)}
+.scroll{overflow-x:auto;margin:12px 0}
+table{border-collapse:collapse;width:100%;font:13px/1.4 ui-sans-serif,system-ui,sans-serif;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--rule);padding:8px 10px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--soft);border-bottom:2px solid var(--rule)}
+.g{color:var(--accent);font-weight:700}.b{color:var(--accent2);font-weight:700}
+tr.hl{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+small{color:var(--faint)}code{font:12.5px/1 ui-monospace,Menlo,monospace;background:var(--chip);padding:1px 5px;border-radius:4px}
+.foot{margin-top:30px;padding-top:14px;border-top:1px solid var(--rule);font:12px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--faint)}
+</style>
+</head>
+<body><div class="wrap">
+
+<p class="eyebrow">Zymera · T5 · The L2 planner — method + Phase-2 ablation</p>
+<h1>A learned value-propagation planner for connectivity-constrained cooperative coverage</h1>
+<p class="lede">The whole story of the L2 planner: the mission and architecture it lives in, why reinforcement learning can't train it, the distillation fix, its mission results, and the four-architecture ablation.</p>
+<p class="meta">MAPPO-CTDE · soft connectivity (no hard mask) · distilled @ 32&times;32, 4000 steps · size-invariant · merges the earlier MVProp method note · 2026-08</p>
+
+<div class="bl"><b>Result.</b> The three <b>value-iteration</b> planners (MVProp, Highway-VIN, GPPN) are <b>identical at the ceiling</b> — 100% reach, ~99% optimal-move on every unseen map — so the extra gating machinery buys nothing over plain MVProp. The <b>transformer (MSP) fails</b>: 59.5% reach despite low distill-error, because attention without the value-iteration recurrence learns local values but not a <i>globally navigable</i> field. <b>The VI recurrence is the load-bearing inductive bias, and a 332-byte MVProp beats a 78 KB transformer.</b> Winner into Phase 3: MVProp + distillation (already the keeper — nothing improves it).</div>
+
+<h2><span class="n">1</span>Setting &amp; architecture</h2>
+<p class="body">A team of <b>N</b> agents performs cooperative coverage on a grid under partial observability, communicating only over a <b>limited-range, time-varying graph</b> — a finite-horizon cooperative Dec-POMDP. <b>Connectivity is a hard mission constraint</b>: breaking the comm graph is a failure, not merely a lower reward, so we grade <b>connectivity-first</b> (fraction of steps with algebraic connectivity <i>&lambda;<sub>2</sub> &gt; 0.5</i>). The policy is a learned perception&ndash;action&ndash;communication backbone (per-agent CNN &rarr; GNN over neighbours) feeding a <b>three-level action stack</b>: <b>L3</b> a goal head picks a waypoint from a stride-3 compass stencil &rarr; <b>L2</b> the planner floods a value field to it &rarr; <b>L1</b> reads one env-valid move off that field. Training is <b>MAPPO&ndash;CTDE</b> with a count-invariant central critic; connectivity is enforced <b>softly</b> (Lagrangian dual, <i>no hard mask</i> — the graph stays breakable, which the resilience study requires). The weak link was the <b>reactive L1 move head</b>: it cannot route around obstacles on unseen maps (&asymp;25% zero-shot coverage vs a classical planner's 78.9%). This report is about the L2 planner that replaces it.</p>
+
+<h2><span class="n">2</span>Why RL can't train the planner, and the distillation fix</h2>
+<p class="body">Trained end-to-end by policy gradient, a from-scratch MVProp <b>collapses to ~21%</b> on open terrain. The cause is structural: at init the passability conv outputs &asymp;0 so <code>w = &sigma;(0) = &frac12;</code>; the flood decays by <code>&gamma;w &asymp; &gamma;/2</code> per cell and <b>dies within ~5 cells</b>. The field is flat where the agents actually are, so the five move-scores at a far corner probe to <b><code>[0,0,0,0,0]</code></b> and the gradient through the K max-propagation sweeps <b>vanishes</b>.</p>
+<p class="body">The fix is <b>dense supervision</b>: for random <code>(walls, goal)</code> samples the 4-connected geodesic wavefront gives the <i>exact</i> <code>&gamma;<sup>distance</sup></code> field; the planner learns to reproduce it, so its argmax-value move equals the shortest-path move. The teacher runs <b>only at training time</b> — at inference the planner is pure learned MVProp (no classical code executes), so the system stays fully learned. Integration is a <b>one-variable swap</b>: the frozen distilled planner replaces the greedy L1 controller and the RL loss never touches it (the move is a deterministic readout during collection), so everything else — the CTDE critic, the connectivity stack — is byte-identical to the reactive baseline.</p>
+
+<h2><span class="n">3</span>Mission results — planner vs. greedy</h2>
+<p class="body">On <b>open</b> terrain the swap is <b>cost-free</b> (nothing to route around); on <b>walled</b> terrain the planner pulls ahead decisively, because a reactive head is trapped by obstacles. One-variable swap, trained from scratch, coverage %:</p>
+<div class="scroll"><table>
+<tr><th>terrain</th><th>greedy</th><th>MVProp planner</th><th>&Delta;</th></tr>
+<tr><td>clutter 32&sup2;</td><td>25.7</td><td class="g">58.8</td><td class="g">+33</td></tr>
+<tr><td>mixed 32&sup2;</td><td>14.3</td><td class="g">28.1</td><td class="g">+14</td></tr>
+<tr><td>rooms 24&sup2;</td><td>~32</td><td class="g">~39</td><td>+7</td></tr>
+<tr><td>clutter 24&sup2;</td><td>~46</td><td class="g">~58</td><td class="g">+12</td></tr>
+<tr><td>open 24&sup2;</td><td>70.5</td><td>72.9</td><td>+2</td></tr>
+</table></div>
+<p class="body">The planner earns its keep exactly where structure demands routing (clutter/mixed, +9 to +33); on open terrain greedy and the planner tie. The remaining question — <i>which</i> learned planner, and does an architectural fix remove the need to distill — is the ablation below.</p>
+
+<h2><span class="n">4</span>The ablation — four L2 planners</h2>
+<p class="body">Four value-field planners — three value-iteration variants and a spatial transformer — each probed at init, distilled against the same 4-connected wavefront, and tested zero-shot on 8 unseen map types. All share MVProp's input, are fully convolutional/axial (size-invariant), so the comparison is fair.</p>
+<div class="scroll"><table>
+<tr><th>planner</th><th>params (bytes)</th><th>init grad-norm</th><th>distill MSE</th><th>mean reach</th><th>mean optimal</th><th>worst map</th></tr>
+<tr class="hl"><td><b>MVProp</b> (keeper)</td><td>332</td><td>4.6e&minus;2</td><td>1.8e&minus;4</td><td class="g">100%</td><td>99.0%</td><td>open 100%</td></tr>
+<tr><td><b>Highway-VIN</b></td><td>664</td><td>3.4e&minus;2</td><td>2.0e&minus;4</td><td class="g">100%</td><td>99.0%</td><td>open 100%</td></tr>
+<tr><td><b>GPPN</b></td><td>700</td><td>4.4e&minus;2</td><td>1.8e&minus;4</td><td class="g">100%</td><td>99.0%</td><td>open 100%</td></tr>
+<tr><td><b>MSP</b> (transformer)</td><td>78,596</td><td>3.0e+0</td><td>4.9e&minus;4</td><td class="b">59.5%</td><td>92.5%</td><td class="b">rooms 37%</td></tr>
+</table></div>
+<p class="body"><b>Reading it:</b> <i>reach</i> (does following the field from a random start actually arrive at the goal within budget — the strong global test) separates the planners; <i>optimal-move</i> (does the argmax step match the geodesic oracle — a local test) does not. MSP is high on the local metric (92.5%) but collapses on the global one (59.5%) — it fits per-cell values yet its field is not monotone-to-goal, so agents get trapped. The three VI planners impose that monotone structure by construction.</p>
+
+<!-- ================= MVProp ================= -->
+<h2><span class="n">5</span>MVProp<span class="tag win">keeper</span></h2>
+<h3>Why</h3>
+<p class="body">Max-propagation Value/Value-Propagation network (Nardelli 2018). A per-cell value floods from the goal, discounted per step and blocked by walls; the neighbour values are the move scores — differentiable, size-invariant, and a drop-in for the classical wavefront. The default L2 planner.</p>
+<h3>Math</h3>
+<div class="eq">V<sub>0</sub> = r &nbsp;·&nbsp; V<sub>k+1</sub>(x) = max( r(x), &gamma;·w(x)·max<sub>4-nbr</sub> V<sub>k</sub>(x) )<br>
+r = goal one-hot (anchored spike) &nbsp;·&nbsp; w = &sigma;( conv(map) + b<sub>init</sub> ) &nbsp;·&nbsp; only w is learned</div>
+<p class="body">Two structural fixes make it trainable (the <code>probe_mvprop</code> finding): <b>anchor</b> r to the goal one-hot (the flood always originates strongly), and <b>flood-far-at-init</b> via <code>b<sub>init</sub>=2</code> so <code>w≈0.88</code> before training (else <code>w=&sigma;(0)=0.5</code> → flood dies in ~5 cells → dead flat field → vanishing gradient).</p>
+<h3>Code</h3>
+<pre><span class="k">def</span> propagate(r, w, K, gamma=0.9):
+    <span class="k">def</span> step(V, _):
+        <span class="k">return</span> jnp.maximum(r, gamma * w * _max_4nbr(V)), None
+    V, _ = jax.lax.scan(step, r, None, length=K); <span class="k">return</span> V
+
+<span class="k">def</span> field(self, x):
+    r = x[self.goal_ch]                        <span class="c"># anchored goal spike</span>
+    w = jax.nn.sigmoid(self.gain_conv(x)[0])   <span class="c"># learned passability (b_init=2)</span>
+    <span class="k">return</span> propagate(r, w, self.K, self.gamma)</pre>
+<h3>Experiments</h3>
+<p class="body">100% reach / 99% optimal-move across all 8 unseen map types; 332 bytes (only a 3&times;3 passability conv is learned — the recurrence is a fixed operator). RL-only from the <i>unfixed</i> config is dead (flat field); with the anchor+bias fix the init field is already a usable <code>&gamma;<sup>dist</sup></code> gradient, and distillation drives it to route.</p>
+
+<!-- ================= Highway ================= -->
+<h2><span class="n">6</span>Highway-VIN<span class="tag">mandatory control</span></h2>
+<h3>Why</h3>
+<p class="body">Highway Value Iteration Networks (Wang et al., ICML 2024) add a per-cell <b>highway carry gate</b> across value-iteration sweeps — the published fix for the vanishing gradient that kills <i>deep</i> value iteration. The decisive control: does the architectural fix remove the need to distill (does RL-only now train)?</p>
+<h3>Math</h3>
+<div class="eq">V<sub>k+1</sub> = g · max(r, &gamma;·w·max<sub>4</sub>V<sub>k</sub>) + (1&minus;g) · V<sub>k</sub> &nbsp;·&nbsp; g = &sigma;(conv(map))<br>
+the (1&minus;g)·V<sub>k</sub> term is a <b>gradient highway</b> across the K sweeps</div>
+<h3>Code</h3>
+<pre><span class="k">def</span> field(self, x):
+    r = x[self.goal_ch]
+    w = jax.nn.sigmoid(self.gain_conv(x)[0])
+    g = jax.nn.sigmoid(self.gate_conv(x)[0])           <span class="c"># highway update gate</span>
+    <span class="k">def</span> step(V, _):
+        newV = jnp.maximum(r, self.gamma * w * _max_4nbr(V))
+        <span class="k">return</span> g * newV + (1.0 - g) * V, None            <span class="c"># highway carry</span>
+    V, _ = jax.lax.scan(step, r, None, length=self.K); <span class="k">return</span> V</pre>
+<h3>Experiments</h3>
+<p class="body"><b>Ties MVProp exactly</b> — 100% reach, 99% optimal, distill-MSE 2.0e&minus;4, 664 bytes. Its init gradient (3.4e&minus;2) is non-vanishing, so RL-only is viable-<i>at-init</i> — <b>but so is fixed MVProp</b> (4.6e&minus;2). The honest conclusion: the anchor+bias fix already removes the init-flatness for <i>all</i> the VI planners, so Highway confers no advantage <i>here</i>. A decisive "distillation required vs Highway rescues RL-only" claim needs a full RL-only <i>convergence</i> run (not attempted); at the distillation level, Highway is a no-op over MVProp.</p>
+
+<!-- ================= GPPN ================= -->
+<h2><span class="n">7</span>GPPN</h2>
+<h3>Why</h3>
+<p class="body">Gated Path Planning Networks (Lee et al., NeurIPS 2018) replace VIN's hard max with a <b>data-dependent</b> (LSTM/GRU-style) update gate computed each sweep from the recurrent state — for stable long-horizon credit propagation. Tests whether learned gating beats the fixed max.</p>
+<h3>Math</h3>
+<div class="eq">cand = max(r, &gamma;·w·max<sub>4</sub>V<sub>k</sub>) &nbsp;·&nbsp; z = &sigma;( conv([ V<sub>k</sub>, cand, &gamma;w·nbr ]) )<br>
+V<sub>k+1</sub> = z · cand + (1&minus;z) · V<sub>k</sub> &nbsp;·&nbsp; gate depends on the current field (vs Highway's map-only gate)</div>
+<h3>Code</h3>
+<pre><span class="k">def</span> field(self, x):
+    r = x[self.goal_ch]; w = jax.nn.sigmoid(self.gain_conv(x)[0])
+    <span class="k">def</span> step(V, _):
+        nbr = _max_4nbr(V); cand = jnp.maximum(r, self.gamma * w * nbr)
+        feat = jnp.stack([V, cand, self.gamma * w * nbr])   <span class="c"># recurrent features</span>
+        z = jax.nn.sigmoid(self.gate_conv(feat)[0])         <span class="c"># data-dependent gate</span>
+        <span class="k">return</span> z * cand + (1.0 - z) * V, None
+    V, _ = jax.lax.scan(step, r, None, length=self.K); <span class="k">return</span> V</pre>
+<h3>Experiments</h3>
+<p class="body"><b>Also ties MVProp</b> — 100% reach, 99% optimal, 700 bytes. The learned data-dependent gate neither helps nor hurts over the fixed max: once distilled against the exact wavefront, all three VI variants converge to the same geodesic field. Gating is a solution to a training problem the distillation target already solves.</p>
+
+<!-- ================= MSP ================= -->
+<h2><span class="n">8</span>MSP — spatial transformer<span class="tag lose">fails</span></h2>
+<h3>Why</h3>
+<p class="body">A compact spatial-planning transformer: <b>axial self-attention</b> over grid rows/columns (size-invariant, O(HW·(H+W)) not O((HW)²)) with sinusoidal 2-D positional encoding predicts the value field <b>directly — no value-iteration recurrence</b>. Tests whether attention can learn to route in place of VI.</p>
+<h3>Math</h3>
+<div class="eq">z<sup>0</sup> = embed(cell feat) + PE<sub>2D</sub> &nbsp;·&nbsp; z = z + AxialAttn(z) &nbsp;·&nbsp; z = z + MLP(z) &nbsp;(×2)<br>
+V = &sigma;(head(z)) &nbsp;·&nbsp; <b>no recurrence</b> — the field is a single forward pass</div>
+<h3>Code</h3>
+<pre><span class="k">def</span> field(self, x):
+    C, H, W = x.shape
+    z = embed(x) + _sincos_pe(H, W, d)         <span class="c"># (H,W,d) tokens + 2-D PE</span>
+    z = z + _axial_attn(z, q1, k1, v1); z = z + mlp1(z)  <span class="c"># attend rows then cols</span>
+    z = z + _axial_attn(z, q2, k2, v2); z = z + mlp2(z)
+    <span class="k">return</span> jax.nn.sigmoid(head(z))[..., 0]     <span class="c"># (H,W) value field</span></pre>
+<h3>Experiments</h3>
+<p class="body"><b>Fails to generalize: 59.5% reach</b> (open 96 → rooms 37, corridors 39, random 48) — it collapses exactly on maps needing long-range routing. Yet optimal-move is 92.5% and distill-MSE is low: it fits per-cell values well but its field is <b>not globally monotone to the goal</b>, so following it hits local maxima and traps. At 78 KB it is 236&times; larger than MVProp and worse. <small>Caveat: this is a compact 2-layer axial MSP at a matched 4000-step budget — not proof that no transformer can plan, but a strong signal that at matched budget/size the VI recurrence's guaranteed monotone descent is decisive.</small></p>
+
+<!-- ================= verdict ================= -->
+<h2><span class="n">9</span>Verdict &amp; per-map detail</h2>
+<p class="body"><b>Phase 2 closes with MVProp+distillation as the winner into Phase 3.</b> The value-iteration recurrence is the load-bearing inductive bias — it guarantees a navigable (monotone-to-goal) field, which is what <i>reach</i> measures and what a transformer cannot supply at matched budget. Highway and GPPN confirm that once you distill against the exact wavefront, added gating is a no-op; MVProp's 332 bytes are sufficient. The one claim this <i>doesn't</i> settle is "distillation required" at the RL-only convergence level — the init-gradient probe shows all VI planners are viable-at-init (the anchor+bias fix, not architecture), so a full RL-only training run remains the decisive follow-up. Consistent with the positioning search: planner-generalization itself is a scooped axis (VProp/VIN/Neural-A*), so this rounds out the ablation and documents the choice rather than carrying a paper.</p>
+<div class="scroll"><table>
+<tr><th>map type</th><th>MVProp</th><th>Highway</th><th>GPPN</th><th>MSP</th></tr>
+<tr><td>open</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td>96</td></tr>
+<tr><td>rooms + doors</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td class="b">37</td></tr>
+<tr><td>maze</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td class="b">53</td></tr>
+<tr><td>pillars</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td>60</td></tr>
+<tr><td>diagonal barrier</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td>71</td></tr>
+<tr><td>dense clutter</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td>72</td></tr>
+<tr><td>random obstacles</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td class="b">48</td></tr>
+<tr><td>corridors</td><td class="g">100</td><td class="g">100</td><td class="g">100</td><td class="b">39</td></tr>
+</table></div>
+<p><small>Cells = <b>reach %</b> (fraction of random start→goal pairs actually reached by following the field within a 4·grid budget), 200 samples/type, vs the 4-connected geodesic oracle. Distilled at 32² for 4000 steps against <code>propagate(goal, w=1&minus;wall)</code>; evaluated on structurally-different held-out generators (trained only on open + random rectangles).</small></p>
+
+<h3 style="margin-top:30px">References</h3>
+<p style="font:13px/1.6 ui-sans-serif,system-ui,sans-serif;color:var(--soft);margin:4px 0">
+Tamar et&nbsp;al., <i>Value Iteration Networks</i>, NeurIPS 2016 · Nardelli et&nbsp;al., <i>Value Propagation Networks</i>, ICLR 2019 · Wang et&nbsp;al., <i>Highway Value Iteration Networks</i>, ICML 2024 · Lee et&nbsp;al., <i>Gated Path Planning Networks</i>, NeurIPS 2018 · Yonetani et&nbsp;al., <i>Path Planning using Neural A*</i>, ICML 2021 · Rusu et&nbsp;al., <i>Policy Distillation</i>, ICLR 2016 · LPAC perception&ndash;action&ndash;communication backbone (Prorok lab).</p>
+
+<div class="foot">
+Code: <code>t5lab/planner_arms.py</code> (Highway/GPPN/MSP + factory), <code>t5lab/mvprop.py</code> (MVProp), <code>t5lab/arm_run.py</code> (probe + distill + generalization). Distilled checkpoints: <code>planners/&lt;arch&gt;_distilled.eqx</code>; per-map results: <code>planners/&lt;arch&gt;_gen.json</code>. Probe = init gradient-norm of the field w.r.t. params (a necessary-not-sufficient test for RL-only trainability). All four share MVProp's input, the wavefront teacher, and the size-invariant evaluation, so the comparison is fair.
+</div>
+</div>
+<script>try{document.documentElement.getAttribute('data-theme');}catch(e){}</script>
+</body></html>
