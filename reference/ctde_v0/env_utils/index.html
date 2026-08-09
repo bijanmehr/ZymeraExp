@@ -1,0 +1,4369 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="API documentation for the learning / experiment pipelines (zymera_lab/experiments).">
+      
+      
+      
+      
+        <link rel="prev" href="../controller/">
+      
+      
+        <link rel="next" href="../es/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>env_utils - Zymera · pipeline code reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ctde_v0env_utils" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Zymera · pipeline code reference" class="md-header__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Zymera · pipeline code reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              env_utils
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Overview
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Code reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Zymera · pipeline code reference" class="md-nav__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Zymera · pipeline code reference
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Code reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_v0
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ctde_v0
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_v0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../checkpoint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compass_ceiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    compass_ceiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contribution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    contribution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../controller/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    controller
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    env_utils
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    env_utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;env_utils
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" env_utils">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.build_env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;build_env
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.compose_reward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;compose_reward
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.occlusion_penalty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;occlusion_penalty
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.true_lambda2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;true_lambda2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.local_edge_margin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;local_edge_margin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.connectivity_barrier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;connectivity_barrier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.kb_adjacency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;kb_adjacency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.kb_distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;kb_distance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.degree_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;degree_stats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.skill_congestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;skill_congestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.sense_frontier_bonus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;sense_frontier_bonus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.coverage_fraction_free" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;coverage_fraction_free
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.coverage_difference_credit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;coverage_difference_credit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../es/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    es
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../make_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    make_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mem_probe/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mem_probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ppo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../probe_frontier_align/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_frontier_align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../probe_message_ablation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_message_ablation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_9090/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_9090
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_ab_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_ab_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_bench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_bench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_conn_shootout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_conn_shootout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_critic_t4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_critic_t4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_crowded_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_crowded_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_ctde_sweep/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_ctde_sweep
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_es/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_es
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_frontier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_frontier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_lag_t3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_lag_t3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_lag_t3b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_lag_t3b
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_obstacle_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_obstacle_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_occ/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_occ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_roles_t2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_roles_t2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_scale_ladder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_scale_ladder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_serial32/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_serial32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_skills_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_skills_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_slam_attn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_slam_attn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_warmab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_warmab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_warmbig/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_warmbig
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terrains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    terrains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../train_ctde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train_ctde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    t5lab
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    t5lab
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    t5lab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/actor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    actor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/arm_run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    arm_run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/ctde_baseline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_baseline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/distill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    distill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/make_mvprop_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    make_mvprop_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/occ_eval/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    occ_eval
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/open_run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    open_run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner_arms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_arms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner_generalization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_generalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner_vs_greedy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_vs_greedy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/plug_ctde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plug_ctde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/probe_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_compare/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_compare
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_occ/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_occ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_planner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_planner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/rollout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    rollout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/run_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/run_phase1a/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_phase1a
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_study
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    planner_study
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_study
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ablate_distill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ablate_distill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ablate_viz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ablate_viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ceiling_bfs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ceiling_bfs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/comms_demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    comms_demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ma_bracket_demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ma_bracket_demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ma_planner_bracket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ma_planner_bracket
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ms_bench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ms_bench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ms_visuals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ms_visuals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/planner_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/render5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/validate_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    validate_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    audits
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    audits
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    audits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audits/probe_audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;env_utils
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" env_utils">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.build_env" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;build_env
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.compose_reward" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;compose_reward
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.occlusion_penalty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;occlusion_penalty
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.true_lambda2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;true_lambda2
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.local_edge_margin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;local_edge_margin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.connectivity_barrier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;connectivity_barrier
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.kb_adjacency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;kb_adjacency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.kb_distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;kb_distance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.degree_stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;degree_stats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.skill_congestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;skill_congestion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.sense_frontier_bonus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;sense_frontier_bonus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.coverage_fraction_free" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;coverage_fraction_free
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.env_utils.coverage_difference_credit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;coverage_difference_credit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="ctde_v0env_utils"><code>ctde_v0.env_utils</code><a class="headerlink" href="#ctde_v0env_utils" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="ctde_v0.env_utils" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">env_utils</span>
+
+
+<a href="#ctde_v0.env_utils" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Env construction + reward composition + λ₂ oracle + KB-adjacency + metrics.</p>
+<p>The lab/experiment boundary (agent_architecture.md): <code>zymera</code> runs the WORLD
+only and is reward-agnostic; the experiment composes the scalar reward HERE from
+the env's UNWEIGHTED per-term magnitudes in <code>info["reward_terms"]</code>, re-weighting
+coverage / connectivity / collision per the config (Reward block).</p>
+<p>The auxiliary supervision target is the simulator's true Fiedler value
+<code>_lambda2(world.body.position, comm_r, sharp)</code> (missions_terms) — a scalar per
+step, broadcast to all agents (one true λ₂ for the team). Grading uses the same
+oracle: connectivity-% = fraction of steps with true λ₂ &gt; τ.</p>
+<p>This module also exposes the <strong>comm-graph adjacency</strong> the GNN-KB fuses over
+(<code>kb_adjacency</code>: in-range neighbours at <code>comm_r</code>, diagonal cleared) and the
+<strong>degree statistics</strong> the SizeShiftReg-style regularizer penalizes.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.build_env" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">build_env</span>
+
+
+<a href="#ctde_v0.env_utils.build_env" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">build_env</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Construct the comm-coverage env from the config's World block (recipe
+defaults supply the reward TERMS; we re-weight their magnitudes ourselves).</p>
+<p>When <code>reward_anti_overlap == 'on'</code> we append a <strong>zero-weight</strong> <code>overlap</code>
+term (<code>same_step_overlap</code>) so the env populates <code>info['reward_terms']
+['overlap']</code> — :func:<code>compose_reward</code> then re-weights it. Zero weight keeps the
+env's own (unused) scalar reward identical; we always compose the reward here.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span>
+<span class="normal">86</span>
+<span class="normal">87</span>
+<span class="normal">88</span>
+<span class="normal">89</span>
+<span class="normal">90</span>
+<span class="normal">91</span>
+<span class="normal">92</span>
+<span class="normal">93</span>
+<span class="normal">94</span>
+<span class="normal">95</span>
+<span class="normal">96</span>
+<span class="normal">97</span>
+<span class="normal">98</span>
+<span class="normal">99</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_env</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Construct the comm-coverage env from the config&#39;s World block (recipe</span>
+<span class="sd">    defaults supply the reward TERMS; we re-weight their magnitudes ourselves).</span>
+
+<span class="sd">    When ``reward_anti_overlap == &#39;on&#39;`` we append a **zero-weight** ``overlap``</span>
+<span class="sd">    term (``same_step_overlap``) so the env populates ``info[&#39;reward_terms&#39;]</span>
+<span class="sd">    [&#39;overlap&#39;]`` — :func:`compose_reward` then re-weights it. Zero weight keeps the</span>
+<span class="sd">    env&#39;s own (unused) scalar reward identical; we always compose the reward here.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span>
+    <span class="n">terms</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">reward_anti_overlap</span> <span class="o">==</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span>
+        <span class="c1"># default coverage/connectivity/collision terms + a 0-weight overlap probe.</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">zymera.missions_terms</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_TERMS</span>
+        <span class="n">terms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">DEFAULT_TERMS</span><span class="p">)</span> <span class="o">+</span> <span class="p">[(</span><span class="s2">&quot;overlap&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)]</span>
+    <span class="n">env</span> <span class="o">=</span> <span class="n">zymera</span><span class="o">.</span><span class="n">make</span><span class="p">(</span>
+        <span class="n">w</span><span class="o">.</span><span class="n">recipe</span><span class="p">,</span>
+        <span class="n">grid</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">grid</span><span class="p">,</span>
+        <span class="n">n_agents</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">n_agents</span><span class="p">,</span>
+        <span class="n">comm_r</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">comm_r</span><span class="p">,</span>
+        <span class="n">sense_r</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">sense_r</span><span class="p">,</span>
+        <span class="n">cover_r</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">cover_r</span><span class="p">,</span>
+        <span class="n">n_obstacles</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">n_obstacles</span><span class="p">,</span>
+        <span class="n">spawn_radius</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">spawn_radius</span><span class="p">,</span>   <span class="c1"># None -&gt; scatter spawn inside the recipe</span>
+        <span class="n">max_steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>                <span class="c1"># horizon controlled by the fixed-length scan</span>
+        <span class="n">terms</span><span class="o">=</span><span class="n">terms</span><span class="p">,</span>                   <span class="c1"># None -&gt; recipe DEFAULT_TERMS (v0 unchanged)</span>
+        <span class="n">sense_walls</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">sense_walls</span><span class="p">,</span>     <span class="c1"># SLAM-style wall perception (default on)</span>
+        <span class="n">sense_free</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">sense_free</span><span class="p">,</span>       <span class="c1"># occupancy belief (full sensed region -&gt; occ_frontier)</span>
+        <span class="n">boundary</span><span class="o">=</span><span class="n">w</span><span class="o">.</span><span class="n">boundary</span><span class="p">,</span>           <span class="c1"># field-edge obs channel (mission-field extent)</span>
+    <span class="p">)</span>
+    <span class="n">comm_r</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">env</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">topology</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">comm_r</span> <span class="o">==</span> <span class="n">w</span><span class="o">.</span><span class="n">comm_r</span><span class="p">,</span> <span class="p">(</span><span class="n">comm_r</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">comm_r</span><span class="p">)</span>
+    <span class="c1"># Obstacle terrain (default &quot;open&quot; -&gt; the recipe&#39;s OpenTerrain, unchanged). &quot;rooms&quot; -&gt;</span>
+    <span class="c1"># zymera Rooms (corridors / chokepoints; doors keep free cells connected so the cluster</span>
+    <span class="c1"># spawn still works). &quot;walls&quot; already handled by n_obstacles -&gt; RandomWalls in the recipe.</span>
+    <span class="c1"># Build the terrain object for the non-default styles (None -&gt; keep recipe terrain:</span>
+    <span class="c1"># &quot;open&quot;=OpenTerrain, &quot;walls&quot;=recipe RandomWalls via n_obstacles). The crowded set</span>
+    <span class="c1"># (clutter/pillars/mixed) is connectivity-safe — free space stays one component.</span>
+    <span class="n">terrain_obj</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">w</span><span class="o">.</span><span class="n">terrain</span> <span class="o">==</span> <span class="s2">&quot;rooms&quot;</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">zymera.worldgen</span><span class="w"> </span><span class="kn">import</span> <span class="n">Rooms</span>
+        <span class="n">terrain_obj</span> <span class="o">=</span> <span class="n">Rooms</span><span class="p">(</span><span class="n">rooms</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">rooms</span><span class="p">),</span> <span class="n">door_w</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">w</span><span class="o">.</span><span class="n">terrain</span> <span class="o">==</span> <span class="s2">&quot;clutter&quot;</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.terrains</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectedClutter</span>
+        <span class="n">terrain_obj</span> <span class="o">=</span> <span class="n">ConnectedClutter</span><span class="p">(</span><span class="n">n_obstacles</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">n_obstacles</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">w</span><span class="o">.</span><span class="n">terrain</span> <span class="o">==</span> <span class="s2">&quot;pillars&quot;</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.terrains</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pillars</span>
+        <span class="n">terrain_obj</span> <span class="o">=</span> <span class="n">Pillars</span><span class="p">(</span><span class="n">spacing</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">pillar_spacing</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">pillar_size</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">w</span><span class="o">.</span><span class="n">terrain</span> <span class="o">==</span> <span class="s2">&quot;mixed&quot;</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.terrains</span><span class="w"> </span><span class="kn">import</span> <span class="n">MixedCluttRooms</span>
+        <span class="n">terrain_obj</span> <span class="o">=</span> <span class="n">MixedCluttRooms</span><span class="p">(</span><span class="n">rooms</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">rooms</span><span class="p">),</span> <span class="n">n_obstacles</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">n_obstacles</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">w</span><span class="o">.</span><span class="n">terrain</span> <span class="o">==</span> <span class="s2">&quot;crowded_mix&quot;</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.terrains</span><span class="w"> </span><span class="kn">import</span> <span class="n">default_crowded_mix</span>
+        <span class="n">terrain_obj</span> <span class="o">=</span> <span class="n">default_crowded_mix</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">n_obstacles</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">pillar_spacing</span><span class="p">,</span>
+                                          <span class="n">w</span><span class="o">.</span><span class="n">pillar_size</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">rooms</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">terrain_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">zymera.env</span><span class="w"> </span><span class="kn">import</span> <span class="n">GridEnv</span>
+        <span class="c1"># rebuild with the SAME recipe components, swapping only the terrain (env.replace</span>
+        <span class="c1"># re-runs the comm-coverage recipe, which has no terrain arg).</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">GridEnv</span><span class="p">(</span><span class="n">grid_h</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">grid_h</span><span class="p">,</span> <span class="n">grid_w</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">grid_w</span><span class="p">,</span> <span class="n">n_agents</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">n_agents</span><span class="p">,</span>
+                      <span class="n">cover_r</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">cover_r</span><span class="p">,</span> <span class="n">wall_sense_r</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">wall_sense_r</span><span class="p">,</span>
+                      <span class="n">sense_free</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">sense_free</span><span class="p">,</span>   <span class="c1"># occ belief (obs channels ride on env.obs)</span>
+                      <span class="n">terrain</span><span class="o">=</span><span class="n">terrain_obj</span><span class="p">,</span>
+                      <span class="n">spawn</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">spawn</span><span class="p">,</span> <span class="n">dynamics</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">dynamics</span><span class="p">,</span> <span class="n">channel</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                      <span class="n">obs</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">obs</span><span class="p">,</span> <span class="n">mission</span><span class="o">=</span><span class="n">env</span><span class="o">.</span><span class="n">mission</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">env</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.compose_reward" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">compose_reward</span>
+
+
+<a href="#ctde_v0.env_utils.compose_reward" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">compose_reward</span><span class="p">(</span><span class="n">reward_terms</span><span class="p">,</span> <span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">lambda2_penalty</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">congestion_penalty</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) scalar reward from the env's unweighted per-term (N,) magnitudes.</p>
+<p>base_i = w_cov<em>coverage_i + w_conn</em>connectivity_i + w_coll*collision_i
+(collision weight negative -&gt; a penalty). When <code>Reward.normalized</code> is set,
+the coverage term is divided by the free-cell count (fractional coverage).
+When the soft-λ mechanism is active, <code>lambda2_penalty</code> (a shared scalar
+shortfall) is subtracted with weight <code>Reward.soft_lambda_penalty</code>.</p>
+<p>When <code>Reward.barrier_weight &gt; 0</code> the per-agent <strong>connectivity-FLOOR barrier</strong>
+(:func:<code>connectivity_barrier</code>, read off <code>world.body.position</code> — the SAME source
+true λ₂ / :func:<code>local_edge_margin</code> use) is SUBTRACTED. It composes with every
+other connectivity mechanism (it is NOT a replacement). At the default
+<code>barrier_weight == 0</code> the branch is skipped entirely, so the composed reward is
+byte-identical to the pre-barrier behaviour.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compose_reward</span><span class="p">(</span><span class="n">reward_terms</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">,</span>
+                   <span class="n">lambda2_penalty</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                   <span class="n">congestion_penalty</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) scalar reward from the env&#39;s unweighted per-term (N,) magnitudes.</span>
+
+<span class="sd">    base_i = w_cov*coverage_i + w_conn*connectivity_i + w_coll*collision_i</span>
+<span class="sd">    (collision weight negative -&gt; a penalty). When ``Reward.normalized`` is set,</span>
+<span class="sd">    the coverage term is divided by the free-cell count (fractional coverage).</span>
+<span class="sd">    When the soft-λ mechanism is active, ``lambda2_penalty`` (a shared scalar</span>
+<span class="sd">    shortfall) is subtracted with weight ``Reward.soft_lambda_penalty``.</span>
+
+<span class="sd">    When ``Reward.barrier_weight &gt; 0`` the per-agent **connectivity-FLOOR barrier**</span>
+<span class="sd">    (:func:`connectivity_barrier`, read off ``world.body.position`` — the SAME source</span>
+<span class="sd">    true λ₂ / :func:`local_edge_margin` use) is SUBTRACTED. It composes with every</span>
+<span class="sd">    other connectivity mechanism (it is NOT a replacement). At the default</span>
+<span class="sd">    ``barrier_weight == 0`` the branch is skipped entirely, so the composed reward is</span>
+<span class="sd">    byte-identical to the pre-barrier behaviour.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">reward</span>
+    <span class="n">cov</span> <span class="o">=</span> <span class="n">reward_terms</span><span class="p">[</span><span class="s2">&quot;coverage&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">normalized</span><span class="p">:</span>
+        <span class="n">free</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">((</span><span class="o">~</span><span class="n">world</span><span class="o">.</span><span class="n">wall</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">cov</span> <span class="o">=</span> <span class="n">cov</span> <span class="o">/</span> <span class="n">free</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">r</span><span class="o">.</span><span class="n">w_coverage</span> <span class="o">*</span> <span class="n">cov</span>
+        <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="n">w_connectivity</span> <span class="o">*</span> <span class="n">reward_terms</span><span class="p">[</span><span class="s2">&quot;connectivity&quot;</span><span class="p">]</span>
+        <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="n">w_collision</span> <span class="o">*</span> <span class="n">reward_terms</span><span class="p">[</span><span class="s2">&quot;collision&quot;</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">lambda2_penalty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">-</span> <span class="n">r</span><span class="o">.</span><span class="n">soft_lambda_penalty</span> <span class="o">*</span> <span class="n">lambda2_penalty</span>
+    <span class="c1"># Free-market congestion price (selector + congestion on): a per-agent same-skill</span>
+    <span class="c1"># crowding penalty computed in the rollout from the sampled skills (None otherwise,</span>
+    <span class="c1"># so the branch is skipped and the reward is byte-unchanged).</span>
+    <span class="k">if</span> <span class="n">congestion_penalty</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">-</span> <span class="n">cfg</span><span class="o">.</span><span class="n">congestion_weight</span> <span class="o">*</span> <span class="n">congestion_penalty</span>
+    <span class="c1"># Exploration info-gain bonus (explore_infogain == &quot;on&quot;): ADD a per-agent count of</span>
+    <span class="c1"># UNCOVERED, non-wall cells within the agent&#39;s sensor range — &quot;you&#39;re somewhere with</span>
+    <span class="c1"># ground still to learn&quot;. Stateless (reads the current world only), so the coverage</span>
+    <span class="c1"># metric is unchanged. off (default) -&gt; branch skipped, reward byte-unchanged.</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">explore_infogain</span> <span class="o">==</span> <span class="s2">&quot;on&quot;</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">+</span> <span class="n">cfg</span><span class="o">.</span><span class="n">info_gain_weight</span> <span class="o">*</span> <span class="n">sense_frontier_bonus</span><span class="p">(</span><span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+    <span class="c1"># Anti-overlap (Increment-1): penalize cells my footprint shares with a</span>
+    <span class="c1"># teammate THIS step (same_step_overlap) -&gt; rewards non-redundant coverage.</span>
+    <span class="c1"># Only present when build_env appended the 0-weight &#39;overlap&#39; probe term.</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">reward_anti_overlap</span> <span class="o">==</span> <span class="s2">&quot;on&quot;</span> <span class="ow">and</span> <span class="s2">&quot;overlap&quot;</span> <span class="ow">in</span> <span class="n">reward_terms</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">-</span> <span class="n">cfg</span><span class="o">.</span><span class="n">anti_overlap_weight</span> <span class="o">*</span> <span class="n">reward_terms</span><span class="p">[</span><span class="s2">&quot;overlap&quot;</span><span class="p">]</span>
+    <span class="c1"># Connectivity-FLOOR barrier (&quot;Hyper-Singularity&quot;): a capped per-agent wall at the</span>
+    <span class="c1"># disconnection edge, COMPOSED with whatever else is active. weight==0 -&gt; skipped</span>
+    <span class="c1"># entirely (no op added; out byte-identical). k=barrier_weight is inside the term.</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">barrier_weight</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">-</span> <span class="n">connectivity_barrier</span><span class="p">(</span><span class="n">world</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">world</span><span class="o">.</span><span class="n">wall</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.occlusion_penalty" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">occlusion_penalty</span>
+
+
+<a href="#ctde_v0.env_utils.occlusion_penalty" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">occlusion_penalty</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">wall</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,N) float32 — additive comm-distance penalty <code>c*k</code> from wall occlusion ("wall RF").</p>
+<p><code>k</code> = number of wall-runs crossed on the straight i-j segment; <code>c</code> =
+<code>cfg.world.occlusion_c</code> (or <code>comm_r/3</code>). A link that passes through walls has an
+inflated EFFECTIVE distance <code>d_eff = d + c*k</code> and so attenuates / drops. Zero on the
+diagonal and for any clear-line-of-sight pair. Pure JAX (vmap/jit-safe); <code>wall</code> (H,W) bool.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">occlusion_penalty</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">wall</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,N) float32 — additive comm-distance penalty ``c*k`` from wall occlusion (&quot;wall RF&quot;).</span>
+
+<span class="sd">    ``k`` = number of wall-runs crossed on the straight i-j segment; ``c`` =</span>
+<span class="sd">    ``cfg.world.occlusion_c`` (or ``comm_r/3``). A link that passes through walls has an</span>
+<span class="sd">    inflated EFFECTIVE distance ``d_eff = d + c*k`` and so attenuates / drops. Zero on the</span>
+<span class="sd">    diagonal and for any clear-line-of-sight pair. Pure JAX (vmap/jit-safe); ``wall`` (H,W) bool.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">N</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="n">H</span><span class="p">,</span> <span class="n">W</span> <span class="o">=</span> <span class="n">wall</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">comm_r</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">comm_r</span> <span class="o">/</span> <span class="mf">3.0</span> <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">occlusion_c</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">occlusion_c</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">H</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">W</span><span class="p">))</span>                                   <span class="c1"># static: oversample the segment</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">pi</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:];</span> <span class="n">pj</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>        <span class="c1"># (N,1,1,2)/(1,N,1,2)</span>
+    <span class="n">ts</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">T</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span>          <span class="c1"># (1,1,T,1)</span>
+    <span class="n">seg</span> <span class="o">=</span> <span class="n">pi</span> <span class="o">+</span> <span class="n">ts</span> <span class="o">*</span> <span class="p">(</span><span class="n">pj</span> <span class="o">-</span> <span class="n">pi</span><span class="p">)</span>                                     <span class="c1"># (N,N,T,2) points along each ray</span>
+    <span class="n">cell</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">H</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">W</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]))</span>
+    <span class="n">wc</span> <span class="o">=</span> <span class="n">wall</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)[</span><span class="n">cell</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">cell</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>           <span class="c1"># (N,N,T) wall along the ray</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="p">(</span><span class="n">wc</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">wc</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># wall-runs entered</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">c</span> <span class="o">*</span> <span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">))</span>        <span class="c1"># (N,N), diag 0</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.true_lambda2" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">true_lambda2</span>
+
+
+<a href="#ctde_v0.env_utils.true_lambda2" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">true_lambda2</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Scalar true Fiedler value of the soft comm-graph at <code>position</code> (N,2). With
+<code>wall</code> + <code>cfg.world.occlusion</code> the graph is wall-occluded (<code>d_eff</code>); else the
+plain distance graph (delegates to the shared <code>_lambda2</code> — byte-identical).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">true_lambda2</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Scalar true Fiedler value of the soft comm-graph at ``position`` (N,2). With</span>
+<span class="sd">    ``wall`` + ``cfg.world.occlusion`` the graph is wall-occluded (``d_eff``); else the</span>
+<span class="sd">    plain distance graph (delegates to the shared ``_lambda2`` — byte-identical).&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">wall</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">occlusion</span><span class="p">:</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">connectivity</span><span class="o">.</span><span class="n">lambda2_sharp</span> <span class="o">*</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span> <span class="o">-</span> <span class="n">_eff_cheby</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="p">)))</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>                               <span class="c1"># matches _soft_weights (diag 0)</span>
+        <span class="n">lap</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="n">w</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigvalsh</span><span class="p">(</span><span class="n">lap</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">_lambda2</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">connectivity</span><span class="o">.</span><span class="n">lambda2_sharp</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.local_edge_margin" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">local_edge_margin</span>
+
+
+<a href="#ctde_v0.env_utils.local_edge_margin" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">local_edge_margin</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) float32 — the PER-AGENT "you're at the edge of comms range" signal.</p>
+<p>Where <code>true_lambda2</code> is a GLOBAL scalar (the team's λ₂ floor) broadcast
+identically to every agent — so no single agent knows IT is the one stretching
+the bridge — this is its LOCAL, per-agent counterpart: each agent reads only its
+OWN incident-edge mass and is penalized for the shortfall against a target
+degree. An agent comfortably surrounded by in-range teammates scores ≈0; one
+drifting toward the edge of its comm range (links approaching / crossing
+<code>comm_r</code>) sees its penalty ramp up. It is ANTICIPATORY (the soft edge weight
+decays smoothly as a link nears <code>comm_r</code>, so it fires BEFORE the link breaks)
+and partial-observability-native (computable from an agent's own neighbourhood).</p>
+<p>Construction — the SAME soft incident-edge mass the relay tool maximizes
+(:func:<code>controller._local_conn_score</code>, reused so the signal and the relay
+anchor agree):</p>
+<p>w_ij      = sigmoid(sharp · (comm_r − cheby_dist_ij))   for j ≠ i
+  soft_deg_i = Σ_{j≠i} w_ij                               (soft neighbour count)
+  p_i        = relu(degree_target − soft_deg_i)           (the shortfall)</p>
+<p>where <code>sharp = cfg.connectivity.lambda2_sharp</code>, <code>comm_r = cfg.world.comm_r</code>
+and <code>degree_target = cfg.mission_safety.degree_target</code>. The result is the
+per-agent shortfall in exactly the soft-degree the relay maximizes — NOT
+averaged/broadcast: <code>p_i</code> is agent i's own margin, so the rollout can charge
+the stretching agent specifically. Pure JAX (vmap/scan/jit-safe).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">local_edge_margin</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) float32 — the PER-AGENT &quot;you&#39;re at the edge of comms range&quot; signal.</span>
+
+<span class="sd">    Where ``true_lambda2`` is a GLOBAL scalar (the team&#39;s λ₂ floor) broadcast</span>
+<span class="sd">    identically to every agent — so no single agent knows IT is the one stretching</span>
+<span class="sd">    the bridge — this is its LOCAL, per-agent counterpart: each agent reads only its</span>
+<span class="sd">    OWN incident-edge mass and is penalized for the shortfall against a target</span>
+<span class="sd">    degree. An agent comfortably surrounded by in-range teammates scores ≈0; one</span>
+<span class="sd">    drifting toward the edge of its comm range (links approaching / crossing</span>
+<span class="sd">    ``comm_r``) sees its penalty ramp up. It is ANTICIPATORY (the soft edge weight</span>
+<span class="sd">    decays smoothly as a link nears ``comm_r``, so it fires BEFORE the link breaks)</span>
+<span class="sd">    and partial-observability-native (computable from an agent&#39;s own neighbourhood).</span>
+
+<span class="sd">    Construction — the SAME soft incident-edge mass the relay tool maximizes</span>
+<span class="sd">    (:func:`controller._local_conn_score`, reused so the signal and the relay</span>
+<span class="sd">    anchor agree):</span>
+
+<span class="sd">      w_ij      = sigmoid(sharp · (comm_r − cheby_dist_ij))   for j ≠ i</span>
+<span class="sd">      soft_deg_i = Σ_{j≠i} w_ij                               (soft neighbour count)</span>
+<span class="sd">      p_i        = relu(degree_target − soft_deg_i)           (the shortfall)</span>
+
+<span class="sd">    where ``sharp = cfg.connectivity.lambda2_sharp``, ``comm_r = cfg.world.comm_r``</span>
+<span class="sd">    and ``degree_target = cfg.mission_safety.degree_target``. The result is the</span>
+<span class="sd">    per-agent shortfall in exactly the soft-degree the relay maximizes — NOT</span>
+<span class="sd">    averaged/broadcast: ``p_i`` is agent i&#39;s own margin, so the rollout can charge</span>
+<span class="sd">    the stretching agent specifically. Pure JAX (vmap/scan/jit-safe).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">wall</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">occlusion</span><span class="p">:</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">connectivity</span><span class="o">.</span><span class="n">lambda2_sharp</span> <span class="o">*</span> <span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span> <span class="o">-</span> <span class="n">_eff_cheby</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="p">)))</span>
+        <span class="n">soft_deg</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">)))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>            <span class="c1"># (N,) occluded soft degree</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">soft_deg</span> <span class="o">=</span> <span class="n">_ctrl</span><span class="o">.</span><span class="n">_local_conn_score</span><span class="p">(</span>
+            <span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">connectivity</span><span class="o">.</span><span class="n">lambda2_sharp</span>
+        <span class="p">)</span>                                                      <span class="c1"># (N,) soft degree</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">mission_safety</span><span class="o">.</span><span class="n">degree_target</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">target</span> <span class="o">-</span> <span class="n">soft_deg</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># (N,) per-agent margin</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.connectivity_barrier" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">connectivity_barrier</span>
+
+
+<a href="#ctde_v0.env_utils.connectivity_barrier" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">connectivity_barrier</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) float32 — the per-agent <strong>connectivity FLOOR barrier</strong> ("Hyper-Singularity").</p>
+<p>A one-sided interior-point wall on each agent's NEAREST-NEIGHBOUR distance: it is
+EXACTLY 0 while the agent is comfortably linked (silent in the safe zone), rises
+smoothly as that agent's closest teammate drifts toward the edge of comm range,
+and saturates at a finite <code>cap</code> ("almost infinity") at / past the break point —
+so the rollout feels an explosive-but-finite push BEFORE the link snaps. It is a
+standalone, config-knobbed reward TERM that COMPOSES with every other connectivity
+mechanism (<code>conn_signal</code> / <code>mechanism</code>); it does NOT replace any of them. When
+<code>Reward.barrier_weight == 0</code> (the default) it is identically 0 and a no-op.</p>
+<p>The signal is the LOCAL Chebyshev nearest-neighbour distance — the SAME metric as
+the comm graph (:func:<code>controller._cheby</code> / :func:<code>kb_adjacency</code>), so the wall and
+the link agree on "range":</p>
+<p>x_i = min_{j != i} cheby_dist(i, j)         (self masked with +inf before the min)</p>
+<p>The barrier is the user's formula, made RL-safe (the literal pole at <code>M</code> is
+GUARDED so there is no inf/nan for ANY x, including <code>x_i == M</code> exactly and
+<code>x_i &gt; M</code> / a lone agent's <code>x_i = +inf</code>):</p>
+<p>raw(x)  = barrier_weight * relu(x - a)^2 / (M - x)^p     (0 for x&lt;=a; pole at x=M)
+  xc_i    = minimum(x_i, M - eps)             eps=1e-3, so (M - xc) in [eps, .] &gt; 0
+  f_i     = minimum( barrier_weight * relu(xc_i - a)^2 / (M - xc_i)^p , cap )
+  f_i     = cap         where  x_i &gt;= M        (link already broken / agent isolated)</p>
+<p>Here <code>a = barrier_a</code> (launch point), <code>M = barrier_M</code> (the wall / break range),
+<code>p = barrier_p</code> (explosion power), <code>cap = barrier_cap</code> (the finite ceiling) and
+<code>barrier_weight</code> IS the <code>k</code> of the formula (already folded in). The <code>relu(·)^2</code>
+is the user's <code>(x - a + |x - a|)^2 / 4</code> written via the ReLU identity. Result is
+finite and in <code>[0, cap]</code> for every x. Pure JAX (vmap/scan/jit-safe).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">connectivity_barrier</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) float32 — the per-agent **connectivity FLOOR barrier** (&quot;Hyper-Singularity&quot;).</span>
+
+<span class="sd">    A one-sided interior-point wall on each agent&#39;s NEAREST-NEIGHBOUR distance: it is</span>
+<span class="sd">    EXACTLY 0 while the agent is comfortably linked (silent in the safe zone), rises</span>
+<span class="sd">    smoothly as that agent&#39;s closest teammate drifts toward the edge of comm range,</span>
+<span class="sd">    and saturates at a finite ``cap`` (&quot;almost infinity&quot;) at / past the break point —</span>
+<span class="sd">    so the rollout feels an explosive-but-finite push BEFORE the link snaps. It is a</span>
+<span class="sd">    standalone, config-knobbed reward TERM that COMPOSES with every other connectivity</span>
+<span class="sd">    mechanism (``conn_signal`` / ``mechanism``); it does NOT replace any of them. When</span>
+<span class="sd">    ``Reward.barrier_weight == 0`` (the default) it is identically 0 and a no-op.</span>
+
+<span class="sd">    The signal is the LOCAL Chebyshev nearest-neighbour distance — the SAME metric as</span>
+<span class="sd">    the comm graph (:func:`controller._cheby` / :func:`kb_adjacency`), so the wall and</span>
+<span class="sd">    the link agree on &quot;range&quot;:</span>
+
+<span class="sd">      x_i = min_{j != i} cheby_dist(i, j)         (self masked with +inf before the min)</span>
+
+<span class="sd">    The barrier is the user&#39;s formula, made RL-safe (the literal pole at ``M`` is</span>
+<span class="sd">    GUARDED so there is no inf/nan for ANY x, including ``x_i == M`` exactly and</span>
+<span class="sd">    ``x_i &gt; M`` / a lone agent&#39;s ``x_i = +inf``):</span>
+
+<span class="sd">      raw(x)  = barrier_weight * relu(x - a)^2 / (M - x)^p     (0 for x&lt;=a; pole at x=M)</span>
+<span class="sd">      xc_i    = minimum(x_i, M - eps)             eps=1e-3, so (M - xc) in [eps, .] &gt; 0</span>
+<span class="sd">      f_i     = minimum( barrier_weight * relu(xc_i - a)^2 / (M - xc_i)^p , cap )</span>
+<span class="sd">      f_i     = cap         where  x_i &gt;= M        (link already broken / agent isolated)</span>
+
+<span class="sd">    Here ``a = barrier_a`` (launch point), ``M = barrier_M`` (the wall / break range),</span>
+<span class="sd">    ``p = barrier_p`` (explosion power), ``cap = barrier_cap`` (the finite ceiling) and</span>
+<span class="sd">    ``barrier_weight`` IS the ``k`` of the formula (already folded in). The ``relu(·)^2``</span>
+<span class="sd">    is the user&#39;s ``(x - a + |x - a|)^2 / 4`` written via the ReLU identity. Result is</span>
+<span class="sd">    finite and in ``[0, cap]`` for every x. Pure JAX (vmap/scan/jit-safe).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">reward</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">barrier_weight</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">barrier_a</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>        <span class="c1"># resolved (None -&gt; comm_r*0.6)</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">barrier_M</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>        <span class="c1"># resolved (None -&gt; comm_r)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">barrier_p</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">cap</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">barrier_cap</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">eps</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="n">n</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Chebyshev pairwise distance (same metric as the comm graph / controller._cheby),</span>
+    <span class="c1"># wall-OCCLUDED to d_eff when cfg.world.occlusion + wall are supplied so the barrier</span>
+    <span class="c1"># guards the REAL (line-of-sight) link, not a through-wall one.</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">_eff_cheby</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="p">)</span>                               <span class="c1"># (N,N)</span>
+    <span class="c1"># mask self with +inf so a lone agent yields x_i=+inf -&gt; caught by the x&gt;=M branch.</span>
+    <span class="c1"># (jnp.where, NOT eye*inf: 0*inf would be NaN on the OFF-diagonal and poison the min.)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>                <span class="c1"># (N,N), diag +inf</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>                                           <span class="c1"># (N,) nearest-nbr dist</span>
+
+    <span class="c1"># GUARD the pole: clamp x below M so the denominator (M - xc) &gt;= eps &gt; 0 (finite,</span>
+    <span class="c1"># never 0/negative), THEN cap. x &gt;= M (incl. x == M exactly and the +inf isolate)</span>
+    <span class="c1"># is forced to the ceiling regardless of the clamped value.</span>
+    <span class="n">xc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">M</span> <span class="o">-</span> <span class="n">eps</span><span class="p">)</span>                                      <span class="c1"># (N,) in (-inf, M-eps]</span>
+    <span class="n">raw</span> <span class="o">=</span> <span class="n">k</span> <span class="o">*</span> <span class="n">jax</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">xc</span> <span class="o">-</span> <span class="n">a</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="p">(</span><span class="n">M</span> <span class="o">-</span> <span class="n">xc</span><span class="p">)</span> <span class="o">**</span> <span class="n">p</span>                <span class="c1"># (N,) finite</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">cap</span><span class="p">)</span>                                         <span class="c1"># (N,) in [0, cap]</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="n">M</span><span class="p">,</span> <span class="n">cap</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>                                     <span class="c1"># broken link -&gt; cap</span>
+    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>                                      <span class="c1"># (N,)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.kb_adjacency" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">kb_adjacency</span>
+
+
+<a href="#ctde_v0.env_utils.kb_adjacency" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">kb_adjacency</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,N) bool — in-range neighbours at <code>comm_r</code> with the diagonal CLEARED.</p>
+<p>This is the comm graph the GNN-KB message-passing fuses over (the formalism's
+<em>bridge</em>). Chebyshev disk, derived from positions — matches the env's
+DiskTopology / the true-λ₂ soft graph support. With <code>wall</code> + <code>cfg.world.occlusion</code>
+the effective distance is wall-inflated (<code>d_eff</code>) so links through walls drop.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">kb_adjacency</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,N) bool — in-range neighbours at ``comm_r`` with the diagonal CLEARED.</span>
+
+<span class="sd">    This is the comm graph the GNN-KB message-passing fuses over (the formalism&#39;s</span>
+<span class="sd">    *bridge*). Chebyshev disk, derived from positions — matches the env&#39;s</span>
+<span class="sd">    DiskTopology / the true-λ₂ soft graph support. With ``wall`` + ``cfg.world.occlusion``</span>
+<span class="sd">    the effective distance is wall-inflated (``d_eff``) so links through walls drop.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">_eff_cheby</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="p">)</span>
+    <span class="n">adj</span> <span class="o">=</span> <span class="n">d</span> <span class="o">&lt;=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span>
+    <span class="k">return</span> <span class="n">adj</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.kb_distance" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">kb_distance</span>
+
+
+<a href="#ctde_v0.env_utils.kb_distance" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">kb_distance</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,N) float32 — the comm-graph sender→receiver Chebyshev distance, NORMALIZED
+by <code>comm_r</code> (so in-range edges land in [0,1]) with the diagonal CLEARED to 0.</p>
+<p>This is the SAME Chebyshev distance <code>kb_adjacency</code> thresholds (the comm graph /
+DiskTopology metric), exposed for the GNN-KB <code>message_content</code> modes that append a
+per-edge geometry channel to each message (<code>nets.MPLayer</code> / <code>edge_distance</code>). It
+is normalized by <code>comm_r</code> (NOT raw cells) so a model trained @16²/4 reads the same
+edge geometry @32²/10 — SCALE-INVARIANT. The receiver multiplies it by the (boolean)
+adjacency, so out-of-range entries (&gt; 1 here) never enter the aggregation.
+Pure JAX (vmap/scan/jit-safe).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">kb_distance</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">,</span> <span class="n">wall</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,N) float32 — the comm-graph sender→receiver Chebyshev distance, NORMALIZED</span>
+<span class="sd">    by ``comm_r`` (so in-range edges land in [0,1]) with the diagonal CLEARED to 0.</span>
+
+<span class="sd">    This is the SAME Chebyshev distance ``kb_adjacency`` thresholds (the comm graph /</span>
+<span class="sd">    DiskTopology metric), exposed for the GNN-KB ``message_content`` modes that append a</span>
+<span class="sd">    per-edge geometry channel to each message (``nets.MPLayer`` / ``edge_distance``). It</span>
+<span class="sd">    is normalized by ``comm_r`` (NOT raw cells) so a model trained @16²/4 reads the same</span>
+<span class="sd">    edge geometry @32²/10 — SCALE-INVARIANT. The receiver multiplies it by the (boolean)</span>
+<span class="sd">    adjacency, so out-of-range entries (&gt; 1 here) never enter the aggregation.</span>
+<span class="sd">    Pure JAX (vmap/scan/jit-safe).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">_eff_cheby</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">,</span> <span class="n">wall</span><span class="p">)</span>                                   <span class="c1"># (N,N) cheby, wall-occluded if on</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">comm_r</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>  <span class="c1"># normalize -&gt; [0,1] in-range</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># (N,N), diag 0</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.degree_stats" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">degree_stats</span>
+
+
+<a href="#ctde_v0.env_utils.degree_stats" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">degree_stats</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) float32 per-node in-range degree (neighbour count) over the comm
+graph — the per-node statistic the SizeShiftReg-style regularizer watches.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">degree_stats</span><span class="p">(</span><span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) float32 per-node in-range degree (neighbour count) over the comm</span>
+<span class="sd">    graph — the per-node statistic the SizeShiftReg-style regularizer watches.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">kb_adjacency</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.skill_congestion" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">skill_congestion</span>
+
+
+<a href="#ctde_v0.env_utils.skill_congestion" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">skill_congestion</span><span class="p">(</span><span class="n">skill_idx</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) float32 — the FREE-MARKET congestion price: for each agent, the number of its
+IN-RANGE neighbours that chose the SAME skill this step.</p>
+<p>Choosing a crowded skill (one many neighbours also picked) costs more, so the team
+spreads across the skill library instead of collapsing into one mode — the decentralized,
+learned-against anti-collapse force (the price is subtracted from the reward in
+:func:<code>compose_reward</code>, weighted by <code>congestion_weight</code>). It is LOCAL (reads only the
+comm neighbourhood) and emergent — NOT a global auction. Pure JAX (vmap/scan/jit-safe):</p>
+<p>adj_ij   = in-range neighbour (Chebyshev ≤ comm_r, i ≠ j; <code>kb_adjacency</code>)
+  same_ij  = skill_i == skill_j
+  price_i  = Σ_j adj_ij · same_ij                 (same-skill neighbour count)</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">skill_congestion</span><span class="p">(</span><span class="n">skill_idx</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                     <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) float32 — the FREE-MARKET congestion price: for each agent, the number of its</span>
+<span class="sd">    IN-RANGE neighbours that chose the SAME skill this step.</span>
+
+<span class="sd">    Choosing a crowded skill (one many neighbours also picked) costs more, so the team</span>
+<span class="sd">    spreads across the skill library instead of collapsing into one mode — the decentralized,</span>
+<span class="sd">    learned-against anti-collapse force (the price is subtracted from the reward in</span>
+<span class="sd">    :func:`compose_reward`, weighted by ``congestion_weight``). It is LOCAL (reads only the</span>
+<span class="sd">    comm neighbourhood) and emergent — NOT a global auction. Pure JAX (vmap/scan/jit-safe):</span>
+
+<span class="sd">      adj_ij   = in-range neighbour (Chebyshev ≤ comm_r, i ≠ j; ``kb_adjacency``)</span>
+<span class="sd">      same_ij  = skill_i == skill_j</span>
+<span class="sd">      price_i  = Σ_j adj_ij · same_ij                 (same-skill neighbour count)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">adj</span> <span class="o">=</span> <span class="n">kb_adjacency</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>                                <span class="c1"># (N,N) in-range, diag 0</span>
+    <span class="n">same</span> <span class="o">=</span> <span class="n">skill_idx</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">==</span> <span class="n">skill_idx</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>                  <span class="c1"># (N,N) same skill</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">adj</span> <span class="o">&amp;</span> <span class="n">same</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>                 <span class="c1"># (N,) crowding price</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.sense_frontier_bonus" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">sense_frontier_bonus</span>
+
+
+<a href="#ctde_v0.env_utils.sense_frontier_bonus" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">sense_frontier_bonus</span><span class="p">(</span><span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) float32 — the exploration "info-gain" bonus: per agent, the count of UNCOVERED,
+non-wall cells within Chebyshev <code>sense_r</code> of the agent. Rewards being where there is
+still ground to learn (drives agents toward the frontier) WITHOUT changing the coverage
+metric (it reads only the current world). Pure JAX (vmap/scan/jit-safe).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">sense_frontier_bonus</span><span class="p">(</span><span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) float32 — the exploration &quot;info-gain&quot; bonus: per agent, the count of UNCOVERED,</span>
+<span class="sd">    non-wall cells within Chebyshev ``sense_r`` of the agent. Rewards being where there is</span>
+<span class="sd">    still ground to learn (drives agents toward the frontier) WITHOUT changing the coverage</span>
+<span class="sd">    metric (it reads only the current world). Pure JAX (vmap/scan/jit-safe).&quot;&quot;&quot;</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">world</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">position</span>                                        <span class="c1"># (N,2)</span>
+    <span class="n">sr</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">sense_r</span><span class="p">)</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">world</span><span class="o">.</span><span class="n">wall</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">free_unc</span> <span class="o">=</span> <span class="p">((</span><span class="o">~</span><span class="n">world</span><span class="o">.</span><span class="n">covered</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">world</span><span class="o">.</span><span class="n">wall</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># (H,W) uncovered free</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>                            <span class="c1"># (H,)</span>
+    <span class="n">cols</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>                            <span class="c1"># (W,)</span>
+    <span class="n">dr</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">rows</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">pos</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">sr</span>              <span class="c1"># (N,H)</span>
+    <span class="n">dc</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">cols</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">pos</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">sr</span>              <span class="c1"># (N,W)</span>
+    <span class="n">in_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">dr</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">dc</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>  <span class="c1"># (N,H,W) cheby&lt;=sr</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">in_range</span> <span class="o">*</span> <span class="n">free_unc</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>             <span class="c1"># (N,) uncovered-in-view</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.coverage_fraction_free" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">coverage_fraction_free</span>
+
+
+<a href="#ctde_v0.env_utils.coverage_fraction_free" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">coverage_fraction_free</span><span class="p">(</span><span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Covered FREE cells / free cells (the campaign coverage-% definition).
+Falls back to all-cells when there are no walls (free == all).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">coverage_fraction_free</span><span class="p">(</span><span class="n">world</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Covered FREE cells / free cells (the campaign coverage-% definition).</span>
+<span class="sd">    Falls back to all-cells when there are no walls (free == all).&quot;&quot;&quot;</span>
+    <span class="k">del</span> <span class="n">cfg</span>
+    <span class="n">covered</span> <span class="o">=</span> <span class="n">world</span><span class="o">.</span><span class="n">covered</span>                       <span class="c1"># (H, W) bool</span>
+    <span class="n">free</span> <span class="o">=</span> <span class="o">~</span><span class="n">world</span><span class="o">.</span><span class="n">wall</span>                            <span class="c1"># (H, W) bool</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="p">(</span><span class="n">covered</span> <span class="o">&amp;</span> <span class="n">free</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">den</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">free</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">num</span> <span class="o">/</span> <span class="n">den</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.env_utils.coverage_difference_credit" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">coverage_difference_credit</span>
+
+
+<a href="#ctde_v0.env_utils.coverage_difference_credit" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">coverage_difference_credit</span><span class="p">(</span><span class="n">prev_covered</span><span class="p">,</span> <span class="n">position</span><span class="p">,</span> <span class="n">wall</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) float32 — the EXACT submodular difference reward for coverage THIS step.</p>
+<p><code>D_i = cov(S) − cov(S\{i})</code> on the submodular team-coverage objective, where
+<code>cov</code> = number of free cells the team covers this step that were NOT covered
+before. Because coverage is a set-cover (submodular) objective this marginal is a
+CLOSED FORM — no learned COMA estimate, no counterfactual rollout: it is exactly the
+cells that are (a) new to the team this step, (b) inside agent i's cover footprint,
+and (c) inside NO OTHER agent's footprint this step (a cell covered by ≥2 agents is
+redundant, so removing any one leaves it covered → it contributes 0 to every D_i).</p>
+<p>Read off the SAME <code>cheby_footprint</code> / <code>prev.covered</code> the env's <code>new_coverage</code>
+reward term uses (:func:<code>zymera.metrics.derive</code>), so the credit and the team coverage
+metric agree exactly:</p>
+<p>fp_i     = cheby_footprint(pos, cover_r) &amp; ~wall          (N,H,W) i's footprint
+  new_i    = fp_i &amp; ~prev_covered                          new-to-team cells in fp_i
+  count    = Σ_i fp_i                                      (H,W) coverers this step
+  D_i      = |{ c : new_i[c] ∧ count[c] == 1 }|            uniquely-provided new cells</p>
+<p><code>pos</code> is the POST-step position (matching the env's coverage bookkeeping); walls are
+static so <code>wall</code> may be taken from either the prev or the next world. Pure JAX
+(vmap/scan/jit-safe). Σ_i D_i ≤ team new-coverage this step (equality iff no two agents
+cover the same new cell).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/env_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">coverage_difference_credit</span><span class="p">(</span><span class="n">prev_covered</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">position</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                               <span class="n">wall</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">CTDEConfig</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) float32 — the EXACT submodular difference reward for coverage THIS step.</span>
+
+<span class="sd">    ``D_i = cov(S) − cov(S\\{i})`` on the submodular team-coverage objective, where</span>
+<span class="sd">    ``cov`` = number of free cells the team covers this step that were NOT covered</span>
+<span class="sd">    before. Because coverage is a set-cover (submodular) objective this marginal is a</span>
+<span class="sd">    CLOSED FORM — no learned COMA estimate, no counterfactual rollout: it is exactly the</span>
+<span class="sd">    cells that are (a) new to the team this step, (b) inside agent i&#39;s cover footprint,</span>
+<span class="sd">    and (c) inside NO OTHER agent&#39;s footprint this step (a cell covered by ≥2 agents is</span>
+<span class="sd">    redundant, so removing any one leaves it covered → it contributes 0 to every D_i).</span>
+
+<span class="sd">    Read off the SAME ``cheby_footprint`` / ``prev.covered`` the env&#39;s ``new_coverage``</span>
+<span class="sd">    reward term uses (:func:`zymera.metrics.derive`), so the credit and the team coverage</span>
+<span class="sd">    metric agree exactly:</span>
+
+<span class="sd">      fp_i     = cheby_footprint(pos, cover_r) &amp; ~wall          (N,H,W) i&#39;s footprint</span>
+<span class="sd">      new_i    = fp_i &amp; ~prev_covered                          new-to-team cells in fp_i</span>
+<span class="sd">      count    = Σ_i fp_i                                      (H,W) coverers this step</span>
+<span class="sd">      D_i      = |{ c : new_i[c] ∧ count[c] == 1 }|            uniquely-provided new cells</span>
+
+<span class="sd">    ``pos`` is the POST-step position (matching the env&#39;s coverage bookkeeping); walls are</span>
+<span class="sd">    static so ``wall`` may be taken from either the prev or the next world. Pure JAX</span>
+<span class="sd">    (vmap/scan/jit-safe). Σ_i D_i ≤ team new-coverage this step (equality iff no two agents</span>
+<span class="sd">    cover the same new cell).&quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">position</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">wall</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">cheby_footprint</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">world</span><span class="o">.</span><span class="n">cover_r</span><span class="p">)</span>       <span class="c1"># (N,H,W) bool footprint</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">fp</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">wall</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>                                         <span class="c1"># free cells only</span>
+    <span class="n">new_fp</span> <span class="o">=</span> <span class="n">fp</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">prev_covered</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>                            <span class="c1"># (N,H,W) new-to-team in fp_i</span>
+    <span class="n">unique</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>                                       <span class="c1"># (H,W) covered by exactly one</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_fp</span> <span class="o">&amp;</span> <span class="n">unique</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>          <span class="c1"># (N,) uniquely-provided new cells</span>
+    <span class="k">return</span> <span class="n">d</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.tabs", "navigation.top", "search.suggest", "content.code.copy", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

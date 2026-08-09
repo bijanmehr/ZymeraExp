@@ -11,24 +11,28 @@
       
       
       
+        <link rel="prev" href="../plug_ctde/">
+      
+      
+        <link rel="next" href="../render_compare/">
       
       
         
       
       
-      <link rel="icon" href="/assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Zymera · pipeline code reference</title>
+        <title>probe_mvprop - Zymera · pipeline code reference</title>
       
     
     
-      <link rel="stylesheet" href="/assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="/assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -47,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="/assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -73,6 +77,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#t5labprobe_mvprop" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -83,7 +92,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/." title="Zymera · pipeline code reference" class="md-header__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
+    <a href="../../.." title="Zymera · pipeline code reference" class="md-header__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -103,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              probe_mvprop
             
           </span>
         </div>
@@ -190,7 +199,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="/." class="md-tabs__link">
+      <a href="../../.." class="md-tabs__link">
         
   
   
@@ -207,6 +216,8 @@
   
   
   
+    
+  
   
     
     
@@ -214,11 +225,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="/reference/ctde_v0/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../ctde_v0/" class="md-tabs__link">
           
   
   
@@ -255,7 +268,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/." title="Zymera · pipeline code reference" class="md-nav__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
+    <a href="../../.." title="Zymera · pipeline code reference" class="md-nav__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -273,7 +286,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -297,26 +310,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -334,7 +352,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -358,17 +376,20 @@
       
       
         
+          
+          
+        
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
         
           
-          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="">
             
   
   
@@ -404,7 +425,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/" class="md-nav__link">
+      <a href="../../ctde_v0/" class="md-nav__link">
         
   
   
@@ -432,7 +453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/checkpoint/" class="md-nav__link">
+      <a href="../../ctde_v0/checkpoint/" class="md-nav__link">
         
   
   
@@ -460,7 +481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/compass_ceiling/" class="md-nav__link">
+      <a href="../../ctde_v0/compass_ceiling/" class="md-nav__link">
         
   
   
@@ -488,7 +509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/config/" class="md-nav__link">
+      <a href="../../ctde_v0/config/" class="md-nav__link">
         
   
   
@@ -516,7 +537,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/contribution/" class="md-nav__link">
+      <a href="../../ctde_v0/contribution/" class="md-nav__link">
         
   
   
@@ -544,7 +565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/controller/" class="md-nav__link">
+      <a href="../../ctde_v0/controller/" class="md-nav__link">
         
   
   
@@ -572,7 +593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/env_utils/" class="md-nav__link">
+      <a href="../../ctde_v0/env_utils/" class="md-nav__link">
         
   
   
@@ -600,7 +621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/es/" class="md-nav__link">
+      <a href="../../ctde_v0/es/" class="md-nav__link">
         
   
   
@@ -628,7 +649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/flock/" class="md-nav__link">
+      <a href="../../ctde_v0/flock/" class="md-nav__link">
         
   
   
@@ -656,7 +677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/make_report/" class="md-nav__link">
+      <a href="../../ctde_v0/make_report/" class="md-nav__link">
         
   
   
@@ -684,7 +705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/mem_probe/" class="md-nav__link">
+      <a href="../../ctde_v0/mem_probe/" class="md-nav__link">
         
   
   
@@ -712,7 +733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/nets/" class="md-nav__link">
+      <a href="../../ctde_v0/nets/" class="md-nav__link">
         
   
   
@@ -740,7 +761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/ppo/" class="md-nav__link">
+      <a href="../../ctde_v0/ppo/" class="md-nav__link">
         
   
   
@@ -768,7 +789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/probe_frontier_align/" class="md-nav__link">
+      <a href="../../ctde_v0/probe_frontier_align/" class="md-nav__link">
         
   
   
@@ -796,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/probe_message_ablation/" class="md-nav__link">
+      <a href="../../ctde_v0/probe_message_ablation/" class="md-nav__link">
         
   
   
@@ -824,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/render/" class="md-nav__link">
+      <a href="../../ctde_v0/render/" class="md-nav__link">
         
   
   
@@ -852,7 +873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_9090/" class="md-nav__link">
+      <a href="../../ctde_v0/run_9090/" class="md-nav__link">
         
   
   
@@ -880,7 +901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_ab_overnight/" class="md-nav__link">
+      <a href="../../ctde_v0/run_ab_overnight/" class="md-nav__link">
         
   
   
@@ -908,7 +929,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_bench/" class="md-nav__link">
+      <a href="../../ctde_v0/run_bench/" class="md-nav__link">
         
   
   
@@ -936,7 +957,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_conn_shootout/" class="md-nav__link">
+      <a href="../../ctde_v0/run_conn_shootout/" class="md-nav__link">
         
   
   
@@ -964,7 +985,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_critic_t4/" class="md-nav__link">
+      <a href="../../ctde_v0/run_critic_t4/" class="md-nav__link">
         
   
   
@@ -992,7 +1013,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_crowded_overnight/" class="md-nav__link">
+      <a href="../../ctde_v0/run_crowded_overnight/" class="md-nav__link">
         
   
   
@@ -1020,7 +1041,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_ctde_sweep/" class="md-nav__link">
+      <a href="../../ctde_v0/run_ctde_sweep/" class="md-nav__link">
         
   
   
@@ -1048,7 +1069,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_es/" class="md-nav__link">
+      <a href="../../ctde_v0/run_es/" class="md-nav__link">
         
   
   
@@ -1076,7 +1097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_frontier/" class="md-nav__link">
+      <a href="../../ctde_v0/run_frontier/" class="md-nav__link">
         
   
   
@@ -1104,7 +1125,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_lag_t3/" class="md-nav__link">
+      <a href="../../ctde_v0/run_lag_t3/" class="md-nav__link">
         
   
   
@@ -1132,7 +1153,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_lag_t3b/" class="md-nav__link">
+      <a href="../../ctde_v0/run_lag_t3b/" class="md-nav__link">
         
   
   
@@ -1160,7 +1181,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_obstacle_overnight/" class="md-nav__link">
+      <a href="../../ctde_v0/run_obstacle_overnight/" class="md-nav__link">
         
   
   
@@ -1188,7 +1209,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_occ/" class="md-nav__link">
+      <a href="../../ctde_v0/run_occ/" class="md-nav__link">
         
   
   
@@ -1216,7 +1237,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_roles_t2/" class="md-nav__link">
+      <a href="../../ctde_v0/run_roles_t2/" class="md-nav__link">
         
   
   
@@ -1244,7 +1265,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_scale_ladder/" class="md-nav__link">
+      <a href="../../ctde_v0/run_scale_ladder/" class="md-nav__link">
         
   
   
@@ -1272,7 +1293,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_serial32/" class="md-nav__link">
+      <a href="../../ctde_v0/run_serial32/" class="md-nav__link">
         
   
   
@@ -1300,7 +1321,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_skills_overnight/" class="md-nav__link">
+      <a href="../../ctde_v0/run_skills_overnight/" class="md-nav__link">
         
   
   
@@ -1328,7 +1349,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_slam_attn/" class="md-nav__link">
+      <a href="../../ctde_v0/run_slam_attn/" class="md-nav__link">
         
   
   
@@ -1356,7 +1377,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_warmab/" class="md-nav__link">
+      <a href="../../ctde_v0/run_warmab/" class="md-nav__link">
         
   
   
@@ -1384,7 +1405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/run_warmbig/" class="md-nav__link">
+      <a href="../../ctde_v0/run_warmbig/" class="md-nav__link">
         
   
   
@@ -1412,7 +1433,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/terrains/" class="md-nav__link">
+      <a href="../../ctde_v0/terrains/" class="md-nav__link">
         
   
   
@@ -1440,7 +1461,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/ctde_v0/train_ctde/" class="md-nav__link">
+      <a href="../../ctde_v0/train_ctde/" class="md-nav__link">
         
   
   
@@ -1473,26 +1494,31 @@
                 
   
   
+    
   
   
+  
     
     
     
     
       
       
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
         
           
-          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
             
   
   
@@ -1510,7 +1536,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1528,7 +1554,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -1556,7 +1582,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/actor/" class="md-nav__link">
+      <a href="../actor/" class="md-nav__link">
         
   
   
@@ -1584,7 +1610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/arm_run/" class="md-nav__link">
+      <a href="../arm_run/" class="md-nav__link">
         
   
   
@@ -1612,7 +1638,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/ctde_baseline/" class="md-nav__link">
+      <a href="../ctde_baseline/" class="md-nav__link">
         
   
   
@@ -1640,7 +1666,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/distill/" class="md-nav__link">
+      <a href="../distill/" class="md-nav__link">
         
   
   
@@ -1668,7 +1694,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/make_mvprop_report/" class="md-nav__link">
+      <a href="../make_mvprop_report/" class="md-nav__link">
         
   
   
@@ -1696,7 +1722,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/mvprop/" class="md-nav__link">
+      <a href="../mvprop/" class="md-nav__link">
         
   
   
@@ -1724,7 +1750,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/occ_eval/" class="md-nav__link">
+      <a href="../occ_eval/" class="md-nav__link">
         
   
   
@@ -1752,7 +1778,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/open_run/" class="md-nav__link">
+      <a href="../open_run/" class="md-nav__link">
         
   
   
@@ -1780,7 +1806,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/planner/" class="md-nav__link">
+      <a href="../planner/" class="md-nav__link">
         
   
   
@@ -1808,7 +1834,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/planner_arms/" class="md-nav__link">
+      <a href="../planner_arms/" class="md-nav__link">
         
   
   
@@ -1836,7 +1862,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/planner_generalization/" class="md-nav__link">
+      <a href="../planner_generalization/" class="md-nav__link">
         
   
   
@@ -1864,7 +1890,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/planner_vs_greedy/" class="md-nav__link">
+      <a href="../planner_vs_greedy/" class="md-nav__link">
         
   
   
@@ -1892,7 +1918,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/plug_ctde/" class="md-nav__link">
+      <a href="../plug_ctde/" class="md-nav__link">
         
   
   
@@ -1917,10 +1943,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/reference/t5lab/probe_mvprop/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_mvprop
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1936,6 +1989,76 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;probe_mvprop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" probe_mvprop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop.vn_move_from_field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;vn_move_from_field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop.vn_move_from_dist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;vn_move_from_dist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop.rand_wall" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;rand_wall
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1948,7 +2071,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/render_compare/" class="md-nav__link">
+      <a href="../render_compare/" class="md-nav__link">
         
   
   
@@ -1976,7 +2099,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/render_mvprop/" class="md-nav__link">
+      <a href="../render_mvprop/" class="md-nav__link">
         
   
   
@@ -2004,7 +2127,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/render_occ/" class="md-nav__link">
+      <a href="../render_occ/" class="md-nav__link">
         
   
   
@@ -2032,7 +2155,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/render_planner/" class="md-nav__link">
+      <a href="../render_planner/" class="md-nav__link">
         
   
   
@@ -2060,7 +2183,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/rollout/" class="md-nav__link">
+      <a href="../rollout/" class="md-nav__link">
         
   
   
@@ -2088,7 +2211,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/run_mvprop/" class="md-nav__link">
+      <a href="../run_mvprop/" class="md-nav__link">
         
   
   
@@ -2116,7 +2239,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/run_phase1a/" class="md-nav__link">
+      <a href="../run_phase1a/" class="md-nav__link">
         
   
   
@@ -2144,7 +2267,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/t5lab/train/" class="md-nav__link">
+      <a href="../train/" class="md-nav__link">
         
   
   
@@ -2186,17 +2309,20 @@
       
       
         
+          
+          
+        
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
         
           
-          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
             
   
   
@@ -2232,7 +2358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/" class="md-nav__link">
+      <a href="../../planner_study/" class="md-nav__link">
         
   
   
@@ -2260,7 +2386,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ablate_distill/" class="md-nav__link">
+      <a href="../../planner_study/ablate_distill/" class="md-nav__link">
         
   
   
@@ -2288,7 +2414,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ablate_viz/" class="md-nav__link">
+      <a href="../../planner_study/ablate_viz/" class="md-nav__link">
         
   
   
@@ -2316,7 +2442,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ceiling_bfs/" class="md-nav__link">
+      <a href="../../planner_study/ceiling_bfs/" class="md-nav__link">
         
   
   
@@ -2344,7 +2470,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/comms_demo/" class="md-nav__link">
+      <a href="../../planner_study/comms_demo/" class="md-nav__link">
         
   
   
@@ -2372,7 +2498,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ma_bracket_demo/" class="md-nav__link">
+      <a href="../../planner_study/ma_bracket_demo/" class="md-nav__link">
         
   
   
@@ -2400,7 +2526,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ma_planner_bracket/" class="md-nav__link">
+      <a href="../../planner_study/ma_planner_bracket/" class="md-nav__link">
         
   
   
@@ -2428,7 +2554,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ms_bench/" class="md-nav__link">
+      <a href="../../planner_study/ms_bench/" class="md-nav__link">
         
   
   
@@ -2456,7 +2582,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/ms_visuals/" class="md-nav__link">
+      <a href="../../planner_study/ms_visuals/" class="md-nav__link">
         
   
   
@@ -2484,7 +2610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/planner_verify/" class="md-nav__link">
+      <a href="../../planner_study/planner_verify/" class="md-nav__link">
         
   
   
@@ -2512,7 +2638,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/render5/" class="md-nav__link">
+      <a href="../../planner_study/render5/" class="md-nav__link">
         
   
   
@@ -2540,7 +2666,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/planner_study/validate_mvprop/" class="md-nav__link">
+      <a href="../../planner_study/validate_mvprop/" class="md-nav__link">
         
   
   
@@ -2582,17 +2708,20 @@
       
       
         
+          
+          
+        
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
         
           
-          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
             
   
   
@@ -2628,7 +2757,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/audits/" class="md-nav__link">
+      <a href="../../audits/" class="md-nav__link">
         
   
   
@@ -2656,7 +2785,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/reference/audits/probe_audit/" class="md-nav__link">
+      <a href="../../audits/probe_audit/" class="md-nav__link">
         
   
   
@@ -2709,6 +2838,66 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;probe_mvprop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" probe_mvprop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop.vn_move_from_field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;vn_move_from_field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop.vn_move_from_dist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;vn_move_from_dist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#t5lab.probe_mvprop.rand_wall" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;rand_wall
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -2721,8 +2910,186 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+
+<h1 id="t5labprobe_mvprop"><code>t5lab.probe_mvprop</code><a class="headerlink" href="#t5labprobe_mvprop" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="t5lab.probe_mvprop" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">probe_mvprop</span>
+
+
+<a href="#t5lab.probe_mvprop" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Root-cause probe + distillation feasibility for the MVProp planner.</p>
+<p>Part A — WHY RL-only MVProp never sharpens: at init the value field is near-flat / near-zero
+where agents actually are, so the derived move is uninformative and the RL gradient through
+K max-prop sweeps (max sparsity x w^K flood-decay) vanishes -&gt; stuck.</p>
+<p>Part B — the fix: distil MVProp's field toward the classical wavefront (controller.nav_distance_field,
+free + already in the codebase). Dense per-cell target -&gt; gradients everywhere. Show the field
+then matches the teacher and the derived von-Neumann move matches the classical navfield move.</p>
+
+
+<details class="run" open>
+  <summary>Run</summary>
+  <p>V=/Users/bijanmehr/Project.Zymera/zymera_lab/.venv/bin/python
+PYTHONPATH=.:/Users/bijanmehr/Project.Zymera/zymera_lab $V -m t5lab.probe_mvprop</p>
+</details>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="t5lab.probe_mvprop.vn_move_from_field" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">vn_move_from_field</span>
+
+
+<a href="#t5lab.probe_mvprop.vn_move_from_field" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">vn_move_from_field</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">cell</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>argmax over the 5 von-Neumann neighbour values -&gt; action index (STAY,N,E,S,W).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/t5lab/probe_mvprop.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">vn_move_from_field</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;argmax over the 5 von-Neumann neighbour values -&gt; action index (STAY,N,E,S,W).&quot;&quot;&quot;</span>
+    <span class="n">nb</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">cell</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">_DELTAS</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">H</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">W</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">V</span><span class="p">[</span><span class="n">nb</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">nb</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="t5lab.probe_mvprop.vn_move_from_dist" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">vn_move_from_dist</span>
+
+
+<a href="#t5lab.probe_mvprop.vn_move_from_dist" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">vn_move_from_dist</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">cell</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>argmin over the 5 von-Neumann neighbour distances -&gt; the classical navfield move.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/t5lab/probe_mvprop.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">vn_move_from_dist</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">cell</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;argmin over the 5 von-Neumann neighbour distances -&gt; the classical navfield move.&quot;&quot;&quot;</span>
+    <span class="n">nb</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">cell</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">_DELTAS</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">H</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">W</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">D</span><span class="p">[</span><span class="n">nb</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">nb</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]]))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="t5lab.probe_mvprop.rand_wall" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">rand_wall</span>
+
+
+<a href="#t5lab.probe_mvprop.rand_wall" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">rand_wall</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>~half open, ~half a few random axis-aligned wall segments (like local clutter).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/t5lab/probe_mvprop.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">rand_wall</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;~half open, ~half a few random axis-aligned wall segments (like local clutter).&quot;&quot;&quot;</span>
+    <span class="n">k1</span><span class="p">,</span> <span class="n">k2</span><span class="p">,</span> <span class="n">k3</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">k1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">H</span><span class="p">,</span> <span class="n">W</span><span class="p">),</span> <span class="nb">bool</span><span class="p">)</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">H</span><span class="p">,</span> <span class="n">W</span><span class="p">),</span> <span class="nb">bool</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">kk</span> <span class="ow">in</span> <span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">k2</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="p">(),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">H</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">c0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">kk</span><span class="p">,</span> <span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">W</span> <span class="o">//</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">b</span><span class="p">[</span><span class="n">r</span><span class="p">,</span> <span class="n">c0</span><span class="p">:</span><span class="n">c0</span> <span class="o">+</span> <span class="n">W</span> <span class="o">//</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -2765,10 +3132,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/", "features": ["navigation.sections", "navigation.tabs", "navigation.top", "search.suggest", "content.code.copy", "toc.follow"], "search": "/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.tabs", "navigation.top", "search.suggest", "content.code.copy", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="/assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

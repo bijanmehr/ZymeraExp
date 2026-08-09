@@ -1,0 +1,4263 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="API documentation for the learning / experiment pipelines (zymera_lab/experiments).">
+      
+      
+      
+      
+        <link rel="prev" href="../contribution/">
+      
+      
+        <link rel="next" href="../env_utils/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>controller - Zymera · pipeline code reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ctde_v0controller" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Zymera · pipeline code reference" class="md-header__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Zymera · pipeline code reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              controller
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Overview
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  Code reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Zymera · pipeline code reference" class="md-nav__button md-logo" aria-label="Zymera · pipeline code reference" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Zymera · pipeline code reference
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Code reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_v0
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ctde_v0
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_v0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../checkpoint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    checkpoint
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compass_ceiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    compass_ceiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contribution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    contribution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    controller
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    controller
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ctde_v0.controller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;controller
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" controller">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller--pieces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pieces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.goal_stencil" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;goal_stencil
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.goal_targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;goal_targets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.occupied_cell_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;occupied_cell_mask
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.resolve_target_conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;resolve_target_conflicts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.greedy_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;greedy_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.nav_distance_field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;nav_distance_field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.navfield_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;navfield_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.candidate_first_moves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;candidate_first_moves
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.relay_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;relay_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.relay_hold_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;relay_hold_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.positions_after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;positions_after
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.team_lambda2_after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;team_lambda2_after
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.safe_goal_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;safe_goal_mask
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../env_utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    env_utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../es/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    es
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    flock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../make_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    make_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mem_probe/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mem_probe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ppo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ppo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../probe_frontier_align/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_frontier_align
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../probe_message_ablation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_message_ablation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../render/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_9090/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_9090
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_ab_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_ab_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_bench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_bench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_conn_shootout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_conn_shootout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_critic_t4/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_critic_t4
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_crowded_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_crowded_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_ctde_sweep/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_ctde_sweep
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_es/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_es
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_frontier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_frontier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_lag_t3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_lag_t3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_lag_t3b/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_lag_t3b
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_obstacle_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_obstacle_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_occ/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_occ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_roles_t2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_roles_t2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_scale_ladder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_scale_ladder
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_serial32/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_serial32
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_skills_overnight/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_skills_overnight
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_slam_attn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_slam_attn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_warmab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_warmab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run_warmbig/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_warmbig
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terrains/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    terrains
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../train_ctde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train_ctde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    t5lab
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    t5lab
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    t5lab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/actor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    actor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/arm_run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    arm_run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/ctde_baseline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_baseline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/distill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    distill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/make_mvprop_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    make_mvprop_report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/occ_eval/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    occ_eval
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/open_run/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    open_run
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner_arms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_arms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner_generalization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_generalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/planner_vs_greedy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_vs_greedy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/plug_ctde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    plug_ctde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/probe_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_compare/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_compare
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_occ/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_occ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/render_planner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render_planner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/rollout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    rollout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/run_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/run_phase1a/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_phase1a
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../t5lab/train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_study
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    planner_study
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_study
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ablate_distill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ablate_distill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ablate_viz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ablate_viz
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ceiling_bfs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ceiling_bfs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/comms_demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    comms_demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ma_bracket_demo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ma_bracket_demo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ma_planner_bracket/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ma_planner_bracket
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ms_bench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ms_bench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/ms_visuals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ms_visuals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/planner_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    planner_verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/render5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    render5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../planner_study/validate_mvprop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    validate_mvprop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    audits
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    audits
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    audits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audits/probe_audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probe_audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ctde_v0.controller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;controller
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" controller">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller--pieces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pieces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.goal_stencil" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;goal_stencil
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.goal_targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;goal_targets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.occupied_cell_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;occupied_cell_mask
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.resolve_target_conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;resolve_target_conflicts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.greedy_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;greedy_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.nav_distance_field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;nav_distance_field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.navfield_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;navfield_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.candidate_first_moves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;candidate_first_moves
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.relay_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;relay_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.relay_hold_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;relay_hold_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.positions_after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;positions_after
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.team_lambda2_after" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;team_lambda2_after
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctde_v0.controller.safe_goal_mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-function"></code>&nbsp;safe_goal_mask
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="ctde_v0controller"><code>ctde_v0.controller</code><a class="headerlink" href="#ctde_v0controller" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="ctde_v0.controller" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">controller</span>
+
+
+<a href="#ctde_v0.controller" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>L1 controller + goal-candidate stencil + the mission-safety mechanism.</p>
+<p>The multi-level (L3-&gt;L1) action stack lives here. L3 (the goal head in
+<code>nets.Actor</code>) picks one of K candidate relative waypoints; this module turns
+that choice into the actual env move, emitting ONLY valid 1-step moves (STAY
+fallback). The simulator therefore still sees movement-only actions and the
+100-step budget is unchanged (agent_architecture.md L2/L1; EXPERIMENT_PLAN 1a').</p>
+<h4 id="ctde_v0.controller--pieces">Pieces<a class="headerlink" href="#ctde_v0.controller--pieces" title="Permanent link">&para;</a></h4>
+<ul>
+<li>:func:<code>goal_stencil</code> — the fixed K relative offsets (center + 8 compass dirs
+  at <code>stride</code>, in ABSOLUTE cells so the goal geometry is scale-invariant).</li>
+<li>:func:<code>goal_targets</code> — absolute goal cell for every agent × candidate.</li>
+<li>:func:<code>greedy_move</code> — the L1 controller: of the env-valid moves
+  (<code>dynamics.targets</code> / <code>action_mask</code>), take the one that most reduces
+  Chebyshev distance to the chosen goal; STAY if none helps.</li>
+<li>:func:<code>occupied_cell_mask</code> — (N,A) bool flagging actions whose committed cell
+  is the CURRENT cell of another agent (the hard collision-mask signal); both
+  controllers can <code>forbid_collision</code> to remove those actions before argmin/max.</li>
+<li>:func:<code>team_lambda2_after_action</code> — true λ₂ the team would have after a
+  proposed joint move (used by the action-mask mechanism to score candidates).</li>
+<li>:func:<code>candidate_first_moves</code> — for each agent × candidate, the env move the
+  greedy controller would take FIRST (so the mechanism can mask a candidate by
+  the connectivity it would cause).</li>
+</ul>
+<p>Everything is pure JAX (vmap/scan-safe). The env (its <code>dynamics</code> /
+<code>action_mask</code> tables) is the single source of truth for wall-awareness.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.goal_stencil" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">goal_stencil</span>
+
+
+<a href="#ctde_v0.controller.goal_stencil" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">goal_stencil</span><span class="p">(</span><span class="n">K</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(K, 2) int32 relative offsets — the first <code>K</code> of the compass stencil,
+each scaled by <code>stride</code> (cell 0 = here, unscaled).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">goal_stencil</span><span class="p">(</span><span class="n">K</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">stride</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(K, 2) int32 relative offsets — the first ``K`` of the compass stencil,</span>
+<span class="sd">    each scaled by ``stride`` (cell 0 = here, unscaled).&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">K</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">K</span> <span class="o">&gt;</span> <span class="n">_COMPASS</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;K must be in 1..</span><span class="si">{</span><span class="n">_COMPASS</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">K</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">_COMPASS</span><span class="p">[:</span><span class="n">K</span><span class="p">]</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">K</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">base</span> <span class="o">*</span> <span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.goal_targets" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">goal_targets</span>
+
+
+<a href="#ctde_v0.controller.goal_targets" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">goal_targets</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">stencil</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N, K, 2) int32 absolute goal cells (clipped in-bounds) for each agent ×
+candidate. <code>pos</code> (N,2), <code>stencil</code> (K,2).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">goal_targets</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">stencil</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">h</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N, K, 2) int32 absolute goal cells (clipped in-bounds) for each agent ×</span>
+<span class="sd">    candidate. ``pos`` (N,2), ``stencil`` (K,2).&quot;&quot;&quot;</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">pos</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">stencil</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>                  <span class="c1"># (N,K,2)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">h</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">w</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">r</span><span class="p">,</span> <span class="n">c</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.occupied_cell_mask" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">occupied_cell_mask</span>
+
+
+<a href="#ctde_v0.controller.occupied_cell_mask" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">occupied_cell_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N, A) bool — True where action <code>a</code>'s committed target <code>valid_targets[i,a]</code>
+lands on the CURRENT cell of ANY OTHER agent <code>j != i</code> (the hard collision
+signal). Exact integer-cell match, broadcast over agents.</p>
+<p>STAY (<code>valid_targets[i, STAY] == pos[i]</code>, the agent's own cell) is NEVER
+flagged: an agent's own current cell does not count as "occupied by another",
+and we force STAY's column off regardless so it always remains selectable.</p>
+<p>NOTE: this forbids moving onto a cell another agent occupies RIGHT NOW. The remaining
+case — two agents simultaneously claiming the same EMPTY cell under the NoCollision env
+semantics — is closed by :func:<code>resolve_target_conflicts</code> (deterministic index priority),
+applied to the chosen moves after selection. The two together GUARANTEE no two agents share
+a cell after the step (verified by tests/test_collision_free.py).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span>
+<span class="normal">86</span>
+<span class="normal">87</span>
+<span class="normal">88</span>
+<span class="normal">89</span>
+<span class="normal">90</span>
+<span class="normal">91</span>
+<span class="normal">92</span>
+<span class="normal">93</span>
+<span class="normal">94</span>
+<span class="normal">95</span>
+<span class="normal">96</span>
+<span class="normal">97</span>
+<span class="normal">98</span>
+<span class="normal">99</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">occupied_cell_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N, A) bool — True where action ``a``&#39;s committed target ``valid_targets[i,a]``</span>
+<span class="sd">    lands on the CURRENT cell of ANY OTHER agent ``j != i`` (the hard collision</span>
+<span class="sd">    signal). Exact integer-cell match, broadcast over agents.</span>
+
+<span class="sd">    STAY (``valid_targets[i, STAY] == pos[i]``, the agent&#39;s own cell) is NEVER</span>
+<span class="sd">    flagged: an agent&#39;s own current cell does not count as &quot;occupied by another&quot;,</span>
+<span class="sd">    and we force STAY&#39;s column off regardless so it always remains selectable.</span>
+
+<span class="sd">    NOTE: this forbids moving onto a cell another agent occupies RIGHT NOW. The remaining</span>
+<span class="sd">    case — two agents simultaneously claiming the same EMPTY cell under the NoCollision env</span>
+<span class="sd">    semantics — is closed by :func:`resolve_target_conflicts` (deterministic index priority),</span>
+<span class="sd">    applied to the chosen moves after selection. The two together GUARANTEE no two agents share</span>
+<span class="sd">    a cell after the step (verified by tests/test_collision_free.py).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># tgt[i,a] == pos[j] for some j != i  (compare every target to every cur cell).</span>
+    <span class="n">same</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">valid_targets</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">pos</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># (N,A,N)</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="o">~</span><span class="n">jnp</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>                                  <span class="c1"># (N,N) j != i</span>
+    <span class="n">occ</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">same</span> <span class="o">&amp;</span> <span class="n">other</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>                 <span class="c1"># (N,A) any other on it</span>
+    <span class="n">stay</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ActionId</span><span class="o">.</span><span class="n">STAY</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">occ</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="n">stay</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>                               <span class="c1"># STAY never blocked</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.resolve_target_conflicts" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">resolve_target_conflicts</span>
+
+
+<a href="#ctde_v0.controller.resolve_target_conflicts" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">resolve_target_conflicts</span><span class="p">(</span><span class="n">move</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) resolved move — the hard-collision COMPLETION of :func:<code>occupied_cell_mask</code>.</p>
+<p><code>occupied_cell_mask</code> forbids stepping onto a cell occupied RIGHT NOW, but two agents can
+still commit to the same EMPTY cell in a single tick (the documented NoCollision hole). This
+closes it by DETERMINISTIC INDEX PRIORITY: among all agents whose committed target cell
+<code>valid_targets[i, move[i]]</code> is identical, only the LOWEST-index agent proceeds; every
+higher-index agent reverts to STAY (its own current cell).</p>
+<p>Together with <code>occupied_cell_mask</code> (no move targets a currently-occupied cell) and distinct
+start cells this GUARANTEES no two agents share a cell after the step: convergence is broken
+here; moving-onto-occupied is masked upstream; and a reverted agent lands on its own cell,
+which no other agent can target (that cell was occupied, hence already masked). Deterministic
+and jit-stable (no data-dependent shapes).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">resolve_target_conflicts</span><span class="p">(</span><span class="n">move</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) resolved move — the hard-collision COMPLETION of :func:`occupied_cell_mask`.</span>
+
+<span class="sd">    ``occupied_cell_mask`` forbids stepping onto a cell occupied RIGHT NOW, but two agents can</span>
+<span class="sd">    still commit to the same EMPTY cell in a single tick (the documented NoCollision hole). This</span>
+<span class="sd">    closes it by DETERMINISTIC INDEX PRIORITY: among all agents whose committed target cell</span>
+<span class="sd">    ``valid_targets[i, move[i]]`` is identical, only the LOWEST-index agent proceeds; every</span>
+<span class="sd">    higher-index agent reverts to STAY (its own current cell).</span>
+
+<span class="sd">    Together with ``occupied_cell_mask`` (no move targets a currently-occupied cell) and distinct</span>
+<span class="sd">    start cells this GUARANTEES no two agents share a cell after the step: convergence is broken</span>
+<span class="sd">    here; moving-onto-occupied is masked upstream; and a reverted agent lands on its own cell,</span>
+<span class="sd">    which no other agent can target (that cell was occupied, hence already masked). Deterministic</span>
+<span class="sd">    and jit-stable (no data-dependent shapes).&quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">move</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">tgt</span> <span class="o">=</span> <span class="n">valid_targets</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">move</span><span class="p">]</span>                          <span class="c1"># (N,2) committed target cell</span>
+    <span class="n">same</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">tgt</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">tgt</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>       <span class="c1"># (N,N) i,j claim same cell</span>
+    <span class="n">lower</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">tril</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">),</span> <span class="nb">bool</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>                      <span class="c1"># (N,N) j &lt; i (priority)</span>
+    <span class="n">yield_i</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">same</span> <span class="o">&amp;</span> <span class="n">lower</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>                           <span class="c1"># (N,) a higher-priority agent claims it</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">yield_i</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">ActionId</span><span class="o">.</span><span class="n">STAY</span><span class="p">)),</span> <span class="n">move</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.greedy_move" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">greedy_move</span>
+
+
+<a href="#ctde_v0.controller.greedy_move" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">greedy_move</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">goal</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) int32 — L1 greedy controller move toward <code>goal</code>.</p>
+<p>For each agent: among env-VALID actions (<code>action_valid</code> (N,A) bool, from
+<code>env.action_mask</code>), pick the one whose committed cell (<code>valid_targets</code>
+(N,A,2), from <code>dynamics.targets</code>) minimizes Chebyshev distance to the goal.
+Ties and "no move helps" fall back to STAY (STAY is always valid). The result
+is always a valid move, so :class:<code>SequentialClaim</code>/the env never reverts it.</p>
+<p><code>goal</code> (N,2) int32 — the chosen absolute goal cell per agent. When
+<code>forbid_collision</code> is True the hard collision-mask (:func:<code>occupied_cell_mask</code>)
+removes actions whose target sits on another agent's CURRENT cell (their
+distance is set to +inf before the argmin); STAY always stays selectable.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">greedy_move</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">goal</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                <span class="n">action_valid</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) int32 — L1 greedy controller move toward ``goal``.</span>
+
+<span class="sd">    For each agent: among env-VALID actions (``action_valid`` (N,A) bool, from</span>
+<span class="sd">    ``env.action_mask``), pick the one whose committed cell (``valid_targets``</span>
+<span class="sd">    (N,A,2), from ``dynamics.targets``) minimizes Chebyshev distance to the goal.</span>
+<span class="sd">    Ties and &quot;no move helps&quot; fall back to STAY (STAY is always valid). The result</span>
+<span class="sd">    is always a valid move, so :class:`SequentialClaim`/the env never reverts it.</span>
+
+<span class="sd">    ``goal`` (N,2) int32 — the chosen absolute goal cell per agent. When</span>
+<span class="sd">    ``forbid_collision`` is True the hard collision-mask (:func:`occupied_cell_mask`)</span>
+<span class="sd">    removes actions whose target sits on another agent&#39;s CURRENT cell (their</span>
+<span class="sd">    distance is set to +inf before the argmin); STAY always stays selectable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">_cheby</span><span class="p">(</span><span class="n">valid_targets</span><span class="p">,</span> <span class="n">goal</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>   <span class="c1"># (N,A) dist if taken</span>
+    <span class="c1"># forbid invalid actions by a large distance so argmin never selects them.</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">action_valid</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">forbid_collision</span><span class="p">:</span>
+        <span class="c1"># hard collision mask: same +inf-distance trick removes occupied-cell moves.</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">occupied_cell_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+    <span class="c1"># current distance (= STAY distance, STAY target == own cell).</span>
+    <span class="n">stay</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ActionId</span><span class="o">.</span><span class="n">STAY</span><span class="p">)</span>
+    <span class="n">best</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>                   <span class="c1"># (N,)</span>
+    <span class="c1"># if the best valid move doesn&#39;t strictly improve on STAY, STAY.</span>
+    <span class="n">d_best</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take_along_axis</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">best</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">d_stay</span> <span class="o">=</span> <span class="n">d</span><span class="p">[:,</span> <span class="n">stay</span><span class="p">]</span>
+    <span class="n">move</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">d_best</span> <span class="o">&lt;</span> <span class="n">d_stay</span><span class="p">,</span> <span class="n">best</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">stay</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">move</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.nav_distance_field" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">nav_distance_field</span>
+
+
+<a href="#ctde_v0.controller.nav_distance_field" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">nav_distance_field</span><span class="p">(</span><span class="n">goal</span><span class="p">,</span> <span class="n">blocked</span><span class="p">,</span> <span class="n">planner</span><span class="o">=</span><span class="s1">&#39;wavefront&#39;</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(H,W) float32 distance-to-<code>goal</code> field over the FREE cells of <code>blocked</code> (True =
+obstacle), the L2 nav-field. <code>planner</code> (Python-static) selects the solver:</p>
+<ul>
+<li><code>"wavefront"</code> / <code>"bfs"</code> — BFS distance transform (Jacobi min-plus relaxation).</li>
+<li><code>"astar"</code>                 — reuses the BFS field. Descending a shortest-path field
+  reconstructs the FIRST move of an A<em> shortest path; a real priority-queue A</em> is not
+  vmap-safe, and the emitted 1-step move is identical, so the field is shared.</li>
+<li><code>"fmm"</code>                   — fast-sweeping Eikonal approximation (:func:<code>_fmm_...</code>).</li>
+</ul>
+<p>Iterations are fixed from the grid size (<code>2*(H+W)</code> BFS sweeps / 4 fast-sweep rounds) —
+enough to fully propagate an open grid and route moderate wall detours; the grid is
+small (agent_architecture.md L2). Pure JAX (vmap/scan/jit-safe).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">nav_distance_field</span><span class="p">(</span><span class="n">goal</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">blocked</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">planner</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;wavefront&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(H,W) float32 distance-to-``goal`` field over the FREE cells of ``blocked`` (True =</span>
+<span class="sd">    obstacle), the L2 nav-field. ``planner`` (Python-static) selects the solver:</span>
+
+<span class="sd">    * ``&quot;wavefront&quot;`` / ``&quot;bfs&quot;`` — BFS distance transform (Jacobi min-plus relaxation).</span>
+<span class="sd">    * ``&quot;astar&quot;``                 — reuses the BFS field. Descending a shortest-path field</span>
+<span class="sd">      reconstructs the FIRST move of an A* shortest path; a real priority-queue A* is not</span>
+<span class="sd">      vmap-safe, and the emitted 1-step move is identical, so the field is shared.</span>
+<span class="sd">    * ``&quot;fmm&quot;``                   — fast-sweeping Eikonal approximation (:func:`_fmm_...`).</span>
+
+<span class="sd">    Iterations are fixed from the grid size (``2*(H+W)`` BFS sweeps / 4 fast-sweep rounds) —</span>
+<span class="sd">    enough to fully propagate an open grid and route moderate wall detours; the grid is</span>
+<span class="sd">    small (agent_architecture.md L2). Pure JAX (vmap/scan/jit-safe).&quot;&quot;&quot;</span>
+    <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">blocked</span><span class="o">.</span><span class="n">shape</span>
+    <span class="k">if</span> <span class="n">planner</span> <span class="o">==</span> <span class="s2">&quot;fmm&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_fmm_distance_field</span><span class="p">(</span><span class="n">goal</span><span class="p">,</span> <span class="n">blocked</span><span class="p">,</span> <span class="n">n_rounds</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="c1"># wavefront / bfs / astar -&gt; BFS distance transform (down-gradient == shortest-path move)</span>
+    <span class="k">return</span> <span class="n">_bfs_distance_field</span><span class="p">(</span><span class="n">goal</span><span class="p">,</span> <span class="n">blocked</span><span class="p">,</span> <span class="n">n_iters</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">h</span> <span class="o">+</span> <span class="n">w</span><span class="p">))</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.navfield_move" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">navfield_move</span>
+
+
+<a href="#ctde_v0.controller.navfield_move" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">navfield_move</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">goal</span><span class="p">,</span> <span class="n">blocked</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">,</span> <span class="n">planner</span><span class="o">=</span><span class="s1">&#39;wavefront&#39;</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) int32 — the L2 nav-field + L1 reactive controller move toward <code>goal</code>.</p>
+<p>For each agent: plan a distance field to its goal over its OWN KB occupancy
+<code>blocked[i]</code> (:func:<code>nav_distance_field</code>), then among the env-VALID actions take the
+one whose committed cell (<code>valid_targets</code>) most reduces the field — descending the
+nav-field gradient one step. The reactive collision veto (the hard
+:func:<code>occupied_cell_mask</code>, on by default) removes moves onto a cell another agent
+occupies NOW; STAY is always selectable and is the fallback when no valid move strictly
+improves on staying (so the emitted move is always env-valid, exactly like
+:func:<code>greedy_move</code>). On open terrain the field is Chebyshev distance -&gt; this reproduces
+the greedy move; around known walls it routes around them.</p>
+<p><code>blocked</code> (N,H,W) bool — per-agent obstacle map (known walls; unknown/known-free are
+traversable, optimistic). <code>planner</code> (Python-static) picks the field solver.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">navfield_move</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">goal</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">blocked</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                  <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                  <span class="n">planner</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;wavefront&quot;</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) int32 — the L2 nav-field + L1 reactive controller move toward ``goal``.</span>
+
+<span class="sd">    For each agent: plan a distance field to its goal over its OWN KB occupancy</span>
+<span class="sd">    ``blocked[i]`` (:func:`nav_distance_field`), then among the env-VALID actions take the</span>
+<span class="sd">    one whose committed cell (``valid_targets``) most reduces the field — descending the</span>
+<span class="sd">    nav-field gradient one step. The reactive collision veto (the hard</span>
+<span class="sd">    :func:`occupied_cell_mask`, on by default) removes moves onto a cell another agent</span>
+<span class="sd">    occupies NOW; STAY is always selectable and is the fallback when no valid move strictly</span>
+<span class="sd">    improves on staying (so the emitted move is always env-valid, exactly like</span>
+<span class="sd">    :func:`greedy_move`). On open terrain the field is Chebyshev distance -&gt; this reproduces</span>
+<span class="sd">    the greedy move; around known walls it routes around them.</span>
+
+<span class="sd">    ``blocked`` (N,H,W) bool — per-agent obstacle map (known walls; unknown/known-free are</span>
+<span class="sd">    traversable, optimistic). ``planner`` (Python-static) picks the field solver.&quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">g</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">nav_distance_field</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">planner</span><span class="p">))(</span><span class="n">goal</span><span class="p">,</span> <span class="n">blocked</span><span class="p">)</span>  <span class="c1"># (N,H,W)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">gather_agent</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+        <span class="n">D</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>                                              <span class="c1"># (H,W) agent i&#39;s field</span>
+        <span class="k">return</span> <span class="n">D</span><span class="p">[</span><span class="n">valid_targets</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">valid_targets</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]]</span>  <span class="c1"># (A,) field if action taken</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">gather_agent</span><span class="p">)(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>                     <span class="c1"># (N,A) down-gradient score</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">action_valid</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">_FAR</span><span class="p">)</span>                         <span class="c1"># forbid invalid actions</span>
+    <span class="k">if</span> <span class="n">forbid_collision</span><span class="p">:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">occupied_cell_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">),</span> <span class="n">_FAR</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>  <span class="c1"># reactive veto</span>
+    <span class="n">stay</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ActionId</span><span class="o">.</span><span class="n">STAY</span><span class="p">)</span>
+    <span class="n">best</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>              <span class="c1"># (N,) steepest descent</span>
+    <span class="n">d_best</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">take_along_axis</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">best</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">d_stay</span> <span class="o">=</span> <span class="n">d</span><span class="p">[:,</span> <span class="n">stay</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">d_best</span> <span class="o">&lt;</span> <span class="n">d_stay</span><span class="p">,</span> <span class="n">best</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">stay</span><span class="p">))</span>      <span class="c1"># STAY unless a move helps</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.candidate_first_moves" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">candidate_first_moves</span>
+
+
+<a href="#ctde_v0.controller.candidate_first_moves" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">candidate_first_moves</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">goal_cells</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N, K) int32 — the FIRST greedy move each agent would take for every
+candidate goal. Used by the action-mask mechanism to evaluate the
+connectivity each candidate would cause.</p>
+<p><code>goal_cells</code> (N,K,2). Vmaps :func:<code>greedy_move</code> over the K candidates.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">candidate_first_moves</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">goal_cells</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                          <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N, K) int32 — the FIRST greedy move each agent would take for every</span>
+<span class="sd">    candidate goal. Used by the action-mask mechanism to evaluate the</span>
+<span class="sd">    connectivity each candidate would cause.</span>
+
+<span class="sd">    ``goal_cells`` (N,K,2). Vmaps :func:`greedy_move` over the K candidates.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">for_candidate</span><span class="p">(</span><span class="n">goal_k</span><span class="p">):</span>                                       <span class="c1"># goal_k (N,2)</span>
+        <span class="k">return</span> <span class="n">greedy_move</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">goal_k</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">)</span>
+    <span class="c1"># vmap over K (axis 1 of goal_cells) -&gt; (K, N) -&gt; transpose</span>
+    <span class="n">moves</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">for_candidate</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">out_axes</span><span class="o">=</span><span class="mi">0</span><span class="p">)(</span><span class="n">goal_cells</span><span class="p">)</span>  <span class="c1"># (K,N)</span>
+    <span class="k">return</span> <span class="n">moves</span><span class="o">.</span><span class="n">T</span>                                                    <span class="c1"># (N,K)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.relay_move" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">relay_move</span>
+
+
+<a href="#ctde_v0.controller.relay_move" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">relay_move</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) int32 — relay L1 controller: each relay agent takes the env-VALID move
+that MAXIMIZES its own local connectivity proxy (soft incident-edge mass),
+others held at their current cell while it is scored. STAY is the safe default
+(it is always valid and is scored at the agent's current anchoring).</p>
+<p>For agent i and candidate action a, we move ONLY i to <code>valid_targets[i,a]</code>
+(everyone else stays) and read i's soft degree at the resulting layout; the
+valid action with the largest value wins. This makes the relay hold/strengthen
+the bridge from purely local information (agent_architecture.md: relay = the
+λ̂₂-anchor tool). Result is always a valid move, so the env never reverts it.</p>
+<p>When <code>forbid_collision</code> is True the hard collision-mask
+(:func:<code>occupied_cell_mask</code>) removes actions whose target sits on another
+agent's CURRENT cell (their score is set to -inf before the argmax); STAY
+always stays selectable.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">relay_move</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+               <span class="n">comm_r</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">sharp</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) int32 — relay L1 controller: each relay agent takes the env-VALID move</span>
+<span class="sd">    that MAXIMIZES its own local connectivity proxy (soft incident-edge mass),</span>
+<span class="sd">    others held at their current cell while it is scored. STAY is the safe default</span>
+<span class="sd">    (it is always valid and is scored at the agent&#39;s current anchoring).</span>
+
+<span class="sd">    For agent i and candidate action a, we move ONLY i to ``valid_targets[i,a]``</span>
+<span class="sd">    (everyone else stays) and read i&#39;s soft degree at the resulting layout; the</span>
+<span class="sd">    valid action with the largest value wins. This makes the relay hold/strengthen</span>
+<span class="sd">    the bridge from purely local information (agent_architecture.md: relay = the</span>
+<span class="sd">    λ̂₂-anchor tool). Result is always a valid move, so the env never reverts it.</span>
+
+<span class="sd">    When ``forbid_collision`` is True the hard collision-mask</span>
+<span class="sd">    (:func:`occupied_cell_mask`) removes actions whose target sits on another</span>
+<span class="sd">    agent&#39;s CURRENT cell (their score is set to -inf before the argmax); STAY</span>
+<span class="sd">    always stays selectable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="n">action_valid</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">blocked</span> <span class="o">=</span> <span class="n">occupied_cell_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">)</span> <span class="k">if</span> <span class="n">forbid_collision</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_agent</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+        <span class="c1"># for each action a: i -&gt; its committed cell, others stay at pos.</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">for_action</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+            <span class="n">tgt</span> <span class="o">=</span> <span class="n">valid_targets</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">a</span><span class="p">]</span>                                <span class="c1"># (2,)</span>
+            <span class="n">pos_next</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">tgt</span><span class="p">)</span>                            <span class="c1"># only i moves</span>
+            <span class="k">return</span> <span class="n">_local_conn_score</span><span class="p">(</span><span class="n">pos_next</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>     <span class="c1"># scalar</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">for_action</span><span class="p">)(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">A</span><span class="p">))</span>                      <span class="c1"># (A,)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">action_valid</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">s</span><span class="p">,</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>                  <span class="c1"># forbid invalid</span>
+        <span class="k">if</span> <span class="n">blocked</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">blocked</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>                   <span class="c1"># forbid collisions</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>                      <span class="c1"># best valid action</span>
+
+    <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">score_agent</span><span class="p">)(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>                      <span class="c1"># (N,)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.relay_hold_move" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">relay_hold_move</span>
+
+
+<a href="#ctde_v0.controller.relay_hold_move" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">relay_hold_move</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">,</span> <span class="n">hold_target</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">forbid_collision</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,) int32 — the "hold" relay L1 controller: a STATIC BEACON. Each relay
+agent simply STAYS where it is — a low-energy "don't wander, keep the bridge
+from where you stand" tool — UNLESS staying would leave it isolated, in which
+case it takes the SINGLE env-valid move that best restores a neighbour (minimal
+movement to re-anchor). STAY is the safe default and is always valid.</p>
+<p>This is the complement of :func:<code>relay_move</code> (the <code>lambda2_anchor</code> tool, which
+ACTIVELY climbs local connectivity every step): <code>relay_hold_move</code> moves ONLY
+when its anchoring drops below the floor, so a well-connected relay never wanders
+off its post (agent_architecture.md: relay = "stop &amp; hold the connection";
+Relay-tool axis = hold-connection <em>heuristic</em>).</p>
+<p>Decision (per relay i, from purely LOCAL information):
+  * soft_deg_i(STAY) = i's soft incident-edge mass at its CURRENT cell
+    (:func:<code>_local_conn_score</code>, the same proxy <code>relay_move</code> / the edge-margin
+    signal use, so "anchored enough" agrees across the agent).
+  * if soft_deg_i(STAY) &gt;= <code>hold_target</code> -&gt; STAY (it is comfortably anchored).
+  * else (about to isolate) -&gt; among the env-VALID moves, take the one that
+    MAXIMIZES soft_deg_i at the resulting layout (others held), i.e. the minimal
+    step that best re-establishes a neighbour. STAY is included in the argmax, so
+    if no move improves anchoring the agent still STAYs (never an invalid move).</p>
+<p><code>hold_target</code> is the soft-degree floor that defines "isolated" (default 0.5 — a
+single in-range neighbour at the comm edge already carries ~0.5 soft mass at the
+default sharpness, so the relay holds as long as it has roughly one live link).
+When <code>forbid_collision</code> is True the hard collision-mask
+(:func:<code>occupied_cell_mask</code>) removes actions whose target sits on another agent's
+CURRENT cell (their score is set to -inf before the argmax); STAY always stays
+selectable. Result is always a valid move, so the env never reverts it. Pure JAX
+(vmap/scan/jit-safe) — same signature/contract as :func:<code>relay_move</code>.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">relay_hold_move</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                    <span class="n">comm_r</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">sharp</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">hold_target</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                    <span class="n">forbid_collision</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,) int32 — the &quot;hold&quot; relay L1 controller: a STATIC BEACON. Each relay</span>
+<span class="sd">    agent simply STAYS where it is — a low-energy &quot;don&#39;t wander, keep the bridge</span>
+<span class="sd">    from where you stand&quot; tool — UNLESS staying would leave it isolated, in which</span>
+<span class="sd">    case it takes the SINGLE env-valid move that best restores a neighbour (minimal</span>
+<span class="sd">    movement to re-anchor). STAY is the safe default and is always valid.</span>
+
+<span class="sd">    This is the complement of :func:`relay_move` (the ``lambda2_anchor`` tool, which</span>
+<span class="sd">    ACTIVELY climbs local connectivity every step): ``relay_hold_move`` moves ONLY</span>
+<span class="sd">    when its anchoring drops below the floor, so a well-connected relay never wanders</span>
+<span class="sd">    off its post (agent_architecture.md: relay = &quot;stop &amp; hold the connection&quot;;</span>
+<span class="sd">    Relay-tool axis = hold-connection *heuristic*).</span>
+
+<span class="sd">    Decision (per relay i, from purely LOCAL information):</span>
+<span class="sd">      * soft_deg_i(STAY) = i&#39;s soft incident-edge mass at its CURRENT cell</span>
+<span class="sd">        (:func:`_local_conn_score`, the same proxy ``relay_move`` / the edge-margin</span>
+<span class="sd">        signal use, so &quot;anchored enough&quot; agrees across the agent).</span>
+<span class="sd">      * if soft_deg_i(STAY) &gt;= ``hold_target`` -&gt; STAY (it is comfortably anchored).</span>
+<span class="sd">      * else (about to isolate) -&gt; among the env-VALID moves, take the one that</span>
+<span class="sd">        MAXIMIZES soft_deg_i at the resulting layout (others held), i.e. the minimal</span>
+<span class="sd">        step that best re-establishes a neighbour. STAY is included in the argmax, so</span>
+<span class="sd">        if no move improves anchoring the agent still STAYs (never an invalid move).</span>
+
+<span class="sd">    ``hold_target`` is the soft-degree floor that defines &quot;isolated&quot; (default 0.5 — a</span>
+<span class="sd">    single in-range neighbour at the comm edge already carries ~0.5 soft mass at the</span>
+<span class="sd">    default sharpness, so the relay holds as long as it has roughly one live link).</span>
+<span class="sd">    When ``forbid_collision`` is True the hard collision-mask</span>
+<span class="sd">    (:func:`occupied_cell_mask`) removes actions whose target sits on another agent&#39;s</span>
+<span class="sd">    CURRENT cell (their score is set to -inf before the argmax); STAY always stays</span>
+<span class="sd">    selectable. Result is always a valid move, so the env never reverts it. Pure JAX</span>
+<span class="sd">    (vmap/scan/jit-safe) — same signature/contract as :func:`relay_move`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span><span class="p">,</span> <span class="n">A</span> <span class="o">=</span> <span class="n">action_valid</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">stay</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ActionId</span><span class="o">.</span><span class="n">STAY</span><span class="p">)</span>
+    <span class="n">blocked</span> <span class="o">=</span> <span class="n">occupied_cell_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">)</span> <span class="k">if</span> <span class="n">forbid_collision</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="c1"># current soft degree at the agent&#39;s present cell (the STAY anchoring).</span>
+    <span class="n">deg_now</span> <span class="o">=</span> <span class="n">_local_conn_score</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">)</span>                  <span class="c1"># (N,)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">score_agent</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+        <span class="c1"># for each action a: move ONLY i to its committed cell, read i&#39;s soft degree.</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">for_action</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+            <span class="n">tgt</span> <span class="o">=</span> <span class="n">valid_targets</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">a</span><span class="p">]</span>                                <span class="c1"># (2,)</span>
+            <span class="n">pos_next</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">tgt</span><span class="p">)</span>                            <span class="c1"># only i moves</span>
+            <span class="k">return</span> <span class="n">_local_conn_score</span><span class="p">(</span><span class="n">pos_next</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>     <span class="c1"># scalar</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">for_action</span><span class="p">)(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">A</span><span class="p">))</span>                      <span class="c1"># (A,)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">action_valid</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">s</span><span class="p">,</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>                  <span class="c1"># forbid invalid</span>
+        <span class="k">if</span> <span class="n">blocked</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">blocked</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="o">-</span><span class="n">jnp</span><span class="o">.</span><span class="n">inf</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>                   <span class="c1"># forbid collisions</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>                      <span class="c1"># best valid re-anchor</span>
+        <span class="c1"># HOLD unless isolated: stay put while comfortably anchored, only move to</span>
+        <span class="c1"># re-establish a neighbour when the current cell falls below the floor.</span>
+        <span class="n">isolated</span> <span class="o">=</span> <span class="n">deg_now</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">hold_target</span>
+        <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">isolated</span><span class="p">,</span> <span class="n">best</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">stay</span><span class="p">))</span>           <span class="c1"># (,) int32</span>
+
+    <span class="k">return</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">score_agent</span><span class="p">)(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>                      <span class="c1"># (N,)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.positions_after" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">positions_after</span>
+
+
+<a href="#ctde_v0.controller.positions_after" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">positions_after</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N,2) int32 — committed positions if every agent took <code>actions</code> (N,).</p>
+<p>Reads the env's <code>valid_targets</code> (N,A,2) table (already wall/boundary
+resolved). NoCollision semantics (agents may share a cell) — matches the
+comm-coverage recipe default; the mechanism only needs the comm graph, which
+is collision-agnostic.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">positions_after</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">actions</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                    <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N,2) int32 — committed positions if every agent took ``actions`` (N,).</span>
+
+<span class="sd">    Reads the env&#39;s ``valid_targets`` (N,A,2) table (already wall/boundary</span>
+<span class="sd">    resolved). NoCollision semantics (agents may share a cell) — matches the</span>
+<span class="sd">    comm-coverage recipe default; the mechanism only needs the comm graph, which</span>
+<span class="sd">    is collision-agnostic.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">actions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">valid_targets</span><span class="p">[</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">actions</span><span class="p">]</span>                     <span class="c1"># (N,2)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.team_lambda2_after" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">team_lambda2_after</span>
+
+
+<a href="#ctde_v0.controller.team_lambda2_after" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">team_lambda2_after</span><span class="p">(</span><span class="n">pos_next</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Scalar true λ₂ of the soft comm-graph at <code>pos_next</code> (N,2).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">team_lambda2_after</span><span class="p">(</span><span class="n">pos_next</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">sharp</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Scalar true λ₂ of the soft comm-graph at ``pos_next`` (N,2).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">_lambda2</span><span class="p">(</span><span class="n">pos_next</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="ctde_v0.controller.safe_goal_mask" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-function"></code>            <span class="doc doc-object-name doc-function-name">safe_goal_mask</span>
+
+
+<a href="#ctde_v0.controller.safe_goal_mask" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">safe_goal_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">goal_cells</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">,</span> <span class="n">min_lambda2</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>(N, K) bool — action-mask mechanism: a candidate is SAFE iff, when its
+agent alone takes the greedy first move toward it (others STAY), the team's
+true λ₂ stays &gt;= <code>min_lambda2</code>.</p>
+<p>This is a LOCAL, per-agent guardrail (each agent screens its own candidates
+independently against the connectivity floor) — the "forbid goals that would
+disconnect" mechanism. If a row would mask ALL candidates, the "here"
+candidate (index 0, a STAY goal) is force-unmasked so a valid goal always
+exists.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>experiments/ctde_v0/controller.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">safe_goal_mask</span><span class="p">(</span><span class="n">pos</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">goal_cells</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                   <span class="n">action_valid</span><span class="p">:</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">sharp</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                   <span class="n">min_lambda2</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">jax</span><span class="o">.</span><span class="n">Array</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(N, K) bool — action-mask mechanism: a candidate is SAFE iff, when its</span>
+<span class="sd">    agent alone takes the greedy first move toward it (others STAY), the team&#39;s</span>
+<span class="sd">    true λ₂ stays &gt;= ``min_lambda2``.</span>
+
+<span class="sd">    This is a LOCAL, per-agent guardrail (each agent screens its own candidates</span>
+<span class="sd">    independently against the connectivity floor) — the &quot;forbid goals that would</span>
+<span class="sd">    disconnect&quot; mechanism. If a row would mask ALL candidates, the &quot;here&quot;</span>
+<span class="sd">    candidate (index 0, a STAY goal) is force-unmasked so a valid goal always</span>
+<span class="sd">    exists.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">first_moves</span> <span class="o">=</span> <span class="n">candidate_first_moves</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">goal_cells</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">,</span> <span class="n">action_valid</span><span class="p">)</span>  <span class="c1"># (N,K)</span>
+    <span class="n">K</span> <span class="o">=</span> <span class="n">goal_cells</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">stay</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">n</span><span class="p">,),</span> <span class="nb">int</span><span class="p">(</span><span class="n">ActionId</span><span class="o">.</span><span class="n">STAY</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">jnp</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">lambda2_for_agent_candidate</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">kk</span><span class="p">):</span>
+        <span class="n">actions</span> <span class="o">=</span> <span class="n">stay</span><span class="o">.</span><span class="n">at</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">first_moves</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">kk</span><span class="p">])</span>                 <span class="c1"># only agent i moves</span>
+        <span class="n">pos_next</span> <span class="o">=</span> <span class="n">positions_after</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">valid_targets</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">team_lambda2_after</span><span class="p">(</span><span class="n">pos_next</span><span class="p">,</span> <span class="n">comm_r</span><span class="p">,</span> <span class="n">sharp</span><span class="p">)</span>
+
+    <span class="c1"># vectorize over (N agents) x (K candidates) -&gt; (N, K) true-λ₂-if-taken.</span>
+    <span class="n">l2</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">lambda2_for_agent_candidate</span><span class="p">,</span> <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">)),</span>
+                  <span class="n">in_axes</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">))(</span><span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">K</span><span class="p">))</span>   <span class="c1"># (N,K)</span>
+    <span class="n">safe</span> <span class="o">=</span> <span class="n">l2</span> <span class="o">&gt;=</span> <span class="n">min_lambda2</span>
+    <span class="c1"># guarantee &gt;=1 safe candidate per agent: force &quot;here&quot; (index 0) on.</span>
+    <span class="n">safe</span> <span class="o">=</span> <span class="n">safe</span><span class="o">.</span><span class="n">at</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">safe</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.tabs", "navigation.top", "search.suggest", "content.code.copy", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
