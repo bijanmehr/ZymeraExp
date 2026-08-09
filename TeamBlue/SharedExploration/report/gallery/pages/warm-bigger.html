@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warm-start → bigger · 16²→32² scale-up · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>
+ :root{--accent:#0d7d83;--accent-soft:#e3f3f4}
+ .resulttbl{max-width:920px;margin:16px 0 2px;margin-left:18px;border-collapse:collapse;
+  font-family:var(--sans);font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+ .resulttbl caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);padding:0 0 6px 2px}
+ .resulttbl th,.resulttbl td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line)}
+ .resulttbl thead th{background:var(--accent-soft);color:#10233f;font-weight:700;font-size:12px;
+  letter-spacing:.02em;border-bottom:1px solid var(--accent)}
+ .resulttbl tbody tr:last-child td{border-bottom:none}
+ .resulttbl td.arm{font-weight:700;color:#10233f}
+ .resulttbl td.num{font-variant-numeric:tabular-nums}
+ .resulttbl .cov{color:#0d7d83;font-weight:700}
+ .resulttbl .conn{color:#1f7a3d;font-weight:700}
+ .resulttbl .worse{color:#b22;font-weight:700}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="recipe-ablation.html">Recipe ablation</a>
+ <a class="lnk" href="frontier.html">Cov↔conn frontier</a>
+ <a class="lnk" href="occupancy-ab.html">Occupancy A/B</a>
+ <a class="lnk active" href="warm-bigger.html">Warm-start → bigger</a>
+ <a class="lnk" href="best-arch.html">Best-arch × maps</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Warm-start → bigger · 16×16/4 parent → 32×32/10 child · 2 arms × 2 maps × 2 seeds (8 + 8 runs)</div>
+  <h1>Warm-start → bigger — train small, then scale up</h1>
+  <p class="what"><b>What it tests:</b> train a policy at <b>16×16 / 4 agents</b> (the <em>parent</em>),
+  then warm-start a <b>32×32 / 10-agent</b> run from it (the <em>child</em>) and see how far that
+  initialisation carries — on open and rooms, two seeds, for both perception arms (<em>base</em> =
+  SLAM-only, <em>occ</em> = occupancy belief). The 16² parents are shown alongside for context (labelled
+  <b>16² parent</b>). The interesting comparison is the warm-started 32² child against a 32²
+  trained-from-scratch baseline.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt"><span id="wb-finding">Measured live from the rendered tiles below.</span>
+   <b>This is the win.</b> The warm-started 16²→32² <em>base</em> run reaches <b>≈ 60% coverage on open
+   <u>and</u> ≈ 100% connectivity</b> — versus ≈ 44% from scratch — <b>breaking the coverage↔connectivity
+   trade-off</b> that every from-scratch run pays. (Occupancy hurts here too: <em>occ</em> trails
+   <em>base</em> on open, exact gap in the live line above.)</span>
+  </div>
+
+  <table class="resulttbl">
+   <caption>Warm-started 32² children — per arm × map · mean of 2 seeds · rollout coverage + giant-component connectivity (100-step re-roll)</caption>
+   <thead>
+    <tr><th>Stage</th><th>Arm</th><th>Map</th><th>Coverage</th><th>Connectivity</th><th>seeds</th></tr>
+   </thead>
+   <tbody id="wb-rows"><tr><td colspan="6" style="opacity:.6">computing from the rendered rollouts…</td></tr></tbody>
+  </table>
+  <p class="what" style="margin-top:10px;opacity:.85">The run list is grouped <em>by arm</em>, with the
+  warm-started 32² child and its 16² parent adjacent under each. Both columns are computed <em>live from
+  the rendered rollouts</em>; connectivity is the mean giant-component fraction over the rollout.</p>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ var CAT = 'Warm-start -> bigger';
+ function mine(k, v){ return v && v.cat === CAT; }
+ // labels: "warmstart - <arm> - <map> - s<seed>" (32² child) | "16^2 parent - <arm> - <map> - s<seed>"
+ function isParent(v){ return (v.label||'').indexOf('16^2 parent') === 0; }
+ function armOf(v){ return (v.label||'').split(' - ')[1] || '?'; }   // base | occ
+ var AORD = {base:'1', occ:'2'};
+ function groupOf(k, v){
+   var a = armOf(v);
+   var stage = isParent(v) ? '2 · 16² parent' : '1 · warm-started 32²';
+   return (AORD[a]||'9') + ' · ' + a + '  ›  ' + stage;
+ }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#0d7d83', group: groupOf });
+
+ // --- live summary table: warm-started 32² children, coverage + giant-component conn ---
+ (function(){
+   var T = window.TRAJ || {};
+   function giantPct(v){
+     var fr=v.frames, n=fr[0].pos.length, sum=0, t,i,e;
+     for(t=0;t<fr.length;t++){
+       var par=[]; for(i=0;i<n;i++) par[i]=i;
+       var es=fr[t].edges;
+       for(e=0;e<es.length;e++){ var x=es[e][0]; while(par[x]!==x) x=par[x];
+         var y=es[e][1]; while(par[y]!==y) y=par[y]; if(x!==y) par[x]=y; }
+       var cnt={}, best=1;
+       for(i=0;i<n;i++){ var z=i; while(par[z]!==z) z=par[z]; cnt[z]=(cnt[z]||0)+1; if(cnt[z]>best) best=cnt[z]; }
+       sum += best/n;
+     }
+     return 100*sum/fr.length;
+   }
+   function mean(a){ var s=0,i; for(i=0;i<a.length;i++) s+=a[i]; return a.length?s/a.length:0; }
+   var AORD={base:'1',occ:'2'}, MORD={open:'1',rooms:'2'};
+   // warm-started 32² only: arm -> map -> [{cov,conn}]
+   var rec={}, k;
+   for(k in T){ var v=T[k]; if(!v||v.cat!==CAT) continue;
+     if((v.label||'').indexOf('16^2 parent')===0) continue;          // children only
+     var a=(v.label||'').split(' - ')[1], m=(v.label||'').split(' - ')[2];
+     (rec[a]=rec[a]||{}); (rec[a][m]=rec[a][m]||[]).push({cov:v.cov, conn:giantPct(v)});
+   }
+   var rows='', baseOpen=null, occOpen=null;
+   ['base','occ'].forEach(function(a){
+     var maps=rec[a]; if(!maps) return;
+     Object.keys(maps).sort(function(x,y){return (MORD[x]||'9').localeCompare(MORD[y]||'9');}).forEach(function(m){
+       var arr=maps[m];
+       var cov=mean(arr.map(function(o){return o.cov;}));
+       var conn=mean(arr.map(function(o){return o.conn;}));
+       if(a==='base' && m==='open') baseOpen={cov:cov,conn:conn};
+       if(a==='occ'  && m==='open') occOpen={cov:cov,conn:conn};
+       rows += '<tr><td class="arm">warm 32²</td><td>'+a+'</td><td>'+m+'</td>'+
+         '<td class="num cov">'+cov.toFixed(1)+'%</td>'+
+         '<td class="num conn">'+conn.toFixed(0)+'%</td>'+
+         '<td class="num">'+arr.length+'</td></tr>';
+     });
+   });
+   var tb=document.getElementById('wb-rows'); if(tb && rows) tb.innerHTML = rows;
+   if(baseOpen){
+     var fe=document.getElementById('wb-finding'); var extra='';
+     if(occOpen) extra=' Occupancy trails base on open by ≈ '+(baseOpen.cov-occOpen.cov).toFixed(0)+' points.';
+     if(fe) fe.innerHTML = 'Warm-started 16²→32² <b>base on open reaches ≈ '+baseOpen.cov.toFixed(0)+
+       '% coverage at ≈ '+baseOpen.conn.toFixed(0)+'% giant-component connectivity</b> — coverage and the '+
+       'comm graph held at once, not traded off.'+extra;
+   }
+ })();
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

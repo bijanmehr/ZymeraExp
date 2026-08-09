@@ -1,0 +1,135 @@
+<title>Near-Term Results — rooms terrain</title>
+<style>
+ :root{--paper:#f7f5ef;--ink:#211e19;--soft:#5f584c;--faint:#8a8272;--accent:#2e4057;--warn:#8a2e2e;
+   --rule:#ddd6c7;--panel:#fbfaf5;--good:#e7f0e1;--bad:#f3e3e3;
+   --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+   --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+   --mono:ui-monospace,Menlo,Consolas,monospace;}
+ *{box-sizing:border-box} body{background:var(--paper);color:var(--ink);font-family:var(--serif);
+   font-size:18px;line-height:1.6;margin:0}
+ .wrap{max-width:52em;margin:0 auto;padding:52px 24px 40px}
+ .eyebrow{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--warn);margin:0 0 12px}
+ h1{font-size:32px;line-height:1.15;margin:0 0 8px;letter-spacing:-.01em}
+ .sub{color:var(--soft);font-style:italic;font-size:19px;margin:0 0 8px}
+ .meta{font-family:var(--sans);font-size:13px;color:var(--faint);padding-bottom:22px;border-bottom:1px solid var(--rule);margin-bottom:8px}
+ h2{font-size:23px;margin:40px 0 4px;padding-top:8px}
+ h2 .k{color:var(--warn)}
+ h3{font-size:18px;margin:22px 0 2px}
+ p{margin:0 0 14px} a{color:var(--accent)}
+ .problem{border:1px solid var(--warn);border-left-width:4px;background:#fbf4f2;border-radius:0 4px 4px 0;padding:6px 20px 14px;margin:26px 0}
+ @media(prefers-color-scheme:dark){.problem{background:#241b19}}
+ .problem .lab{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--warn);display:block;margin:14px 0 6px}
+ table{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:14px;margin:14px 0}
+ .tw{overflow-x:auto}
+ th,td{text-align:right;padding:7px 11px;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums}
+ thead th{color:var(--accent);border-bottom:2px solid var(--rule);font-size:11.5px;letter-spacing:.03em;text-transform:uppercase}
+ tbody th{text-align:left;color:var(--ink);white-space:nowrap}
+ td .sd{color:var(--faint);font-size:11px;margin-left:2px} td.na{color:#c7ccd4}
+ td.ret{font-weight:700;color:var(--warn)} .small{font-size:12px;color:var(--soft)}
+ .note{border-left:3px solid var(--accent);background:var(--panel);padding:12px 16px;margin:16px 0;font-size:15.5px}
+ .note .lab{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:4px}
+ .cap{font-family:var(--sans);font-size:13px;color:var(--soft);margin:2px 0 12px}
+ /* viewer */
+ #bar{font-family:var(--sans);padding:10px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+ select,button{font-size:13px;padding:5px 9px;background:#fff;color:#222;border:1px solid #c7ccd4;border-radius:4px}
+ button{cursor:pointer} #slider{width:280px} select{max-width:520px}
+ canvas{display:block;margin:10px auto;background:#fff;border:1px solid #d7dce3}
+ .leg{font-family:var(--sans);font-size:12px;color:var(--soft)}
+</style>
+<div class="wrap">
+<p class="eyebrow">Project Zymera · Near-Term Results</p>
+<h1>Cooperative Exploration on Rooms Terrain</h1>
+<p class="sub">Five studies, three team scales, collision-free — and a transfer problem the numbers make unavoidable.</p>
+<p class="meta"><b>60 training runs</b> (T2·18 + T3·15 + T4·27), 3 seeds each · rooms/corridors terrain · 100-step horizon · cover_r=0 · every rollout verified collision-free (max same-cell overlap = 0). Coverage is raw % of free cells (god's-eye ceiling ≈ 72% at 32²). Numbers are final-50-iter means ± std across seeds.</p>
+
+<h2><span class="k">The problem</span> — skills do not transfer, and behaviour is not reproducible</h2>
+<p>Two of the program's stated goals are generalization across scale and reproducible behaviour. The results contradict both, and it is worth showing the evidence before anything else.</p>
+
+<div class="problem">
+<span class="lab">1 · Coverage collapses with scale — nothing learned survives growth</span>
+<p class="cap">Coverage at each world size, and what fraction of the 16² result is retained at 32². Every method loses roughly half to two-thirds of its coverage as the team grows, despite a size-invariant architecture built precisely so that skills would carry across scale.</p>
+<div class="tw"><table>
+<thead><tr><th>method</th><th>cov 16²</th><th>cov 24²</th><th>cov 32²</th><th>retained</th></tr></thead>
+<tbody><tr><th>T2 flat</th><td>36.1</td><td>28.5</td><td>18.7</td><td class=ret>52%</td></tr><tr><th>T2 role</th><td>44.9</td><td>27.6</td><td>15.9</td><td class=ret>35%</td></tr><tr><th>T4 conv</th><td>50.6</td><td>29.7</td><td>18.6</td><td class=ret>37%</td></tr><tr><th>T4 setpool</th><td>45.3</td><td>31.1</td><td>24.8</td><td class=ret>55%</td></tr><tr><th>T4 setattn</th><td>51.3</td><td>31.1</td><td>24.7</td><td class=ret>48%</td></tr></tbody>
+</table></div>
+
+<span class="lab">2 · The value estimate does not transfer zero-shot</span>
+<p class="cap">Normalized value-prediction error of the 16²-trained critic, evaluated without retraining at each scale (lower = better; ≈1 would mean "no better than predicting the mean"). It is already poor in-distribution and degrades further with scale — and the count-invariant critics are no better than the fixed one. The critic learned at small scale does not carry.</p>
+<div class="tw"><table>
+<thead><tr><th>critic</th><th>NRMSE 16²</th><th>NRMSE 24²</th><th>NRMSE 32²</th></tr></thead>
+<tbody><tr><th>conv</th><td>2.79</td><td>2.86</td><td>3.37</td></tr><tr><th>setpool</th><td>2.89</td><td>2.95</td><td>3.47</td></tr><tr><th>setattn</th><td>2.81</td><td>2.89</td><td>3.35</td></tr></tbody>
+</table></div>
+
+<span class="lab">3 · Behaviour is not reproducible — same recipe, different seed, different result</span>
+<p class="cap">The eight configurations with the widest coverage spread across seeds, by coefficient of variation (std ÷ mean). A reproducible skill would land in the same place every seed; several here swing by 20–40% of their own mean.</p>
+<div class="tw"><table>
+<thead><tr><th>config</th><th>mean cov</th><th>std</th><th>CV</th><th>range</th></tr></thead>
+<tbody><tr><th>T3 · pid_th7 · 32²</th><td>20.5</td><td>3.6</td><td class=ret>18%</td><td class=small>17.6&ndash;25.6 (n=3)</td></tr><tr><th>T3 · soft_th5 · 32²</th><td>18.8</td><td>3.1</td><td class=ret>17%</td><td class=small>14.6&ndash;22.3 (n=3)</td></tr><tr><th>T3 · lag_th7 · 32²</th><td>17.9</td><td>2.3</td><td class=ret>13%</td><td class=small>14.9&ndash;20.4 (n=3)</td></tr><tr><th>T3 · lag_th5 · 32²</th><td>17.4</td><td>1.6</td><td class=ret>9%</td><td class=small>15.2&ndash;19.1 (n=3)</td></tr><tr><th>T4 · setpool · 32²</th><td>24.8</td><td>1.9</td><td class=ret>8%</td><td class=small>22.1&ndash;26.4 (n=3)</td></tr><tr><th>T2 · flat · 32²</th><td>18.7</td><td>1.4</td><td class=ret>7%</td><td class=small>17.6&ndash;20.6 (n=3)</td></tr><tr><th>T3 · pid_th5 · 32²</th><td>17.6</td><td>1.3</td><td class=ret>7%</td><td class=small>15.8&ndash;18.6 (n=3)</td></tr><tr><th>T4 · conv · 32²</th><td>18.6</td><td>1.3</td><td class=ret>7%</td><td class=small>16.8&ndash;19.7 (n=3)</td></tr></tbody>
+</table></div>
+</div>
+
+<div class="note"><span class="lab">Reading</span>The size-invariant backbone, the role split, and the count-invariant critic were each meant to make a skill learned once hold up as the team and world grow. On rooms terrain they do not: performance roughly halves from 16² to 32², the trained value estimate does not transfer, and seed-to-seed variance is large. Whatever the policies learn is <em>scale-specific and seed-specific</em> — closer to memorized behaviour for one setting than a transferable skill.</div>
+
+<h2>Results</h2>
+<h3>T2 — explorer/relay roles</h3>
+<p class="cap">Role split helps at 16² (+9 cov), ties at 24², and at 32² becomes a connectivity-for-coverage trade.</p>
+<div class="tw"><table>
+<thead><tr><th>world</th><th>flat cov</th><th>role cov</th><th>flat conn</th><th>role conn</th></tr></thead>
+<tbody><tr><th>16²/4</th><td><b>36.1</b><span class=sd>±2.3</span></td><td><b>44.9</b><span class=sd>±0.7</span></td><td><b>94.3</b><span class=sd>±0.5</span></td><td><b>97.4</b><span class=sd>±0.5</span></td></tr><tr><th>24²/6</th><td><b>28.5</b><span class=sd>±1.2</span></td><td><b>27.6</b><span class=sd>±0.4</span></td><td><b>94.3</b><span class=sd>±0.8</span></td><td><b>97.0</b><span class=sd>±0.9</span></td></tr><tr><th>32²/10</th><td><b>18.7</b><span class=sd>±1.4</span></td><td><b>15.9</b><span class=sd>±0.9</span></td><td><b>87.4</b><span class=sd>±1.6</span></td><td><b>96.3</b><span class=sd>±2.9</span></td></tr></tbody></table></div>
+
+<h3>T3 — the Lagrangian connectivity mechanism (inert)</h3>
+<p class="cap">The dual multiplier is 0 on every arm: connectivity (λ₂ ≈ 2.9) sits far above the target θ, so the constraint never binds and soft/lagrangian/PID are indistinguishable. The target was set too slack; the mechanism was never activated.</p>
+<div class="tw"><table>
+<thead><tr><th>mechanism</th><th>θ</th><th>coverage</th><th>connectivity</th><th>mean λ₂</th><th>dual λ</th></tr></thead>
+<tbody><tr><th>soft th5</th><td>0.5</td><td><b>18.8</b><span class=sd>±3.1</span></td><td><b>91.5</b><span class=sd>±5.2</span></td><td><b>2.6</b><span class=sd>±0.9</span></td><td><b>0.0</b><span class=sd>±0.0</span></td></tr><tr><th>lag th5</th><td>0.5</td><td><b>17.4</b><span class=sd>±1.6</span></td><td><b>95.5</b><span class=sd>±2.0</span></td><td><b>2.9</b><span class=sd>±0.3</span></td><td><b>0.0</b><span class=sd>±0.0</span></td></tr><tr><th>lag th7</th><td>0.7</td><td><b>17.9</b><span class=sd>±2.3</span></td><td><b>94.4</b><span class=sd>±3.9</span></td><td><b>2.9</b><span class=sd>±0.9</span></td><td><b>0.0</b><span class=sd>±0.0</span></td></tr><tr><th>pid th5</th><td>0.5</td><td><b>17.6</b><span class=sd>±1.3</span></td><td><b>97.4</b><span class=sd>±2.2</span></td><td><b>3.3</b><span class=sd>±0.7</span></td><td><b>0.0</b><span class=sd>±0.0</span></td></tr><tr><th>pid th7</th><td>0.7</td><td><b>20.5</b><span class=sd>±3.6</span></td><td><b>94.4</b><span class=sd>±2.4</span></td><td><b>2.6</b><span class=sd>±0.3</span></td><td><b>0.0</b><span class=sd>±0.0</span></td></tr></tbody></table></div>
+
+<h3>T4 — count-invariant critic</h3>
+<p class="cap">In-distribution at 32², setpool/setattn beat conv on coverage and connectivity; but see the zero-shot transfer above — they do not transfer better.</p>
+<div class="tw"><table>
+<thead><tr><th>critic</th><th>cov 16²</th><th>cov 24²</th><th>cov 32²</th><th>conn 16²</th><th>conn 24²</th><th>conn 32²</th></tr></thead>
+<tbody><tr><th>conv</th><td><b>50.6</b><span class=sd>±0.4</span></td><td><b>29.7</b><span class=sd>±2.0</span></td><td><b>18.6</b><span class=sd>±1.3</span></td><td><b>95.7</b><span class=sd>±0.2</span></td><td><b>96.8</b><span class=sd>±0.8</span></td><td><b>90.9</b><span class=sd>±5.1</span></td></tr><tr><th>setpool</th><td><b>45.3</b><span class=sd>±1.3</span></td><td><b>31.1</b><span class=sd>±0.3</span></td><td><b>24.8</b><span class=sd>±1.9</span></td><td><b>97.9</b><span class=sd>±0.4</span></td><td><b>97.8</b><span class=sd>±0.1</span></td><td><b>94.9</b><span class=sd>±2.9</span></td></tr><tr><th>setattn</th><td><b>51.3</b><span class=sd>±0.4</span></td><td><b>31.1</b><span class=sd>±0.8</span></td><td><b>24.7</b><span class=sd>±1.2</span></td><td><b>97.1</b><span class=sd>±0.6</span></td><td><b>97.4</b><span class=sd>±0.4</span></td><td><b>98.0</b><span class=sd>±0.7</span></td></tr></tbody></table></div>
+
+<h2>Rollouts</h2>
+<p class="cap">Best single rollout: <b>66.8%</b> coverage (T4·setattn_seed1_ladder_0_16x16x4). Pick any run to replay it — dot colour = role/skill, faint square = sense range, ring = comm range, dashed = comm link, green = covered. All collision-free.</p>
+<div id="bar">
+  <select id="run"></select><button id="play">▶ Play</button>
+  <input id="slider" type="range" min="0" value="0"><span id="tl" class="leg">t=0</span>
+  <label class="leg">speed <input id="sp" type="range" min="1" max="30" value="10" style="width:80px"></label>
+  <span class="leg" id="info"></span>
+</div>
+<canvas id="cv"></canvas>
+<div class="leg" style="text-align:center;padding-bottom:20px" id="dsc"></div>
+</div>
+<script src="data.js"></script>
+<script>
+const T=window.TRAJ,cv=document.getElementById('cv'),cx=cv.getContext('2d');
+const rs=document.getElementById('run'),sl=document.getElementById('slider'),pb=document.getElementById('play'),
+ tl=document.getElementById('tl'),sp=document.getElementById('sp'),inf=document.getElementById('info'),dsc=document.getElementById('dsc');
+let cur=null,t=0,pl=false,cell=16;
+const CO=['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#999','#F0E442','#000','#882255'];
+const cats={};for(const k in T){const c=T[k].cat||'runs';(cats[c]=cats[c]||[]).push(k);}
+for(const c in cats){const og=document.createElement('optgroup');og.label=c;
+ for(const k of cats[c]){const o=document.createElement('option');o.value=k;o.textContent=k.split('·').slice(1).join('·')+'  ('+(T[k].cov||0).toFixed(0)+'%)';og.appendChild(o);}rs.appendChild(og);}
+function xy(i){const W=cur.grid[1];return [i%W,Math.floor(i/W)];}
+function ct(c){return (c+0.5)*cell;}
+function load(k){cur=T[k];const H=cur.grid[0],W=cur.grid[1];cell=Math.max(7,Math.min(22,Math.floor(640/Math.max(H,W))));
+ cv.width=W*cell;cv.height=H*cell;sl.max=cur.frames.length-1;t=0;sl.value=0;
+ inf.textContent=H+'×'+W+' · '+cur.frames[0].pos.length+' agents · '+cur.kind;
+ dsc.textContent=cur.desc||'';draw();}
+function draw(){const H=cur.grid[0],W=cur.grid[1],f=cur.frames[t];cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+ for(const i of f.cov){const[x,y]=xy(i);cx.fillStyle='#cfe3c8';cx.fillRect(x*cell,y*cell,cell,cell);}
+ for(const i of cur.walls){const[x,y]=xy(i);cx.fillStyle='#3a4150';cx.fillRect(x*cell,y*cell,cell,cell);}
+ cx.strokeStyle='#eceef2';cx.lineWidth=.5;for(let i=0;i<=W;i++){cx.beginPath();cx.moveTo(i*cell,0);cx.lineTo(i*cell,H*cell);cx.stroke();}
+ for(let j=0;j<=H;j++){cx.beginPath();cx.moveTo(0,j*cell);cx.lineTo(W*cell,j*cell);cx.stroke();}
+ f.pos.forEach((p,i)=>{const col=CO[(f.tags[i]||0)%CO.length],s=cur.sense_r;cx.fillStyle=col+'22';
+  cx.fillRect((p[1]-s)*cell,(p[0]-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
+  cx.beginPath();cx.arc(ct(p[1]),ct(p[0]),cur.comm_r*cell,0,7);cx.strokeStyle=col+'55';cx.lineWidth=1;cx.stroke();});
+ cx.setLineDash([5,4]);cx.strokeStyle='#1b7f76';cx.lineWidth=1.5;
+ for(const e of f.edges){const a=f.pos[e[0]],b=f.pos[e[1]];cx.beginPath();cx.moveTo(ct(a[1]),ct(a[0]));cx.lineTo(ct(b[1]),ct(b[0]));cx.stroke();}
+ cx.setLineDash([]);f.pos.forEach((p,i)=>{const col=CO[(f.tags[i]||0)%CO.length];cx.beginPath();cx.arc(ct(p[1]),ct(p[0]),cell*.32,0,7);
+  cx.fillStyle=col;cx.fill();cx.strokeStyle='#2a2f3a';cx.lineWidth=1;cx.stroke();});tl.textContent='t='+t;}
+sl.oninput=()=>{t=+sl.value;draw();};pb.onclick=()=>{pl=!pl;pb.textContent=pl?'⏸ Pause':'▶ Play';};
+rs.onchange=()=>{pl=false;pb.textContent='▶ Play';load(rs.value);};
+function tick(){if(pl&&cur){t=(t+1)%cur.frames.length;sl.value=t;draw();}setTimeout(tick,1000/(+sp.value||10));}
+load(rs.value);tick();
+</script>

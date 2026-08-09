@@ -1,0 +1,233 @@
+<!doctype html><html><head><!-- frame-runtime --><script>window.__FRAME_PREAMBLE={"capabilities":{"assets":"assets.hcOK0ALv.js","comments":"comments.D1Mkjxge.js","db":"db.CeV_J5G-.js","downloads":"downloads.BXsoAvg9.js","mcp":"mcp.CYSdpjo0.js","permissions":"permissions.DdITF2Mk.js","sample":"sample.DpdXn9di.js","self":"self.BN4be5De.js","user":"user.Cr_h1ETf.js"},"transforms":"_transforms.VaITkagF.js","comments":"_comments.CNSvmFji.js","translate":"_translate.BOzFH2D9.js"}</script><script>(function(){"use strict";var ne=["light","dark","system"];function oe(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_init;return t!==null&&typeof t=="object"}function W(e){return e!==null&&typeof e=="object"&&e.__frame_size_poke===!0}function se(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_theme;if(t===null||typeof t!="object")return!1;const n=t.theme;return typeof n=="string"&&ne.includes(n)}function ie(e){try{typeof reportError=="function"?reportError(e):setTimeout(()=>{throw e},0)}catch{}}var Y=Object.freeze(Object.assign(Object.create(null),{user:Object.freeze(Object.assign(Object.create(null),{id:null,isOwner:!1,canEdit:!1,name:null,avatarUrl:null,email:null}))})),ae={sample:"sample"};function x(){const e=new Uint8Array(20);try{crypto.getRandomValues(e)}catch{for(let n=0;n<e.length;n++)e[n]=Math.floor(Math.random()*256)}let t="";for(const n of e)t+=(n%36).toString(36);return t}function ce(e,t){const n=r=>{const o={path:r},i=r.split("/");return{id:i[i.length-1],path:r,get:()=>t("get",[o]),set:g=>t("set",[o,g]),update:g=>t("update",[o,g]),delete:()=>t("delete",[o]),acquire:g=>t("acquire",[o,g]),onSnapshot:(g,y)=>t("subscribe",[o,g,y]),collection:g=>a(r+"/"+String(g))}},u=r=>({where:(o,i,g)=>u({...r,where:[...r.where??[],{f:String(o),op:String(i),v:g}]}),orderBy:(o,i)=>u({...r,orderBy:{f:String(o),dir:i===void 0?"asc":String(i)}}),limit:o=>u({...r,limit:Number(o)}),get:()=>t("query",[r]),onSnapshot:(o,i)=>t("subscribe",[r,o,i])}),a=r=>({...u({collection:r}),path:r,doc:o=>n(r+"/"+(o===void 0?x():String(o))),add:o=>{const i=n(r+"/"+x());return Promise.resolve(i.set(o)).then(()=>i)}});e.doc=r=>n(String(r)),e.collection=r=>a(String(r))}function J(e){if(window===top||e.type==="auxclick"&&e.button!==1)return;const t=e.composedPath?e.composedPath():[e.target];let n=null;for(let o=0;o<t.length;o++){const i=t[o];if(i&&i.matches&&i.matches("a[href],area[href]")){n=i;break}}if(!n&&e.target&&e.target.closest&&(n=e.target.closest("a[href],area[href]")),!n)return;const u=n.getAttribute("href");if(!u)return;let a,r;try{a=new URL(u,document.baseURI),r=new URL(document.baseURI).origin}catch{return}if((a.protocol==="http:"||a.protocol==="https:")&&a.origin!==r){e.preventDefault();const o=(n.getAttribute("target")??document.querySelector("base[target]")?.getAttribute("target")??"").toLowerCase(),i=e.type==="auxclick"||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||!["","_self","_top","_parent"].includes(o);parent.postMessage({__frame_nav:!0,url:a.href,newTab:i},"*")}}var G={};function I(e){if(window===top)return;const t=Date.now();t-(G[e]||0)<500||(G[e]=t,parent.postMessage({__frame_engaged:!0,kind:e},"*"))}var le=2e3,V=["wheel","touchstart","touchmove","keydown","pointerdown"],X=0;function ue(e){e.isTrusted&&(X=Date.now())}function fe(){addEventListener("click",J,!0),addEventListener("auxclick",J,!0)}function de(){for(let e=0;e<V.length;e++)addEventListener(V[e],ue,{capture:!0,passive:!0});addEventListener("scroll",e=>{e.isTrusted&&Date.now()-X<le&&I("scroll")},{capture:!0,passive:!0}),addEventListener("pointermove",e=>{e.isTrusted&&I("pointer")},{capture:!0,passive:!0}),addEventListener("click",e=>{e.isTrusted&&I("click")},{capture:!0,passive:!0})}var q="__frame_scroll",me=150,pe=310,ge=160,he=3e4;function ve(){let e=0,t=!1,n=!1,u=!1,a=0,r=null;const o=d=>{try{sessionStorage.setItem(q,JSON.stringify({y:d}))}catch{}},i=()=>{if(clearTimeout(e),r===null)return;const d=r;r=null,o(d)},g=()=>{if(t){t=!1;return}n=!0,r=scrollY,clearTimeout(e),e=setTimeout(i,me)};try{addEventListener("scroll",g,{passive:!0}),addEventListener("pagehide",i)}catch{}const y=()=>{let d;try{d=sessionStorage.getItem(q)}catch{return null}if(d===null)return null;let l;try{l=JSON.parse(d)}catch{l=null}const p=l?.y;if(!(typeof p=="number"&&Number.isFinite(p)&&p>=0)){try{sessionStorage.removeItem(q)}catch{}return null}return p};let c=!1;const f=d=>{try{const l=scrollY;scrollTo({top:d,left:0,behavior:"instant"}),a=d,u=!0,clearTimeout(e),r=null,o(d);const p=scrollY;p!==l&&(t=!0),p!==d&&!c&&(c=!0,addEventListener("load",()=>{try{if(scrollY===p){const v=y();f(v!==null?v:a)}}catch{}},{once:!0}))}catch{}},m=()=>{try{return!!location.hash}catch{return!0}};let h=!1;const _=()=>{try{if(h||innerWidth>pe||innerHeight>ge)return;h=!0;const d=Date.now(),l=()=>{try{removeEventListener("resize",l)}catch{}if(Date.now()-d>he||n||m())return;const p=y();f(p!==null?p:a)};addEventListener("resize",l)}catch{}};let w=!1,S=!1;return{restore(){if(w||(w=!0,m()))return;const d=y();d!==null&&(f(d),_())},promoted(){if(S||(S=!0,m()))return;const d=y();d!==null?(f(d),_()):u&&f(a)}}}function _e(e,t,n){const u=[...t.values()].filter(a=>a.targets.some(r=>r.startsWith(e+".")));return{wrap(a,r){const o=`${e}.${a}`,i=u.filter(g=>g.targets.includes(o));return i.length===0?(...g)=>{try{return r(...g)}catch(y){return Promise.reject(y)}}:(...g)=>{let y=g;for(const f of i){const m=f.module.parameters;if(m)try{y=m(y)}catch{return Promise.reject({code:"transform_error",id:f.id,scope:e,message:"parameters transform failed"})}}let c;try{c=r(...y)}catch(f){c=Promise.reject(f)}return c.then(f=>{for(let m=i.length-1;m>=0;m--){const h=i[m],_=h.module.returns;if(_)try{f=_(f)}catch{return n({id:h.id,scope:e,leg:"returns"}),f}}return f},f=>{for(let m=i.length-1;m>=0;m--){const h=i[m],_=h.module.throws;if(_)try{f=_(f)}catch{return n({id:h.id,scope:e,leg:"throws"}),Promise.reject(f)}}return Promise.reject(f)})}}}}function ye(e,t,n,u=()=>{}){const a=new Set(e.changes??[]),r=new Map;for(const o of a){const i=t[o];i&&r.set(o,i)}return{contract:e.contract,changes:a,flags:new Set(e.flags??[]),capabilities:e.capabilities??{},capBudgets:e.capBudgets??{},transforms:r,shellOrigin:n.shellOrigin,mount:n.mount,pipe:o=>_e(o,r,u)}}var Ae="modulepreload",Re=function(e){return"/"+e},je={},be=function(t,n,u){let a=Promise.resolve();function r(o){const i=new Event("vite:preloadError",{cancelable:!0});if(i.payload=o,window.dispatchEvent(i),!i.defaultPrevented)throw o}return a.then(o=>{for(const i of o||[])i.status==="rejected"&&r(i.reason);return t().catch(r)})};(function(){const e=Object.defineProperty,t=globalThis,n=["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceCandidate","RTCSessionDescription","RTCRtpSender","RTCRtpReceiver"];let u=0;for(let a=0;a<n.length;a++){const r=n[a];try{e(t,r,{value:void 0,writable:!1,configurable:!1})}catch{try{delete t[r]}catch{}try{e(t,r,{value:void 0,writable:!1,configurable:!0})}catch{}}typeof t[r]=="function"&&u++}if(u&&window!==top)try{parent.postMessage({__frame_rtc_lockdown_failed:u},"*")}catch{}})();var Ee=1e4,we=Object.freeze([...window.__FRAME_PREAMBLE?.origins??["https://claude.ai","https://preview.claude.ai"]]);function Q(e){for(const t of we)if(t.endsWith(":*"))try{const n=new URL(e);if(`${n.protocol}//${n.hostname}:*`===t)return!0}catch{}else if(e===t)return!0;return!1}var k=Object.freeze({...window.__FRAME_PREAMBLE?.capabilities}),D=window.__FRAME_PREAMBLE?.transforms,z=window.__FRAME_PREAMBLE?.comments,B=window.__FRAME_PREAMBLE?.translate,C=/^[\w.-]+\.js$/,Se=/^[a-z][a-z0-9_-]{0,63}$/,Z=null,M=null;function $(e,t,n){try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!1,enumerable:!0})}catch{try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!0,enumerable:!0})}catch{}}}var F=!1;function ee(e){const t=document.documentElement;e==="light"||e==="dark"?(t.dataset.theme=e,t.style.colorScheme=e,F=!0):F&&(delete t.dataset.theme,t.style.colorScheme="",F=!1)}var te=256,P=Object.assign(Object.create(null),{mcp:Object.assign(Object.create(null),{watchTool:{handlerArg:3}}),db:Object.assign(Object.create(null),{subscribe:{handlerArg:1,errArg:2}})}),L=new Map;function re(e,t){const n=L.get(e);if(!n)return;const u=Object.assign(Object.create(null),t);Object.assign(n.impl,u),n.impl.__settled=()=>Promise.reject({code:"capability_removed",message:`${e}: method not in this runtime`});const a=n.queue;n.queue=[];for(const r of a){const o=u[r.method];if(o)if(P[e]?.[r.method])try{r.resolve(o(...r.args))}catch{T(r,P[e][r.method],{code:"transform_error",message:`${e}.${r.method} rejected its arguments`})}else o(...r.args).then(r.resolve,r.reject);else{const i={code:"capability_removed",message:`${e}.${r.method} is not in this runtime`},g=P[e]?.[r.method];if(g){T(r,g,i);continue}r.reject(i)}}}function Oe(e,t){const n=L.get(e);if(!n)return;n.impl.__settled=()=>Promise.reject(t);const u=n.queue;n.queue=[];for(const a of u){const r=P[e]?.[a.method];if(r){T(a,r,t);continue}a.reject(t)}}function N(e,t){const n=Y[e];if(!n){Oe(e,t);return}re(e,Object.fromEntries(Object.entries(n).map(([u,a])=>[u,()=>Promise.resolve(a)])))}function T(e,t,n){if(e.syncState?.dead)return;const u=t.errArg===void 0?void 0:e.args[t.errArg],a=t.errArg===void 0?e.args[t.handlerArg]:u;typeof a=="function"&&queueMicrotask(()=>{if(!e.syncState?.dead)try{a(t.errArg===void 0?{type:"error",error:n}:n)}catch(r){ie(r)}})}var H=Object.getOwnPropertyDescriptor(window,"claude");if(window!==top&&!(H&&H.writable===!1)){fe(),de();let e=null;try{e=ve()}catch{}const t=H?.value??{};$(window,"claude",t);const n=c=>{const f={impl:Object.create(null),queue:[]};L.set(c,f);const m=f.impl,h=d=>({code:"queue_overflow",message:`${c}.${d}: pre-init call queue is full`}),_=(d,l)=>{if(f.queue.length>=te){const p=Y[c];return p&&d in p?Promise.resolve(p[d]):Promise.reject(h(d))}return new Promise((p,v)=>{f.queue.push({method:d,args:l,resolve:p,reject:v})})},w=ae[c],S=new Proxy(w===void 0?m:(()=>{}),{apply:(d,l,p)=>{const v=w,E=m[v]??m.__settled;return E?E(...p):_(v,p)},get:(d,l)=>{if(typeof l!="string"||l==="then"||l==="toJSON"||l==="valueOf")return;if(l==="toString")return Object.prototype.toString;if(w!==void 0&&(l==="call"||l==="apply"||l==="bind"))return Function.prototype[l];const p=P[c]?.[l];return p?(...v)=>{if(typeof v[p.handlerArg]!="function")throw new TypeError(`${c}.${l} requires a handler function`);const E=m[l];if(E)return E(...v);if(m.__settled){const b={dead:!1},U={args:[...v],syncState:b};return m.__settled().catch(s=>T(U,p,s)),()=>{b.dead=!0}}if(f.queue.length>=te){const b={dead:!1};return T({args:[...v],syncState:b},p,h(l)),()=>{b.dead=!0}}let A=null;const R={dead:!1};return f.queue.push({method:l,args:v,resolve:b=>{A=typeof b=="function"?b:null,R.dead&&A?.()},reject:()=>{},syncState:R}),()=>{R.dead=!0,A?.()}}:(...v)=>{const E=m[l]??m.__settled;return E?E(...v):_(l,v)}},set:()=>!1});c==="db"&&ce(m,(d,l)=>S[d](...l)),$(t,c,S)};for(const c of Object.keys(k)){if(t[c]!==void 0){$(t,c,t[c]);continue}n(c)}let u=null,a=null,r=0;const o=c=>{c.source!==parent||!Q(c.origin)||oe(c.data)&&(u=c.data.__frame_init,M=c.origin,removeEventListener("message",o),clearTimeout(r),a?.())};addEventListener("message",o),parent.postMessage({__frame_connect:!0},"*");const i=new Promise(c=>{a=c,r=setTimeout(()=>{removeEventListener("message",o),c()},Ee)}),g=document.readyState==="loading"?new Promise(c=>document.addEventListener("DOMContentLoaded",()=>c(),{once:!0})):Promise.resolve();g.then(()=>{try{e?.restore()}catch{}});const y=c=>{if(!(c.source!==parent||!Q(c.origin))&&W(c.data)){removeEventListener("message",y);try{e?.promoted()}catch{}}};addEventListener("message",y),i.then(async()=>{if(!u||!M){for(const s of L.keys())N(s,{code:"not_granted",message:"frame initialization did not arrive - capability unavailable"});return}ee(u.theme);const c=M;let f=!1,m=!1;addEventListener("message",s=>{if(s.source!==parent||s.origin!==c)return;se(s.data)&&ee(s.data.__frame_theme.theme);const O=s.data?.__fc_mode;O&&typeof O=="object"&&!f&&z&&C.test(z)&&(f=!0,h(z).then(K=>K.install?.(c,O.on===!0)).catch(()=>{}));const j=s.data?.__ft_cmd;j&&typeof j=="object"&&!m&&B&&C.test(B)&&(m=!0,h(B).then(K=>K.install?.(c,j)).catch(()=>{}))});const h=s=>be(()=>import("/_runtime/"+s),void 0),_=Object.keys(u.capabilities??{});for(const s of _)Object.hasOwn(k,s)||Se.test(s)&&t[s]===void 0&&(n(s),N(s,{code:"capability_disabled",message:"capability not in this runtime generation"}));const w=_.filter(s=>Object.hasOwn(k,s)).map(s=>[s,k[s]]).filter(s=>typeof s[1]=="string"&&C.test(s[1])),[S,...d]=await Promise.allSettled([D&&C.test(D)?h(D):Promise.resolve({}),...w.map(([,s])=>h(s))]),l=M;Z=ye(u,S.status==="fulfilled"&&S.value?.TRANSFORMS||{},{shellOrigin:l,mount:re},s=>parent.postMessage({__frame_cap_telemetry:s},l));const p=s=>parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:s}},l),v=Z;d.forEach((s,O)=>{const j=w[O][0];if(s.status!=="fulfilled"){p(j);return}try{s.value?.install?.(v)}catch{p(j)}});for(const[s,O]of L)if(!(O.queue.length===0&&Object.keys(O.impl).length>0)){if(_.includes(s)){N(s,{code:"capability_disabled",message:"capability not available in this session"});continue}N(s,{code:"not_granted",message:"capability not available in this session"})}await g,parent.postMessage({__frame_ready:!0},M);let E=-1,A=0;const R=()=>{A=0;const s=Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0);s!==E&&(E=s,parent.postMessage({__frame_size:!0,h:s},l))},b=()=>{A||(A=setTimeout(R,200))},U=new ResizeObserver(b);U.observe(document.documentElement),document.body&&U.observe(document.body),document.addEventListener("load",b,!0),document.fonts?.ready.then(b,()=>{}),addEventListener("beforeprint",()=>{E=-1,R()}),b(),addEventListener("message",s=>{if(!(s.source!==parent||s.origin!==l)&&W(s.data)){try{e?.promoted()}catch{}E=-1,b()}})})}})();</script><!-- /frame-runtime --><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>Four Network-Mission Archetypes</title>
+<style>
+  :root{
+    --bg:#fbfbfd; --surface:#ffffff; --ink:#1a1d24; --muted:#5c6270; --faint:#878d9c;
+    --border:#e6e8ee; --border-strong:#cfd4de; --red:#e0483f;
+    --flow:#2f6df0; --agree:#0e9e80; --spread:#d9820a; --structure:#7c53e0;
+    --flow-soft:#eaf1fe; --agree-soft:#e6f6f2; --spread-soft:#fdf1e2; --structure-soft:#f0ebfc;
+    --shadow:0 1px 2px rgba(20,25,40,.04),0 6px 20px rgba(20,25,40,.06);
+    --serif:ui-serif,Georgia,"Times New Roman",serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#14161b; --surface:#1c1f26; --ink:#e7e9ee; --muted:#9aa1b0; --faint:#727988;
+    --border:#2a2e37; --border-strong:#414753; --red:#ff6b60;
+    --flow:#6a9bff; --agree:#35c8a6; --spread:#f0a742; --structure:#a488f0;
+    --flow-soft:#18233c; --agree-soft:#123028; --spread-soft:#33260f; --structure-soft:#241c3d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);}}
+  :root[data-theme="light"]{--bg:#fbfbfd;--surface:#ffffff;--ink:#1a1d24;--muted:#5c6270;--faint:#878d9c;--border:#e6e8ee;--border-strong:#cfd4de;--red:#e0483f;--flow:#2f6df0;--agree:#0e9e80;--spread:#d9820a;--structure:#7c53e0;--flow-soft:#eaf1fe;--agree-soft:#e6f6f2;--spread-soft:#fdf1e2;--structure-soft:#f0ebfc;--shadow:0 1px 2px rgba(20,25,40,.04),0 6px 20px rgba(20,25,40,.06);}
+  :root[data-theme="dark"]{--bg:#14161b;--surface:#1c1f26;--ink:#e7e9ee;--muted:#9aa1b0;--faint:#727988;--border:#2a2e37;--border-strong:#414753;--red:#ff6b60;--flow:#6a9bff;--agree:#35c8a6;--spread:#f0a742;--structure:#a488f0;--flow-soft:#18233c;--agree-soft:#123028;--spread-soft:#33260f;--structure-soft:#241c3d;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;padding:clamp(20px,4vw,56px)}
+  .wrap{max-width:1120px;margin:0 auto}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:0 0 10px}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,5vw,46px);line-height:1.08;margin:0 0 14px;letter-spacing:-.01em;text-wrap:balance}
+  h1 em{font-style:italic}
+  .lede{font-size:clamp(16px,2vw,18px);color:var(--muted);max-width:66ch;margin:0 0 26px}
+  .lede b{color:var(--ink);font-weight:600}
+  .test{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:34px;box-shadow:var(--shadow)}
+  .test .mark{font-family:var(--serif);font-size:26px;line-height:1;color:var(--ink);flex:none}
+  .test p{margin:0;font-size:15px;color:var(--muted)} .test b{color:var(--ink)}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+  @media (max-width:760px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .card .top{padding:20px 22px 6px;border-top:3px solid var(--accent)}
+  .tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:8px}
+  .tag .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  h2{font-family:var(--serif);font-weight:600;font-size:23px;margin:0 0 2px;letter-spacing:-.01em}
+  .produces{font-size:13.5px;color:var(--muted);margin:0 0 4px} .produces b{color:var(--accent)}
+  figure{margin:6px 22px 4px;background:var(--accent-soft);border-radius:12px;padding:8px}
+  canvas.scene{width:100%;aspect-ratio:240 / 132;display:block;border-radius:8px}
+  .body{padding:10px 22px 4px}
+  .def{font-size:14.5px;color:var(--ink);margin:0 0 10px}
+  .ortho{font-size:13px;color:var(--muted);margin:0 0 4px;padding-left:14px;border-left:2px solid var(--accent)} .ortho b{color:var(--ink)}
+  .papers{list-style:none;margin:12px 0 6px;padding:14px 22px 20px;border-top:1px solid var(--border)}
+  .papers li{margin:0 0 12px;font-size:13.5px} .papers li:last-child{margin-bottom:0}
+  .papers a{color:var(--accent);text-decoration:none;font-weight:600;border-bottom:1px solid transparent}
+  .papers a:hover,.papers a:focus{border-bottom-color:var(--accent)}
+  .papers a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+  .cite{color:var(--faint);font-size:12.5px} .look{display:block;color:var(--muted);font-style:italic;margin-top:2px}
+  footer{margin-top:34px;padding:22px 24px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+  footer h3{font-family:var(--serif);font-size:19px;margin:0 0 12px;font-weight:600}
+  .verbs{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0}
+  @media (max-width:640px){.verbs{grid-template-columns:1fr 1fr}}
+  .verb{padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg)}
+  .verb .v{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+  .verb p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+  .flow-a{--accent:var(--flow);--accent-soft:var(--flow-soft)}
+  .agree-a{--accent:var(--agree);--accent-soft:var(--agree-soft)}
+  .spread-a{--accent:var(--spread);--accent-soft:var(--spread-soft)}
+  .structure-a{--accent:var(--structure);--accent-soft:var(--structure-soft)}
+  .foot-note{font-size:12.5px;color:var(--faint);margin:16px 2px 0;max-width:72ch}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Zymera · candidate second mission · verified sources</p>
+    <h1>Four ways a mobile team can make the network <em>the mission</em></h1>
+    <p class="lede">Each panel is a small <b>live simulation</b> in the paper&rsquo;s own terms &mdash; <b>mobile agents, range-limited links that form and break</b>. The network can <b>carry</b>, <b>compute</b>, <b>spread</b>, or <b>be</b>. Papers below are real and verified.</p>
+    <div class="test">
+      <span class="mark">&#10003;</span>
+      <p><b>The test each one passes.</b> A mission differs from your shared-exploration work only if <b>you could have perfect coverage and still totally fail at it.</b></p>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <section class="card flow-a">
+      <div class="top"><span class="tag"><span class="dot"></span>A &middot; the network carries</span><h2>Flow</h2><p class="produces">produces &rarr; <b>throughput / QoS</b></p></div>
+      <figure><canvas class="scene" data-scene="flow" role="img" aria-label="Simulation: two moving source-sink pairs; mobile relays reposition to keep both flows connected over range-limited links, sharing a congested central relay"></canvas></figure>
+      <div class="body">
+        <p class="def">Task agents move; a few <b>mobile relays reposition</b> to keep multiple flows connected over <b>range-limited links</b>. Where two flows share a relay &rarr; <b>congestion</b> (the min-cut bottleneck).</p>
+        <p class="ortho"><b>Not coverage:</b> you can see everything and carry zero flow, or carry everything while blind to the map.</p>
+      </div>
+      <ul class="papers">
+        <li><a href="https://arxiv.org/abs/2002.03026" target="_blank" rel="noopener">Mobile Wireless Network Infrastructure on Demand</a> <span class="cite">· Mox, Calvo-Fullana, Gerasimenko, Fink, Kumar, Ribeiro — ICRA 2020 · arXiv:2002.03026</span><span class="look">the anchor: UAVs reposition to route multiple data flows for a moving task team</span></li>
+        <li><a href="https://arxiv.org/abs/2306.08737" target="_blank" rel="noopener">A Networked Multi-Agent System for Mobile Wireless Infrastructure on Demand</a> <span class="cite">· Calvo-Fullana et al. — 2023 · arXiv:2306.08737</span><span class="look">the deployable system; reconfigures for QoS, &ldquo;resilient to agent failures&rdquo;</span></li>
+        <li><a href="https://arxiv.org/abs/2309.14284" target="_blank" rel="noopener">Navigation with Shadow Prices to Optimize Multi-Commodity Flow Rates</a> <span class="cite">· 2023 · arXiv:2309.14284</span><span class="look">multi-commodity flow with mobile relays, made literal</span></li>
+      </ul>
+    </section>
+
+    <section class="card agree-a">
+      <div class="top"><span class="tag"><span class="dot"></span>B &middot; the network computes</span><h2>Agreement</h2><p class="produces">produces &rarr; <b>a shared heading</b></p></div>
+      <figure><canvas class="scene" data-scene="agree" role="img" aria-label="Simulation: a flock of agents moving with heading arrows that align to a common direction through local exchange, while one misaligned agent is ignored"></canvas></figure>
+      <div class="body">
+        <p class="def">A <b>moving flock</b> aligns on a shared heading through local exchange &mdash; consensus you can watch in the motion; a misaligned agent (red) is ignored (resilient). &lambda;&#8322; sets the speed.</p>
+        <p class="ortho"><b>Not coverage:</b> you can observe everything and still converge on a <b>wrong or inconsistent</b> shared belief.</p>
+      </div>
+      <ul class="papers">
+        <li><a href="https://www.lehigh.edu/~das819/pdf/ral17-resilient-flocking.pdf" target="_blank" rel="noopener">Resilient Flocking for Mobile Robot Teams</a> <span class="cite">· Saulnier, Saldaña, Prorok, Pappas, Kumar — IEEE RA-L 2017</span><span class="look">real robots agree on a heading with faulty / malicious members</span></li>
+        <li><a href="https://arxiv.org/abs/2202.10814" target="_blank" rel="noopener">Resilient Average Consensus: A Detection and Compensation Approach</a> <span class="cite">· 2022 · arXiv:2202.10814</span><span class="look">spot and compensate corrupted values during consensus</span></li>
+        <li><a href="https://arxiv.org/abs/2301.06977" target="_blank" rel="noopener">Byzantine Resilience at Swarm Scale</a> <span class="cite">· 2023 · arXiv:2301.06977</span><span class="look">how consensus resilience scales with team size</span></li>
+      </ul>
+    </section>
+
+    <section class="card spread-a">
+      <div class="top"><span class="tag"><span class="dot"></span>C &middot; the network spreads</span><h2>Spread</h2><p class="produces">produces &rarr; <b>information reach</b></p></div>
+      <figure><canvas class="scene" data-scene="spread" role="img" aria-label="Simulation: nodes drift; a message spreads from an informed node to uninformed ones whenever they come within range, growing reach over time"></canvas></figure>
+      <div class="body">
+        <p class="def">On a <b>moving network</b>, the message spreads by <b>encounters</b> &mdash; an informed node meets an uninformed one and passes it on &mdash; so reach grows over <b>time</b>.</p>
+        <p class="ortho"><b>Not coverage:</b> you can be everywhere in space and still fail to relay the message to a partitioned node.</p>
+      </div>
+      <ul class="papers">
+        <li><a href="https://arxiv.org/abs/2308.16198" target="_blank" rel="noopener">Collaborative Information Dissemination with Graph-based Multi-Agent RL</a> <span class="cite">· Galliera et al. — 2023 · arXiv:2308.16198</span><span class="look">agents learn to disseminate on dynamic networks; scored on reach + overhead</span></li>
+        <li><a href="https://arxiv.org/abs/2501.00165" target="_blank" rel="noopener">Dynamic Graph Communication for Decentralised Multi-Agent RL</a> <span class="cite">· 2025 · arXiv:2501.00165</span><span class="look">communicating over a changing graph</span></li>
+        <li><a href="https://arxiv.org/abs/2404.04898" target="_blank" rel="noopener">Graph Neural Network Meets Multi-Agent RL (survey)</a> <span class="cite">· 2024 · arXiv:2404.04898</span><span class="look">the map of GNN-based multi-agent communication</span></li>
+      </ul>
+    </section>
+
+    <section class="card structure-a">
+      <div class="top"><span class="tag"><span class="dot"></span>D &middot; the network is</span><h2>Structure</h2><p class="produces">produces &rarr; <b>the topology itself</b></p></div>
+      <figure><canvas class="scene" data-scene="structure" role="img" aria-label="Simulation: robots spread outward toward goals while a decentralized rule keeps the comm graph connected; links stretch to the range limit and turn red near breaking, then hold"></canvas></figure>
+      <div class="body">
+        <p class="def">Robots <b>spread toward goals</b> while a decentralized rule keeps the graph <b>connected</b> &mdash; links stretch to the range limit (turning red near breaking), then hold. &lambda;&#8322; stays positive.</p>
+        <p class="ortho"><b>Not coverage:</b> but pure structure with nothing flowing over it is under-motivated &mdash; usually wrap it around A, B, or C.</p>
+      </div>
+      <ul class="papers">
+        <li><a href="https://arxiv.org/abs/2109.08536" target="_blank" rel="noopener">Decentralized Global Connectivity Maintenance for Multi-Robot Navigation (RL)</a> <span class="cite">· Li, Jie, Kong, Cheng — ICRA 2022 · arXiv:2109.08536</span><span class="look">learned policy navigates while holding global connectivity</span></li>
+        <li><a href="https://arxiv.org/abs/2406.12802" target="_blank" rel="noopener">Decentralized Multi-Robot Line-of-Sight Connectivity Maintenance under Uncertainty</a> <span class="cite">· 2024 · arXiv:2406.12802</span><span class="look">hold LoS links despite localization noise</span></li>
+        <li><a href="https://arxiv.org/abs/2510.03504" target="_blank" rel="noopener">Connectivity Maintenance and Recovery for Multi-Robot Motion Planning</a> <span class="cite">· 2025 · arXiv:2510.03504</span><span class="look">maintain <em>and recover</em> connectivity while moving</span></li>
+      </ul>
+    </section>
+
+  </div>
+
+  <footer>
+    <h3>Pick the verb, and I&rsquo;ll build that one to a full mission spec</h3>
+    <div class="verbs">
+      <div class="verb" style="border-left:3px solid var(--flow)"><span class="v" style="color:var(--flow)">Carry</span><p>Flow &mdash; multi-commodity; deepest robotics lit (Infrastructure-on-Demand).</p></div>
+      <div class="verb" style="border-left:3px solid var(--agree)"><span class="v" style="color:var(--agree)">Compute</span><p>Agreement &mdash; deepest theory (&lambda;&#8322;), sharpest later covert story, most crowded.</p></div>
+      <div class="verb" style="border-left:3px solid var(--spread)"><span class="v" style="color:var(--spread)">Spread</span><p>Spread &mdash; temporal graphs / journeys; MARL dissemination is fresh.</p></div>
+      <div class="verb" style="border-left:3px solid var(--structure)"><span class="v" style="color:var(--structure)">Be</span><p>Structure &mdash; purest Organize; deep connectivity lit, wrap around a function.</p></div>
+    </div>
+    <p class="foot-note">Every link is a real, verified work (arXiv IDs confirmed by search, July 2026). Flow &amp; Structure have the most concrete multi-robot mission literature.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var reduce=false; try{reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+  function cvar(n){return (getComputedStyle(document.documentElement).getPropertyValue(n)||'#888').trim();}
+  function COL(){return{surface:cvar('--surface'),muted:cvar('--muted'),border:cvar('--border-strong'),flow:cvar('--flow'),agree:cvar('--agree'),spread:cvar('--spread'),structure:cvar('--structure'),red:cvar('--red')};}
+  function clamp(v,a,b){return v<a?a:v>b?b:v;}
+  function dist(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1]);}
+  function D(c,x,y,r,col,al){c.globalAlpha=al==null?1:al;c.beginPath();c.arc(x,y,r,0,6.2832);c.fillStyle=col;c.fill();c.globalAlpha=1;}
+  function LN(c,a,b,col,w,al){c.globalAlpha=al==null?1:al;c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.strokeStyle=col;c.lineWidth=w;c.lineCap='round';c.stroke();c.globalAlpha=1;}
+  function ND(c,x,y,r,st,fi){c.beginPath();c.arc(x,y,r,0,6.2832);c.fillStyle=fi;c.fill();c.lineWidth=2;c.strokeStyle=st;c.stroke();}
+  function ARR(c,x,y,ang,len,col,w){var ex=x+Math.cos(ang)*len,ey=y+Math.sin(ang)*len;LN(c,[x,y],[ex,ey],col,w);c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(ex,ey);c.lineTo(ex+Math.cos(ang+2.6)*4.5,ey+Math.sin(ang+2.6)*4.5);c.moveTo(ex,ey);c.lineTo(ex+Math.cos(ang-2.6)*4.5,ey+Math.sin(ang-2.6)*4.5);c.stroke();}
+  function TX(c,x,y,t,col,s){c.fillStyle=col;c.font=(s||9)+'px ui-monospace,monospace';c.textAlign='center';c.textBaseline='middle';c.fillText(t,x,y);}
+  function poly(p){var s=[],T=0;for(var i=0;i<p.length-1;i++){var d=dist(p[i],p[i+1]);s.push({a:p[i],b:p[i+1],d:d});T+=d;}return{s:s,T:T};}
+  function pat(P,f){f=f-Math.floor(f);var x=f*P.T;for(var i=0;i<P.s.length;i++){var g=P.s[i];if(x<=g.d||i===P.s.length-1){var u=g.d?x/g.d:0;return[g.a[0]+(g.b[0]-g.a[0])*u,g.a[1]+(g.b[1]-g.a[1])*u];}x-=g.d;}return P.s[P.s.length-1].b;}
+  function lp(a,b,f){return[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];}
+
+  // FLOW: moving source/sink pairs + relays that reposition on the sources->sinks line
+  var Flow={t:0,relays:[[85,66],[122,66],[159,66]],
+    ta:function(i){var C=[[36,44],[36,92],[206,44],[206,92]][i],ph=i*1.7;return[C[0]+9*Math.sin(this.t*0.5+ph),C[1]+11*Math.sin(this.t*0.37+ph*1.3)];},
+    step:function(dt){this.t+=dt;var s1=this.ta(0),s2=this.ta(1),d1=this.ta(2),d2=this.ta(3);
+      var sc=[(s1[0]+s2[0])/2,(s1[1]+s2[1])/2],dc=[(d1[0]+d2[0])/2,(d1[1]+d2[1])/2];
+      var tg=[lp(sc,dc,0.28),lp(sc,dc,0.5),lp(sc,dc,0.72)],k=clamp(dt*2.4,0,1),i;
+      for(i=0;i<3;i++){this.relays[i][0]+=(tg[i][0]-this.relays[i][0])*k;this.relays[i][1]+=(tg[i][1]-this.relays[i][1])*k;}},
+    draw:function(c,C){var s1=this.ta(0),s2=this.ta(1),d1=this.ta(2),d2=this.ta(3),A=this.relays[0],Cc=this.relays[1],B=this.relays[2],r=66;
+      function lk(a,b){var on=dist(a,b)<r;LN(c,a,b,on?C.border:C.red,on?3:2,on?.6:.5);}
+      lk(s1,A);lk(s2,A);lk(A,Cc);lk(Cc,B);lk(B,d1);lk(B,d2);
+      var pu=.5+.5*Math.sin(this.t*4);D(c,Cc[0],Cc[1],11+3*pu,C.red,.13+.15*pu);
+      ND(c,A[0],A[1],7,C.flow,C.surface);ND(c,B[0],B[1],7,C.flow,C.surface);ND(c,Cc[0],Cc[1],7.5,C.red,C.surface);
+      ND(c,s1[0],s1[1],8,C.flow,'#3b82f6');ND(c,d1[0],d1[1],8,C.flow,'#3b82f6');
+      ND(c,s2[0],s2[1],8,C.flow,'#ec4899');ND(c,d2[0],d2[1],8,C.flow,'#ec4899');
+      TX(c,s1[0],s1[1],'S','#fff',7.5);TX(c,s2[0],s2[1],'S','#fff',7.5);TX(c,d1[0],d1[1],'T','#fff',7.5);TX(c,d2[0],d2[1],'T','#fff',7.5);
+      var P1=poly([s1,A,Cc,B,d1]),P2=poly([s2,A,Cc,B,d2]),n=4,i,q;
+      for(i=0;i<n;i++){q=pat(P1,this.t*0.2+i/n);D(c,q[0],q[1],3.3,'#3b82f6');q=pat(P2,this.t*0.2+i/n+.13);D(c,q[0],q[1],3.3,'#ec4899');}
+      TX(c,120,126,'mobile relays reroute · shared relay = congestion',C.muted,8.3);}
+  };
+
+  // AGREEMENT: flocking, headings align; one faulty agent ignored
+  var Agree={a:[{x:70,y:50,th:0.4},{x:104,y:82,th:2.2},{x:132,y:44,th:4.1},{x:118,y:98,th:1.0,f:true},{x:162,y:70,th:5.3},{x:88,y:62,th:3.0},{x:150,y:104,th:0.7}],
+    step:function(dt){var r=54,i,j,A;for(i=0;i<this.a.length;i++){A=this.a[i];if(A.f){A.th+=dt*0.25;continue;}var sx=0,sy=0;for(j=0;j<this.a.length;j++){var B=this.a[j];if(B.f)continue;if(dist([A.x,A.y],[B.x,B.y])<r){sx+=Math.cos(B.th);sy+=Math.sin(B.th);}}var m=Math.atan2(sy,sx),d=Math.atan2(Math.sin(m-A.th),Math.cos(m-A.th));A.th+=d*clamp(dt*1.5,0,1);}
+      var v=15;for(i=0;i<this.a.length;i++){A=this.a[i];A.x+=Math.cos(A.th)*v*dt;A.y+=Math.sin(A.th)*v*dt;if(A.x<6)A.x+=228;if(A.x>234)A.x-=228;if(A.y<6)A.y+=120;if(A.y>126)A.y-=120;}},
+    draw:function(c,C){var r=54,i,j;for(i=0;i<this.a.length;i++)for(j=i+1;j<this.a.length;j++)if(dist([this.a[i].x,this.a[i].y],[this.a[j].x,this.a[j].y])<r)LN(c,[this.a[i].x,this.a[i].y],[this.a[j].x,this.a[j].y],C.agree,1.4,.22);
+      for(i=0;i<this.a.length;i++){var A=this.a[i],col=A.f?C.red:C.agree;ARR(c,A.x,A.y,A.th,13,col,2.4);ND(c,A.x,A.y,6,col,C.surface);}
+      TX(c,120,126,'flock aligns heading · red outlier ignored',C.muted,8.3);}
+  };
+
+  // SPREAD: drifting nodes; message passes on encounter (within range)
+  var Spread={t:0,timer:0,flash:[],n:[{bx:30,by:66,ph:0,inf:true},{bx:70,by:38,ph:0.7,inf:false},{bx:74,by:96,ph:1.4,inf:false},{bx:118,by:30,ph:2.1,inf:false},{bx:120,by:70,ph:2.8,inf:false},{bx:124,by:108,ph:3.5,inf:false},{bx:170,by:48,ph:4.2,inf:false},{bx:176,by:96,ph:4.9,inf:false},{bx:210,by:70,ph:5.6,inf:false}],
+    pos:function(i){var N=this.n[i];return[N.bx+11*Math.sin(this.t*0.5+N.ph),N.by+9*Math.cos(this.t*0.4+N.ph*1.2)];},
+    step:function(dt){this.t+=dt;this.timer+=dt;var r=54,i,j;
+      for(i=0;i<9;i++)if(this.n[i].inf)for(j=0;j<9;j++)if(i!==j&&!this.n[j].inf&&dist(this.pos(i),this.pos(j))<r){this.n[j].inf=true;this.flash.push({a:i,b:j,t:0});}
+      for(i=0;i<this.flash.length;i++)this.flash[i].t+=dt;this.flash=this.flash.filter(function(f){return f.t<0.5;});
+      var all=true;for(i=0;i<9;i++)if(!this.n[i].inf)all=false;
+      if((all&&this.timer>1.4)||this.timer>8){for(i=1;i<9;i++)this.n[i].inf=false;this.timer=0;this.flash=[];}},
+    draw:function(c,C){var i,j;for(i=0;i<9;i++)for(j=i+1;j<9;j++)if(dist(this.pos(i),this.pos(j))<54)LN(c,this.pos(i),this.pos(j),C.spread,1.3,.14);
+      for(i=0;i<this.flash.length;i++)LN(c,this.pos(this.flash[i].a),this.pos(this.flash[i].b),C.spread,2.6,.9*(1-this.flash[i].t*2));
+      for(i=0;i<9;i++){var p=this.pos(i);D(c,p[0],p[1],i===0?9:7.5,C.spread,this.n[i].inf?1:0.15);}
+      var s=this.pos(0);TX(c,s[0],s[1],'!','#fff',9);
+      TX(c,120,126,'message spreads by encounters, over time',C.muted,8.3);}
+  };
+
+  // STRUCTURE: robots breathe outward toward goals; connectivity holds, links stress red near range
+  var Struct={t:0,ang:[0,1.05,2.09,3.14,4.19,5.24],
+    pos:function(i){var a=this.ang[i],R=24+18*(0.5+0.5*Math.sin(this.t*0.55+i*0.5));return[120+Math.cos(a)*R*1.7,66+Math.sin(a)*R];},
+    step:function(dt){this.t+=dt;},
+    draw:function(c,C){var i,j,r=74,P=[];for(i=0;i<6;i++)P.push(this.pos(i));
+      for(i=0;i<6;i++)for(j=i+1;j<6;j++){var d=dist(P[i],P[j]);if(d<r){var st=clamp((d-r*0.55)/(r*0.45),0,1);LN(c,P[i],P[j],st>0.72?C.red:C.structure,2.2,.35+.45*(1-st));}}
+      for(i=0;i<6;i++)ND(c,P[i][0],P[i][1],7,C.structure,C.surface);
+      TX(c,120,126,'spread to the connectivity limit, then hold',C.muted,8.3);}
+  };
+
+  var scenes={flow:Flow,agree:Agree,spread:Spread,structure:Struct};
+  var list=[].map.call(document.querySelectorAll('canvas.scene'),function(el){return{el:el,ctx:el.getContext('2d'),name:el.getAttribute('data-scene'),ok:false};});
+  function fit(o){var dpr=Math.min(window.devicePixelRatio||1,2),w=o.el.clientWidth,h=o.el.clientHeight;if(!w||!h)return;o.el.width=Math.round(w*dpr);o.el.height=Math.round(h*dpr);var s=(w/240)*dpr;o.ctx.setTransform(s,0,0,s,0,0);o.ok=true;}
+  function drawAll(){var C=COL(),i;for(i=0;i<list.length;i++){var o=list[i];if(!o.ok)fit(o);if(!o.ok)continue;o.ctx.clearRect(0,0,240,132);scenes[o.name].draw(o.ctx,C);}}
+  var last=0;
+  function frame(now){var t=now/1000,dt=last?clamp(t-last,0,0.05):0.016;last=t;Flow.step(dt);Agree.step(dt);Spread.step(dt);Struct.step(dt);drawAll();requestAnimationFrame(frame);}
+  if(window.ResizeObserver){var ro=new ResizeObserver(function(){list.forEach(fit);if(reduce)drawAll();});list.forEach(function(o){ro.observe(o.el);});}
+  window.addEventListener('resize',function(){list.forEach(fit);if(reduce)drawAll();});
+  list.forEach(fit);
+  if(reduce){var s;for(s=0;s<160;s++){Flow.step(0.03);Agree.step(0.03);Spread.step(0.03);Struct.step(0.03);}drawAll();}
+  else requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>

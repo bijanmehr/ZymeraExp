@@ -1,0 +1,73 @@
+{
+ "config": "bijan",
+ "run_dir": "/home/bijan/probe_ws/rooms32",
+ "S": 15,
+ "N_test": 3,
+ "n_train": 12000,
+ "n_test": 3000,
+ "properties": {
+  "position": {
+   "dim": 2,
+   "neighbor_only": false,
+   "r2_z": 0.301,
+   "r2_z_nocomm": 0.268,
+   "r2_shuffled": -0.042,
+   "gnn_gain": 0.033
+  },
+  "coverage": {
+   "dim": 1,
+   "neighbor_only": false,
+   "r2_z": 0.796,
+   "r2_z_nocomm": 0.815,
+   "r2_shuffled": -0.034,
+   "gnn_gain": -0.019
+  },
+  "comm_degree": {
+   "dim": 1,
+   "neighbor_only": true,
+   "r2_z": 0.797,
+   "r2_z_nocomm": 0.921,
+   "r2_shuffled": 0.002,
+   "gnn_gain": -0.124
+  },
+  "nn_distance": {
+   "dim": 1,
+   "neighbor_only": true,
+   "r2_z": 0.329,
+   "r2_z_nocomm": 0.391,
+   "r2_shuffled": -0.01,
+   "gnn_gain": -0.062
+  },
+  "centroid_offset": {
+   "dim": 2,
+   "neighbor_only": true,
+   "r2_z": 0.525,
+   "r2_z_nocomm": 0.419,
+   "r2_shuffled": -0.006,
+   "gnn_gain": 0.106
+  },
+  "boxed_in": {
+   "dim": 1,
+   "neighbor_only": false,
+   "r2_z": 0.052,
+   "r2_z_nocomm": 0.146,
+   "r2_shuffled": -0.009,
+   "gnn_gain": -0.094
+  },
+  "frontier_bearing": {
+   "dim": 2,
+   "neighbor_only": false,
+   "r2_z": 0.294,
+   "r2_z_nocomm": 0.267,
+   "r2_shuffled": -0.124,
+   "gnn_gain": 0.027
+  },
+  "role_REFERENCE": {
+   "dim": 1,
+   "neighbor_only": false,
+   "accuracy": 0.967,
+   "base_rate": 0.967,
+   "note": "head off z; expected high"
+  }
+ }
+}

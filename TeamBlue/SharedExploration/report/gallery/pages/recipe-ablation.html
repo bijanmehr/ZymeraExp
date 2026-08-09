@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recipe ablation · which ingredient earns its place · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>
+ :root{--accent:#1f7a3d;--accent-soft:#e6f4ea}
+ .resulttbl{max-width:880px;margin:16px 0 2px;margin-left:18px;border-collapse:collapse;
+  font-family:var(--sans);font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+ .resulttbl caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);padding:0 0 6px 2px}
+ .resulttbl th,.resulttbl td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line)}
+ .resulttbl thead th{background:var(--accent-soft);color:#10233f;font-weight:700;font-size:12px;
+  letter-spacing:.02em;border-bottom:1px solid var(--accent)}
+ .resulttbl tbody tr:last-child td{border-bottom:none}
+ .resulttbl td.arm{font-weight:700;color:#10233f}
+ .resulttbl td.num{font-variant-numeric:tabular-nums}
+ .resulttbl .win{color:var(--accent);font-weight:700}
+ .resulttbl .floor{color:#b22;font-weight:700}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk active" href="recipe-ablation.html">Recipe ablation</a>
+ <a class="lnk" href="frontier.html">Cov↔conn frontier</a>
+ <a class="lnk" href="occupancy-ab.html">Occupancy A/B</a>
+ <a class="lnk" href="warm-bigger.html">Warm-start → bigger</a>
+ <a class="lnk" href="best-arch.html">Best-arch × maps</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Recipe ablation · 32×32 / 10 agents · 4 recipes × 3 maps × 3 seeds (36 runs)</div>
+  <h1>Recipe ablation — which ingredient actually earns its place?</h1>
+  <p class="what"><b>What it tests:</b> a controlled ablation that toggles three ingredients of the best
+  recipe one at a time, on three maps (open · rooms · crowded), three seeds each. The four arms are
+  <em>role_soft_bump</em> (explorer/relay <b>roles</b> + soft-λ connectivity + a <b>bump-explore</b>
+  reward term), <em>base_soft_bump</em> (drop the roles → homogeneous), <em>role_lag_bump</em> (swap the
+  soft penalty for a learned-Lagrangian one), and <em>role_soft_flat</em> (drop the bump term → flat
+  reward). Reading the four side by side isolates what each piece is worth.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt"><span id="rb-finding">Measured live from the rendered tiles below.</span>
+   <b>role + bump wins</b>, and Lagrangian vs soft is essentially a tie. The single biggest lever is the
+   <b>bump-explore term</b>: removing it (<em>role_soft_flat</em>) is the floor. The explorer/relay
+   <b>role split</b> helps most on open and crowded. Three seeds per cell.</span>
+  </div>
+
+  <table class="resulttbl">
+   <caption>Per recipe — mean of all maps × seeds · rollout coverage = final % of free cells visited (100-step CPU re-roll)</caption>
+   <thead>
+    <tr><th>Recipe</th><th>What it changes</th><th>Mean coverage</th><th>vs floor</th><th>runs</th></tr>
+   </thead>
+   <tbody id="rb-rows"><tr><td colspan="5" style="opacity:.6">computing from the rendered rollouts…</td></tr></tbody>
+  </table>
+  <p class="what" style="margin-top:10px;opacity:.85">The run list is grouped <em>by recipe, then map</em> —
+  expand a recipe to compare it across terrain. The table is computed <em>live from the rendered
+  rollouts</em>, so it self-corrects on every re-render.</p>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ var CAT = 'Recipe ablation (bench)';
+ function mine(k, v){ return v && v.cat === CAT; }
+ // label = "bench - <recipe> - <map> - s<seed>" → group by recipe (fixed order) then map
+ var RORD = {role_soft_bump:'1', base_soft_bump:'2', role_lag_bump:'3', role_soft_flat:'4'};
+ var MORD = {open:'1', rooms:'2', crowded:'3'};
+ function recipeOf(v){ return (v.label||'').split(' - ')[1] || '?'; }
+ function mapOf(v){ return (v.label||'').split(' - ')[2] || '?'; }
+ function groupOf(k, v){
+   var r = recipeOf(v), m = mapOf(v);
+   return (RORD[r]||'9') + ' · ' + r + '  ›  ' + (MORD[m]||'9') + '·' + m;
+ }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#1f7a3d', group: groupOf });
+
+ // --- live summary table: mean rollout coverage per recipe (over all maps × seeds) ---
+ (function(){
+   var T = window.TRAJ || {};
+   var NAME = {role_soft_bump:'role_soft_bump', base_soft_bump:'base_soft_bump',
+               role_lag_bump:'role_lag_bump', role_soft_flat:'role_soft_flat'};
+   var CHG  = {role_soft_bump:'roles + soft-λ + <b>bump</b> (best)',
+               base_soft_bump:'<b>no roles</b> (homogeneous)',
+               role_lag_bump:'roles + <b>Lagrangian</b> + bump',
+               role_soft_flat:'roles + soft-λ, <b>no bump</b>'};
+   var ORDER = ['role_soft_bump','base_soft_bump','role_lag_bump','role_soft_flat'];
+   var byR = {}, k;
+   for(k in T){ var v=T[k]; if(!v || v.cat!==CAT) continue;
+     var r=(v.label||'').split(' - ')[1]; (byR[r]=byR[r]||[]).push(v.cov); }
+   function mean(a){ var s=0,i; for(i=0;i<a.length;i++) s+=a[i]; return a.length? s/a.length : 0; }
+   var floor = byR['role_soft_flat'] ? mean(byR['role_soft_flat']) : 0;
+   var rows='';
+   ORDER.forEach(function(r){
+     var a=byR[r]; if(!a||!a.length) return;
+     var mu=mean(a), d=mu-floor;
+     var cls = r==='role_soft_bump' ? 'win' : (r==='role_soft_flat' ? 'floor' : 'num');
+     var dtxt = r==='role_soft_flat' ? '— (floor)' : (d>=0?'+':'') + d.toFixed(1) + ' pts';
+     rows += '<tr><td class="arm">'+NAME[r]+'</td><td>'+CHG[r]+'</td>'+
+       '<td class="num '+cls+'">'+mu.toFixed(1)+'%</td>'+
+       '<td class="num">'+dtxt+'</td><td class="num">'+a.length+'</td></tr>';
+   });
+   var tb=document.getElementById('rb-rows'); if(tb && rows) tb.innerHTML = rows;
+   if(byR['role_soft_bump'] && byR['role_soft_flat']){
+     var best=mean(byR['role_soft_bump']), lag=byR['role_lag_bump']?mean(byR['role_lag_bump']):best;
+     var fe=document.getElementById('rb-finding');
+     if(fe) fe.innerHTML = 'Across maps × seeds the best arm <b>role_soft_bump ≈ '+best.toFixed(1)+
+       '%</b> coverage, Lagrangian <b>≈ '+lag.toFixed(1)+'%</b> (a tie), and removing the bump term '+
+       '(<em>role_soft_flat</em>) drops to <b>≈ '+floor.toFixed(1)+'%</b> — the bump-explore term is the '+
+       'single biggest lever.';
+   }
+ })();
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

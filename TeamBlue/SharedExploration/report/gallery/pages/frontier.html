@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coverage↔connectivity frontier · the soft-penalty dial · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>
+ :root{--accent:#b8392e;--accent-soft:#fbe9e7}
+ .resulttbl{max-width:880px;margin:16px 0 2px;margin-left:18px;border-collapse:collapse;
+  font-family:var(--sans);font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+ .resulttbl caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);padding:0 0 6px 2px}
+ .resulttbl th,.resulttbl td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line)}
+ .resulttbl thead th{background:var(--accent-soft);color:#10233f;font-weight:700;font-size:12px;
+  letter-spacing:.02em;border-bottom:1px solid var(--accent)}
+ .resulttbl tbody tr:last-child td{border-bottom:none}
+ .resulttbl td.arm{font-weight:700;color:#10233f}
+ .resulttbl td.num{font-variant-numeric:tabular-nums}
+ .resulttbl .cov{color:#b8392e;font-weight:700}
+ .resulttbl .conn{color:#1f7a3d;font-weight:700}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="recipe-ablation.html">Recipe ablation</a>
+ <a class="lnk active" href="frontier.html">Cov↔conn frontier</a>
+ <a class="lnk" href="occupancy-ab.html">Occupancy A/B</a>
+ <a class="lnk" href="warm-bigger.html">Warm-start → bigger</a>
+ <a class="lnk" href="best-arch.html">Best-arch × maps</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Coverage↔connectivity frontier · 32×32 / 10 agents · 6 penalties × 4 seeds (24 runs)</div>
+  <h1>Coverage↔connectivity frontier — turning one dial 0 → 4</h1>
+  <p class="what"><b>What it tests:</b> a single knob — the weight on the SOFT connectivity penalty —
+  swept across six settings (0.0 · 0.25 · 0.5 · 1.0 · 2.0 · 4.0), four seeds each, everything else held
+  fixed. As the dial rises the team is paid more to keep the comm graph together and less to spread out,
+  so this traces the <em>coverage-vs-connectivity trade-off curve</em> directly: how much coverage you
+  give up per unit of connectivity bought.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt"><span id="fr-finding">Measured live from the rendered tiles below.</span>
+   A <b>clean monotone interpolation</b>: as the dial rises 0 → 4, coverage slides down while connectivity
+   climbs. In the training logs, strict connectivity (λ₂&nbsp;&gt;&nbsp;0.5) climbs <b>≈ 7 → 30%</b> —
+   but <b>saturates around 30%</b> at 32²/10 no matter how hard you push. That ceiling is the connectivity
+   wall, quantified. The live table below shows the same trade-off measured on the rollouts (coverage +
+   giant-component connectivity).</span>
+  </div>
+
+  <table class="resulttbl">
+   <caption>Per penalty (ascending) — mean of 4 seeds · rollout coverage + giant-component connectivity (mean over the 100-step re-roll)</caption>
+   <thead>
+    <tr><th>Soft penalty</th><th>Coverage</th><th>Giant-component connectivity</th><th>seeds</th></tr>
+   </thead>
+   <tbody id="fr-rows"><tr><td colspan="4" style="opacity:.6">computing from the rendered rollouts…</td></tr></tbody>
+  </table>
+  <p class="what" style="margin-top:10px;opacity:.85">The run list is grouped <em>by penalty, ascending</em>
+  — step down the groups to watch the swarm pull tighter and cover less. Both columns are computed
+  <em>live from the rendered rollouts</em> (strict λ₂&nbsp;&gt;&nbsp;0.5 in the prose comes from the
+  training logs); the giant-component figure is the mean fraction of agents in the largest connected
+  component over the rollout.</p>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ var CAT = 'Cov<->conn frontier';
+ function mine(k, v){ return v && v.cat === CAT; }
+ // label = "frontier - pen<P> - s<seed>" → group by penalty, padded so it sorts ascending numerically
+ function penOf(v){ var m=(v.label||'').match(/pen([\d.]+)/); return m ? parseFloat(m[1]) : 999; }
+ function pad(x){ return ('00000'+x.toFixed(2)).slice(-8); }   // sortable ascending
+ function groupOf(k, v){ var p=penOf(v); return pad(p) + ' · penalty ' + p.toFixed(2); }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#b8392e', group: groupOf });
+
+ // --- live summary table: coverage + giant-component connectivity per penalty ---
+ (function(){
+   var T = window.TRAJ || {};
+   function giantPct(v){
+     var fr=v.frames, n=fr[0].pos.length, sum=0, t,i,e;
+     for(t=0;t<fr.length;t++){
+       var par=[]; for(i=0;i<n;i++) par[i]=i;
+       var es=fr[t].edges;
+       for(e=0;e<es.length;e++){ var x=es[e][0]; while(par[x]!==x) x=par[x];
+         var y=es[e][1]; while(par[y]!==y) y=par[y]; if(x!==y) par[x]=y; }
+       var cnt={}, best=1;
+       for(i=0;i<n;i++){ var z=i; while(par[z]!==z) z=par[z]; cnt[z]=(cnt[z]||0)+1; if(cnt[z]>best) best=cnt[z]; }
+       sum += best/n;
+     }
+     return 100*sum/fr.length;
+   }
+   function penVal(v){ var m=(v.label||'').match(/pen([\d.]+)/); return m?parseFloat(m[1]):null; }
+   var byP={}, k;
+   for(k in T){ var v=T[k]; if(!v||v.cat!==CAT) continue; var p=penVal(v); if(p===null) continue;
+     (byP[p]=byP[p]||[]).push(v); }
+   function mean(a){ var s=0,i; for(i=0;i<a.length;i++) s+=a[i]; return a.length?s/a.length:0; }
+   var pens=Object.keys(byP).map(parseFloat).sort(function(a,b){return a-b;});
+   var rows='', first=null, last=null;
+   pens.forEach(function(p){
+     var ts=byP[p]; var cov=mean(ts.map(function(v){return v.cov;}));
+     var conn=mean(ts.map(function(v){return giantPct(v);}));
+     var rec={p:p,cov:cov,conn:conn,n:ts.length};
+     if(first===null) first=rec; last=rec;
+     rows += '<tr><td class="arm">'+p.toFixed(2)+'</td>'+
+       '<td class="num cov">'+cov.toFixed(1)+'%</td>'+
+       '<td class="num conn">'+conn.toFixed(0)+'%</td>'+
+       '<td class="num">'+ts.length+'</td></tr>';
+   });
+   var tb=document.getElementById('fr-rows'); if(tb && rows) tb.innerHTML = rows;
+   if(first && last){
+     var fe=document.getElementById('fr-finding');
+     if(fe) fe.innerHTML = 'As the soft penalty rises '+first.p.toFixed(2)+' → '+last.p.toFixed(2)+
+       ', rollout coverage moves <b>'+first.cov.toFixed(0)+' → '+last.cov.toFixed(0)+'%</b> while '+
+       'giant-component connectivity moves <b>'+first.conn.toFixed(0)+' → '+last.conn.toFixed(0)+
+       '%</b> — a clean monotone trade-off curve.';
+   }
+ })();
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

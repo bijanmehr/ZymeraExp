@@ -1,0 +1,327 @@
+<title>Resilient Cooperative Exploration — Experimental Program</title>
+<style>
+  :root{
+    --paper:#f7f5ef; --ink:#211e19; --soft:#5f584c; --faint:#8a8272;
+    --accent:#2e4057; --accent-2:#6b2b3a; --rule:#ddd6c7; --panel:#fbfaf5;
+    --code:#3b3a36; --measure:41em;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,Charter,"Times New Roman",serif;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"iA Writer Mono","SFMono-Regular",ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#1c1a16; --ink:#e9e4d8; --soft:#b3aa96; --faint:#8b826f;
+           --accent:#9fb6d4; --accent-2:#d79aa6; --rule:#38342b; --panel:#232019; --code:#d8d2c4; }
+  }
+  *{box-sizing:border-box}
+  html{ -webkit-text-size-adjust:100% }
+  body{ background:var(--paper); color:var(--ink); font-family:var(--serif);
+        font-size:19px; line-height:1.66; margin:0; padding:0;
+        text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:var(--measure); margin:0 auto; padding:64px 26px 120px; }
+  @media (max-width:640px){ body{font-size:18px} .wrap{padding:40px 20px 80px} }
+
+  /* ---- title block ---- */
+  .eyebrow{ font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:.18em;
+            text-transform:uppercase; color:var(--accent-2); margin:0 0 18px; }
+  h1{ font-size:38px; line-height:1.15; font-weight:700; letter-spacing:-.012em; margin:0 0 12px;
+      text-wrap:balance; }
+  .subtitle{ font-size:21px; line-height:1.4; color:var(--soft); font-style:italic; margin:0 0 26px; }
+  .byline{ font-family:var(--sans); font-size:13px; color:var(--faint); letter-spacing:.02em;
+           padding-bottom:26px; border-bottom:1px solid var(--rule); margin-bottom:34px; }
+  .byline b{ color:var(--soft); font-weight:600 }
+
+  /* ---- abstract ---- */
+  .abstract{ background:var(--panel); border:1px solid var(--rule); border-radius:3px;
+             padding:22px 26px; margin:0 0 44px; font-size:17.5px; line-height:1.62; }
+  .abstract .lab{ font-family:var(--sans); font-size:11px; font-weight:700; letter-spacing:.16em;
+                  text-transform:uppercase; color:var(--accent); display:block; margin-bottom:8px; }
+  .abstract p{ margin:0 0 10px } .abstract p:last-child{ margin:0 }
+
+  /* ---- sections & headings ---- */
+  main{ counter-reset:sec }
+  h2{ counter-increment:sec; counter-reset:sub; font-size:25px; font-weight:700; letter-spacing:-.008em;
+      margin:52px 0 6px; padding-top:10px; line-height:1.22; }
+  h2::before{ content:counter(sec) "\2002"; color:var(--accent-2); font-variant-numeric:tabular-nums; }
+  h3{ counter-increment:sub; font-size:19.5px; font-weight:700; margin:30px 0 4px; color:var(--ink); }
+  h3::before{ content:counter(sec) "." counter(sub) "\2002"; color:var(--accent); font-weight:600;
+              font-variant-numeric:tabular-nums; }
+  h2+p, h3+p{ margin-top:8px }
+  p{ margin:0 0 16px } .lead{ margin-top:4px }
+  a{ color:var(--accent); text-decoration:none; border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent); }
+  a:hover{ border-bottom-color:var(--accent) }
+  em{ font-style:italic } strong{ font-weight:700 }
+  .small{ font-size:15.5px; color:var(--soft) }
+
+  /* ---- drop cap on the introduction ---- */
+  .dropcap::first-letter{ float:left; font-size:60px; line-height:.82; font-weight:700;
+    padding:6px 10px 0 0; color:var(--accent); }
+
+  /* ---- table of contents ---- */
+  .toc{ font-family:var(--sans); font-size:14.5px; line-height:1.9; margin:0 0 20px;
+        columns:2; column-gap:34px; }
+  @media (max-width:560px){ .toc{ columns:1 } }
+  .toc a{ border:0; color:var(--soft) } .toc a:hover{ color:var(--accent) }
+  .toc .n{ color:var(--accent-2); font-variant-numeric:tabular-nums; margin-right:8px; font-weight:600 }
+
+  /* ---- math ---- */
+  .eq{ font-family:var(--serif); text-align:center; margin:20px 0; font-size:18px; line-height:1.5; }
+  .eq .v{ font-style:italic } /* variables */
+  .m{ font-family:var(--serif); font-style:italic } /* inline variable */
+  .op{ font-style:normal } /* upright operators inside eq */
+  sub,sup{ font-size:.72em; line-height:0 }
+
+  /* ---- panels, notes, tables ---- */
+  .note{ border-left:3px solid var(--accent); background:var(--panel); padding:14px 18px;
+         margin:22px 0; font-size:16.5px; border-radius:0 3px 3px 0; }
+  .note .lab{ font-family:var(--sans); font-size:11px; font-weight:700; letter-spacing:.14em;
+              text-transform:uppercase; color:var(--accent); display:block; margin-bottom:5px }
+  .finding{ border-left-color:var(--accent-2) } .finding .lab{ color:var(--accent-2) }
+
+  figure{ margin:26px 0; }
+  figcaption{ font-family:var(--sans); font-size:13px; color:var(--faint); line-height:1.5;
+              margin-top:10px; text-align:center; }
+  figcaption b{ color:var(--soft) }
+
+  .diagram{ width:100%; border:1px solid var(--rule); border-radius:3px; background:var(--panel);
+            overflow-x:auto; }
+
+  table{ border-collapse:collapse; width:100%; font-family:var(--sans); font-size:14.5px;
+         margin:20px 0; }
+  .tw{ overflow-x:auto }
+  th,td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  thead th{ font-weight:700; color:var(--accent); border-bottom:2px solid var(--rule);
+            font-size:12px; letter-spacing:.04em; text-transform:uppercase; }
+  tbody th{ font-weight:700; color:var(--ink); white-space:nowrap }
+  td code, p code, li code{ font-family:var(--mono); font-size:.82em; color:var(--code);
+            background:color-mix(in srgb,var(--rule) 40%,transparent); padding:1px 5px; border-radius:3px; }
+
+  ul,ol{ margin:0 0 16px; padding-left:1.35em } li{ margin:0 0 8px }
+  ol.arms{ list-style:none; counter-reset:arm; padding-left:0 }
+  ol.arms>li{ counter-increment:arm; position:relative; padding-left:2.1em; margin-bottom:12px }
+  ol.arms>li::before{ content:counter(arm); position:absolute; left:0; top:2px; width:1.5em; height:1.5em;
+     font-family:var(--sans); font-size:11px; font-weight:700; color:var(--paper); background:var(--accent);
+     border-radius:50%; display:grid; place-items:center; }
+
+  /* ---- references ---- */
+  .refs{ counter-reset:ref; font-size:15.5px; line-height:1.5; }
+  .refs li{ counter-increment:ref; list-style:none; position:relative; padding-left:2.4em; margin-bottom:11px;
+            color:var(--soft) }
+  .refs li::before{ content:"[" counter(ref) "]"; position:absolute; left:0; top:0; color:var(--accent-2);
+            font-family:var(--sans); font-size:13px; font-variant-numeric:tabular-nums; }
+  .refs cite{ font-style:italic; color:var(--ink) }
+  .cit{ font-variant-numeric:tabular-nums; color:var(--accent); font-size:.9em; vertical-align:.2em; }
+
+  hr.sec{ border:0; border-top:1px solid var(--rule); margin:46px 0 }
+  .footer{ font-family:var(--sans); font-size:13px; color:var(--faint); margin-top:56px;
+           padding-top:20px; border-top:1px solid var(--rule); line-height:1.6 }
+</style>
+
+<div class="wrap">
+<p class="eyebrow">Project Zymera · Research Program</p>
+<h1>Resilient Cooperative Exploration under Sparse Communication</h1>
+<p class="subtitle">A decentralized learning architecture and a five-study experimental program on connectivity-aware coverage in obstacle worlds.</p>
+<p class="byline"><b>Bijan Mehr</b> &nbsp;·&nbsp; working technical note &nbsp;·&nbsp; revised July 2026</p>
+
+<div class="abstract">
+  <span class="lab">Abstract</span>
+  <p>We study a team of autonomous agents that must map and cover an unknown, obstacle-filled space while remaining connected over a communication graph whose links exist only within a short range. Each agent sees a small patch of the world, remembers what it and its neighbours have seen, and chooses where to go next; no agent has a global view, and no central controller issues commands. The team succeeds or fails at the level of the <em>mission</em>&mdash;how much of the space is covered, and whether the group stays in one connected piece&mdash;yet every decision is made locally. This note sets out the agent we built to act in that setting and the five experiments we are running to test which parts of it actually do the work.</p>
+  <p>The architecture combines a size-invariant graph network over a shared occupancy belief, a division of the team into explorers and relays, a learned constraint mechanism that trades coverage against connectivity, and a training scheme that judges agents centrally but lets them act on local information alone. The experiments isolate, one at a time, whether the learned attention reads real structure, whether roles help, whether the connectivity constraint can be held without collapsing coverage, whether the value estimate transfers across team sizes, and&mdash;where a mechanism fails&mdash;whether the fault lies in the representation or in the learning signal. Throughout, we favour effect-based measurement: we ask what a mechanism <em>changes about the mission</em>, not whether it looks plausible.</p>
+</div>
+
+<nav class="toc" aria-label="Contents">
+  <a href="#intro"><span class="n">1</span>Motivation</a>
+  <a href="#formulation"><span class="n">2</span>Problem formulation</a>
+  <a href="#agent"><span class="n">3</span>The agent</a>
+  <a href="#program"><span class="n">4</span>The experimental program</a>
+  <a href="#protocol"><span class="n">5</span>Protocol and measurement</a>
+  <a href="#findings"><span class="n">6</span>Findings so far</a>
+  <a href="#related"><span class="n">7</span>Related and inspiring work</a>
+  <a href="#refs"><span class="n">&nbsp;</span>References</a>
+</nav>
+
+<main>
+
+<h2 id="intro">Motivation</h2>
+<p class="dropcap lead">A single robot exploring a building is a solved problem in outline: drive toward the nearest unseen boundary, repeat. A <em>team</em> of robots is a different question, because the interesting behaviour is not in any one machine but in how their local choices compose into a group outcome. Send ten agents into a ruined structure to build a map, and two facts fight each other. Coverage wants them to spread&mdash;fan out, and the unseen area shrinks fastest. Communication wants them to stay close&mdash;radios reach only so far, and a map is worthless if the piece an agent holds never reaches the others. The team must therefore do something a lone robot never has to: manage its own <em>connectivity</em> as a resource, spending and recovering it while it works.</p>
+
+<p>This tension is the whole subject. It is easy to satisfy either goal alone&mdash;a tight cluster is perfectly connected and covers almost nothing; a scattered swarm covers quickly and fragments into islands that can never share what they found. The research question is how a decentralized team, each agent acting on a keyhole view of the world, can hold both at once, and how the small decisions of individual agents propagate through the group to decide the mission. We call the individual-agent view the <em>micro</em> level and the mission-outcome view the <em>macro</em> level; the communication graph is the layer that couples them, and it is where most of our attention goes.</p>
+
+<p>Two commitments shape everything below. First, the world has <em>structure</em>: walls, rooms, corridors, chokepoints. An open floor is a poor test, because on it connectivity is nearly free&mdash;agents can always shorten a link by moving in a straight line. Corridors and doorways make connectivity genuinely scarce, and they are where a relay agent earns its place. Our experiments run on generated room-and-corridor terrain for exactly this reason. Second, we insist on <em>hard</em> physical feasibility: two agents may never occupy the same cell. A collision-free guarantee is not decoration&mdash;it is what separates a policy that could drive real machines from one that only looks good in a plot.</p>
+
+<h2 id="formulation">Problem formulation</h2>
+<p>We model the task as a finite-horizon, cooperative, partially observed decision process shared by all agents&mdash;a decentralized partially observable Markov decision process, or Dec-POMDP <span class="cit">[2]</span>. Writing <span class="m">I</span> for the set of agents, the process is the tuple</p>
+<p class="eq">&#10216; <span class="v">I, S,</span> {<span class="v">A<sup>i</sup></span>}, {<span class="v">&Omega;<sup>i</sup></span>}, <span class="v">T, O, R,</span> &rho;<sub>0</sub>, <span class="v">H</span> &#10217;,</p>
+<p>where <span class="m">S</span> is the true world state (agent positions, which cells are covered, where the walls are), each agent picks an action from its own set <span class="m">A<sup>i</sup></span> (a move to one of the neighbouring cells, or stay), and receives an observation from <span class="m">&Omega;<sup>i</sup></span> rather than seeing <span class="m">S</span>. Transitions follow <span class="m">T</span>, observations follow <span class="m">O</span>, the shared reward is <span class="m">R</span>, the start state is drawn from <span class="m">&rho;<sub>0</sub></span>, and the episode lasts <span class="m">H</span> steps. Because the reward is shared, there is no competition between agents; the difficulty is entirely one of coordination under partial information.</p>
+
+<h3>The three layers</h3>
+<p>It helps to name three levels explicitly, because the mechanisms we test live at different ones.</p>
+<p><strong>Micro.</strong> At each step an agent <span class="m">i</span> holds a local input <span class="m">x<sub>t</sub><sup>i</sup></span>&mdash;what its sensor sees within a small radius, plus auxiliary signals such as messages and its own role&mdash;and a memory <span class="m">h<sub>t</sub><sup>i</sup></span> of what it has accumulated. It chooses an action from a policy <span class="m">a<sub>t</sub><sup>i</sup> &sim; &pi;<sub>i</sub>(&middot; | h<sub>t</sub><sup>i</sup>)</span>. Nothing here refers to the group.</p>
+<p><strong>Bridge.</strong> The agents form a time-varying directed graph <span class="m">G<sub>t</sub> = (I, E<sub>t</sub>)</span>, with an edge whenever two agents are within communication range. Along its edges they exchange messages, and each agent folds the messages from its current neighbours into its own belief. This graph is the only channel through which one agent's discovery can reach another; it is also the object whose health we must protect.</p>
+<p><strong>Macro.</strong> The mission is scored on the whole trajectory <span class="m">&tau; = (s<sub>0</sub>, o<sub>0</sub>, a<sub>0</sub>, &hellip;, s<sub>H</sub>)</span> by the return <span class="m">J(&pi;) = &#120124;[&Sigma;<sub>t</sub> R(s<sub>t</sub>, a<sub>t</sub>)]</span>. The interaction graph touches the mission twice: it shapes what each agent knows when it decides, and it shapes how the individual moves compose into the next state of the world.</p>
+
+<h3>Connectivity as a measurable quantity</h3>
+<p>To manage connectivity we need a number for it. The natural one is the <em>algebraic connectivity</em>, or Fiedler value, <span class="m">&lambda;<sub>2</sub></span>: the second-smallest eigenvalue of the graph Laplacian <span class="m">L(G<sub>t</sub>)</span> <span class="cit">[1]</span>. It is zero exactly when the graph is disconnected and grows as the graph becomes more robustly linked, so it is a single scalar that captures "is the team one piece, and how firmly." We use it two ways, and keep them strictly separate. As a <em>grading</em> signal it is computed by the trainer from the true positions and never seen by the agents; the honest connectivity score of an episode is the fraction of its steps with <span class="m">&lambda;<sub>2</sub> &gt; 0.5</span>. As an <em>agent-facing</em> signal it is only ever estimated locally, from what an agent can see of its own neighbourhood, so that a policy cannot quietly depend on a global quantity it could not access on real hardware.</p>
+
+<h3>The objective, and how we grade it</h3>
+<p>Coverage is graded as the fraction of free cells the team has visited by the final step. Two subtleties matter. Because sensing has a radius of zero in our hardest setting&mdash;an agent covers only the cell it stands on&mdash;the theoretical maximum coverage in a fixed number of steps is well below 100&percnt;; a god's-eye planner caps out near 72&percnt;. We therefore read coverage as a <em>fraction of that attainable optimum</em>, not as a raw percentage, so that "good" means "close to what was possible," not "close to a number that was never reachable." Connectivity is graded by the Fiedler fraction above. A run that accrues coverage while quietly fragmenting is not a success, and the two-number report makes that visible.</p>
+
+<h2 id="agent">The agent</h2>
+<p>The policy is a stack of parts, each with one job. We describe them from perception up to the decision, then say how they are trained.</p>
+
+<figure>
+<svg class="diagram" viewBox="0 0 720 250" role="img" aria-label="Agent pipeline diagram">
+  <style>
+    .bx{fill:var(--panel);stroke:var(--rule);stroke-width:1.2}
+    .lb{font-family:var(--sans);font-size:12.5px;fill:var(--ink);font-weight:600}
+    .sl{font-family:var(--sans);font-size:10.5px;fill:var(--faint)}
+    .ar{stroke:var(--accent);stroke-width:1.4;fill:none;marker-end:url(#a)}
+    .acc{fill:var(--accent)}
+  </style>
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" class="acc"/></marker></defs>
+  <rect x="18"  y="70" width="118" height="66" rx="4" class="bx"/>
+  <text x="77"  y="98" text-anchor="middle" class="lb">Belief (KB)</text>
+  <text x="77"  y="116" text-anchor="middle" class="sl">7-ch occupancy,</text>
+  <text x="77"  y="129" text-anchor="middle" class="sl">gossiped</text>
+  <rect x="170" y="70" width="118" height="66" rx="4" class="bx"/>
+  <text x="229" y="98" text-anchor="middle" class="lb">Backbone</text>
+  <text x="229" y="116" text-anchor="middle" class="sl">CNN &rarr; graph</text>
+  <text x="229" y="129" text-anchor="middle" class="sl">message-passing</text>
+  <rect x="322" y="24" width="118" height="58" rx="4" class="bx"/>
+  <text x="381" y="49" text-anchor="middle" class="lb">Role</text>
+  <text x="381" y="66" text-anchor="middle" class="sl">explorer / relay</text>
+  <rect x="322" y="96" width="118" height="58" rx="4" class="bx"/>
+  <text x="381" y="121" text-anchor="middle" class="lb">Explorer head</text>
+  <text x="381" y="138" text-anchor="middle" class="sl">frontier attention</text>
+  <rect x="322" y="168" width="118" height="58" rx="4" class="bx"/>
+  <text x="381" y="193" text-anchor="middle" class="lb">Aux head</text>
+  <text x="381" y="210" text-anchor="middle" class="sl">local &lambda;&#770;<tspan dy="3" font-size="8">2</tspan></text>
+  <rect x="474" y="70" width="118" height="66" rx="4" class="bx"/>
+  <text x="533" y="98" text-anchor="middle" class="lb">Controller</text>
+  <text x="533" y="116" text-anchor="middle" class="sl">goal &rarr; move,</text>
+  <text x="533" y="129" text-anchor="middle" class="sl">collision-free</text>
+  <rect x="626" y="70" width="76" height="66" rx="4" class="bx"/>
+  <text x="664" y="106" text-anchor="middle" class="lb">Step</text>
+  <path class="ar" d="M136,103 H168"/>
+  <path class="ar" d="M288,95 L320,60"/>
+  <path class="ar" d="M288,103 H320"/>
+  <path class="ar" d="M288,111 L320,190"/>
+  <path class="ar" d="M440,60 L473,95"/>
+  <path class="ar" d="M440,125 H473"/>
+  <path class="ar" d="M592,103 H624"/>
+</svg>
+<figcaption><b>Figure 1.</b> The per-agent pipeline. Perception feeds a gossiped occupancy belief; a size-invariant backbone turns it into features and passes messages to neighbours; separate heads choose a role and a goal and estimate local connectivity; a controller turns the goal into a physically valid, collision-free move.</figcaption>
+</figure>
+
+<h3>Perception and the shared belief</h3>
+<p>An agent's raw sight is a small window, but its working memory is a full-map <em>occupancy belief</em>&mdash;a seven-channel picture of the world in the manner of a simple simultaneous-localization-and-mapping system. The channels record which cells are known to be free, which are known walls, which remain unknown, where the frontier between explored and unexplored lies, where the field boundary is, and where the agent and its neighbours sit. Crucially, this belief is <em>gossiped</em>: when two agents are in range they merge maps, so an agent that has personally seen nothing new still carries the discoveries of its neighbours. Frontier detection follows the classic idea of driving toward the boundary of the known region <span class="cit">[3]</span>. This is what makes the communication graph load-bearing rather than ornamental&mdash;cut it, and an agent is thrown back on its own keyhole.</p>
+
+<h3>The backbone</h3>
+<p>The belief is turned into features by a convolutional encoder, and the per-agent features are then refined by a graph network that passes messages between communicating neighbours. We adopt this perception&ndash;action&ndash;communication shape from work on learnable coverage control, whose defining property is that the same trained weights apply to a team of any size, because convolution and graph message-passing do not bake in a fixed number of agents <span class="cit">[12]</span>. Size-invariance is not a convenience here; it is the precondition for asking whether anything learned at four agents survives at ten.</p>
+
+<h3>The explorer head and its attention</h3>
+<p>Given features, an agent must choose <em>where to go</em>. The explorer head reduces the belief to a coarse sense of direction&mdash;for each of eight compass sectors, how much unexplored ground lies that way&mdash;and a small learned attention weights those eight directions to bias the chosen waypoint toward the most informative one. This is deliberately modest: the attention operates over eight hand-computed numbers, not over the map itself. Whether that modesty is a fatal limitation is one of the questions the program answers, and it is where a richer <em>attention over the whole belief</em>, in the manner of the transformer <span class="cit">[16]</span>, would enter if the evidence demanded it.</p>
+
+<h3>Roles: explorers and relays</h3>
+<p>Not every agent should chase frontiers. Some should hold the graph together so that others can range further. We give the team a learned role selector that labels each agent an <em>explorer</em> (drive toward unexplored space) or a <em>relay</em> (position to keep a neighbour in range). This division of labour is the classic answer to the coverage&ndash;connectivity tension, and the idea that useful roles can be learned rather than hand-fixed&mdash;as readable latents, or as restrictions on which actions a role may take&mdash;comes from role-oriented multi-agent learning <span class="cit">[13,14]</span>. We test both whether the split helps and, when it falters at scale, why.</p>
+
+<h3>Holding connectivity: a learned constraint</h3>
+<p>How should the policy be pushed to keep <span class="m">&lambda;<sub>2</sub></span> up without simply ordering everyone to huddle? We treat it as a constrained-optimization problem and solve it with a Lagrangian penalty. A per-step term <span class="m">&minus;&lambda;&middot;</span><span class="op">relu</span><span class="m">(&theta; &minus; &lambda;<sub>2</sub>)</span> is subtracted from the reward whenever connectivity falls below a target <span class="m">&theta;</span>; the policy descends on this shaped reward while the multiplier <span class="m">&lambda;</span> is itself adjusted upward when the constraint is violated and relaxed when it is satisfied. This is reward-constrained policy optimization <span class="cit">[10]</span>, and we compare its plain dual ascent against a fixed penalty and against a proportional&ndash;integral&ndash;derivative controller on the multiplier, which can both raise and lower <span class="m">&lambda;</span> and so track the target more stably <span class="cit">[11]</span>. The point of sweeping the target and the mechanism is to see the multiplier <em>move</em>&mdash;to watch the price of connectivity rise until the constraint binds&mdash;rather than to assert that it works.</p>
+
+<h3>The critic, and why it must not count</h3>
+<p>Training uses centralized value estimation: a critic sees the whole team's state and scores it, while each policy still acts on local input alone&mdash;centralized training, decentralized execution. But a critic that hard-codes a fixed number of agents cannot transfer when the team grows. We therefore build the critic to be <em>count-invariant</em>: it encodes each agent, then pools the encodings with a permutation-invariant operator&mdash;a mean, or an attention&mdash;so its value does not depend on agent order or, in principle, on how many there are. The construction follows deep permutation-invariant sets <span class="cit">[6]</span> and their use as a multi-agent critic <span class="cit">[7]</span>.</p>
+
+<h3>Credit: who did what</h3>
+<p>A shared reward tells the team it did well but not which agent helped. Spread across ten agents, that signal is thin. As an alternative we compute an exact <em>difference reward</em> for coverage&mdash;each agent is credited with the cells only it covered, <span class="m">D<sub>i</sub> = G &minus; G<sub>&minus;i</sub></span>, the team value minus the team value had agent <span class="m">i</span> not acted&mdash;which is the marginal contribution and pays disjoint sweeping while starving redundant overlap <span class="cit">[8,9]</span>. Because coverage is submodular, this difference is exact and cheap to compute, not an approximation.</p>
+
+<h3>The controller and the collision guarantee</h3>
+<p>Heads produce a goal; a reactive controller turns it into an actual one-cell move. Two rules make the move physically admissible. A mask forbids stepping onto a cell a neighbour occupies right now. That alone is not enough&mdash;two agents can still claim the same empty cell in the same instant&mdash;so a deterministic priority rule resolves such ties: among agents converging on one cell, the lowest-indexed proceeds and the rest hold. Together these guarantee that no two agents ever share a cell, which we verify directly rather than trusting the reward penalty to discourage overlaps. The policies are optimized with proximal policy optimization <span class="cit">[4]</span> in its cooperative multi-agent form <span class="cit">[5]</span>.</p>
+
+<h2 id="program">The experimental program</h2>
+<p>Five studies, each isolating one mechanism. The style throughout is to fix everything but the variable of interest, run several random seeds, and&mdash;where possible&mdash;write down in advance what each outcome would mean, so that the reading of the result is not invented after seeing it.</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Study</th><th>Question</th><th>What it isolates</th></tr></thead>
+  <tbody>
+    <tr><th>T1</th><td>Does the learned attention read real frontiers? Do inter-agent messages change behaviour?</td><td>Mechanism &mdash; interpretability probes on a trained policy</td></tr>
+    <tr><th>T2</th><td>Does the explorer/relay split beat a uniform team?</td><td>The value of a division of labour, across scale</td></tr>
+    <tr><th>T3</th><td>Can the learned dual hold a global connectivity target without collapsing coverage?</td><td>The constraint mechanism (fixed vs dual vs PID)</td></tr>
+    <tr><th>T4</th><td>Does a count-invariant critic transfer across team size where a fixed one degrades?</td><td>The value estimate, under scale transfer</td></tr>
+    <tr><th>T5</th><td>When the attention fails at scale, is the cause the representation or the learning signal?</td><td>Representation vs credit &mdash; a factorial that also tests belief-wide attention</td></tr>
+  </tbody>
+</table></div>
+
+<h3>T1 &mdash; probing the mechanisms</h3>
+<p>Before asking whether the system performs, we ask how it works. Two probes freeze a trained policy at many moments and inspect one internal quantity. The first compares the explorer's attention against the truly most-open direction: does its favoured compass sector match the sector with the most unexplored ground, more often than chance? The second cuts the communication graph and measures how far the agent's belief and its chosen goal move: if messages are load-bearing, removing them should change decisions. These are diagnostic, not performance, measurements&mdash;they tell us about mechanism, and they are cheap enough to run on a single processor.</p>
+
+<h3>T2 &mdash; do roles help?</h3>
+<p>A clean two-arm comparison: a uniform team of identical explorers against a team split into explorers and relays, held fixed across a ladder of world sizes and repeated over several seeds. The prediction is that the split should buy connectivity&mdash;relays are exactly the agents whose job is to hold the graph&mdash;and the interest is in whether that advantage survives as the team and the world grow.</p>
+
+<h3>T3 &mdash; can the constraint be held?</h3>
+<p>This is the study of the connectivity mechanism itself. We fix the world at its hardest setting and vary two things: the mechanism (a fixed penalty; the learned dual; the PID dual) and the target <span class="m">&theta;</span> that connectivity must clear. The measurements are the two curves that <em>are</em> the test&mdash;the multiplier <span class="m">&lambda;(t)</span> and the realized connectivity <span class="m">&lambda;<sub>2</sub>(t)</span> over training&mdash;read together with the coverage they cost. The arms:</p>
+<ol class="arms">
+  <li><strong>Fixed penalty.</strong> One constant weight for all scales &mdash; a brittle baseline that cannot adapt.</li>
+  <li><strong>Learned dual.</strong> The multiplier climbs by dual ascent when the target is violated; it auto-tunes but only ratchets upward.</li>
+  <li><strong>PID dual.</strong> A proportional&ndash;integral&ndash;derivative controller on the multiplier, which can raise <em>and</em> lower it, and so should track a moving target more stably.</li>
+</ol>
+<p>The honest result is the coverage&ndash;connectivity frontier each traces, and whether the price of connectivity actually rises to meet the target. If the multiplier climbs but connectivity never reaches <span class="m">&theta;</span>, that is itself the finding: local information is not enough, and a relay or a better connectivity estimate is needed.</p>
+
+<h3>T4 &mdash; does the value estimate transfer?</h3>
+<p>Three critics&mdash;a fixed-count convolutional one and two count-invariant pooling variants (mean, attention)&mdash;are each trained from scratch at three team sizes, and then the smallest-team critic is transplanted, without any further training, into the larger worlds. We report the error between its value prediction and the true discounted return, normalized so the numbers compare across scales. The hypothesis is sharp: the fixed critic's error should blow up as the team grows, while the count-invariant ones hold.</p>
+
+<h3>T5 &mdash; representation or signal?</h3>
+<p>T1 shows the eight-sector attention reading frontiers well at small scale and failing at large. Two explanations compete, and they demand different fixes. Either the eight-direction summary is too coarse to carry the needed distinctions at scale&mdash;a <em>representation</em> limit, which attention over the full belief would cure&mdash;or the learning signal is too weak: credit spread thin across many agents, and a hand-built frontier heuristic that already does the job, leaving the learned part nothing to earn. A two-by-two factorial separates them, crossing the explorer (the eight-sector head against a patch-wise attention over the belief) with the credit scheme (shared reward against the exact difference reward). Each outcome is assigned its meaning in advance:</p>
+<div class="tw"><table>
+  <thead><tr><th>If we observe&hellip;</th><th>then the conclusion is&hellip;</th></tr></thead>
+  <tbody>
+    <tr><td>the difference reward rescues the eight-sector head</td><td>the failure was in the <b>signal</b>; richer attention is unnecessary</td></tr>
+    <tr><td>belief-wide attention beats it at matched credit</td><td>the failure was in the <b>representation</b>; the richer head is warranted</td></tr>
+    <tr><td>belief-wide attention wins only with the difference reward</td><td><b>both</b> matter: capacity is inert without signal</td></tr>
+    <tr><td>nothing moves</td><td>the cause is elsewhere &mdash; re-diagnose rather than build</td></tr>
+  </tbody>
+</table></div>
+<p>The strongest piece of evidence we already hold points at the signal: the eight-sector representation is <em>the same</em> at four agents and at ten, yet it works only at four. What changes between them is not the representation but the conditions under which it must be learned. T5 is designed to confirm or overturn that reading, and&mdash;only if the representation turns out to be the true bottleneck&mdash;to justify building belief-wide attention, which would double as the reading mechanism for any later deliberative layer.</p>
+
+<h2 id="protocol">Protocol and measurement</h2>
+<p>Every training run is defined by a single fixed specification, so that a difference in outcome can be attributed to the one axis under study and not to a drifting default. That specification pins the terrain to generated rooms-and-corridors, the horizon to one hundred steps, the sensing radius to its hardest setting, the seven-channel belief, the collision guarantee, and the connectivity mechanism; only the variable of interest moves. We run at least three seeds per configuration and report the mean with its spread; a result counts only if the band does not straddle the baseline it must beat.</p>
+<p>Two measurement decisions carry weight. Coverage is graded as a fraction of the attainable optimum, because the raw percentage is capped far below one hundred by the horizon and the zero-radius sensing, and reporting the raw number would make every method look like a failure. Connectivity is graded by the fraction of steps whose true Fiedler value clears a threshold&mdash;computed by the grader, never by the agent&mdash;so a policy cannot inflate its score by acting on a global quantity it could not observe in the field.</p>
+<div class="note"><span class="lab">Compute</span>The studies run across two machines. A single large-memory accelerator carries the heaviest configurations one at a time, because at the largest team size a single training instance occupies most of the card; a second machine with two smaller accelerators runs the lighter configurations in parallel. This split is not incidental&mdash;the memory footprint of the largest setting is effectively irreducible at full training speed, so the fast machine is reserved for it while the smaller one absorbs everything that fits, and the two proceed independently.</div>
+
+<h2 id="findings">Findings so far</h2>
+<p>Only the mechanism probes (T1) have returned; the performance studies are still running. Two results already stand, both on a single trained policy and so to be read as strong first indications rather than settled facts.</p>
+<div class="note finding"><span class="lab">Finding 1 &mdash; communication is load-bearing</span>Cutting the message graph moves each agent's belief substantially and changes its chosen goal on roughly half of all steps, at both small and large team sizes. The team genuinely acts on what neighbours share; the graph is not ornamental, and it matters more, not less, as the team grows.</div>
+<div class="note finding"><span class="lab">Finding 2 &mdash; the attention collapses at scale</span>The explorer's attention points at the truly most-open direction about four times more often than chance at small scale, but only at chance at the largest&mdash;its "attention" there carries no information about where the unexplored space is. And even where it works, it overrides the underlying heuristic on only a small fraction of steps. The learned direction-finder is, at the scale we care about, close to inert. This is precisely the fact T5 exists to explain.</div>
+
+<h2 id="related">Related and inspiring work</h2>
+<p>The program stands on a body of work, and it is worth being clear about what we take from where. The <em>architecture</em> inherits its size-invariant perception&ndash;communication shape from learnable coverage control <span class="cit">[12]</span>, and the surrounding literature on scale-invariant graph-attention exploration <span class="cit">[18]</span> and on learnable long-horizon exploration with an explicit goal-selection head <span class="cit">[17]</span> both motivates the direction and warns where the eight-sector head is likely to be the weak link. The <em>role</em> idea&mdash;that a division into explorers and relays can be learned rather than fixed&mdash;comes from role-oriented multi-agent learning, whether as readable latents <span class="cit">[13]</span> or as action-space restrictions <span class="cit">[14]</span>. The <em>connectivity</em> mechanism is constrained reinforcement learning <span class="cit">[10]</span> with a responsive dual controller <span class="cit">[11]</span>, applied to the Fiedler value <span class="cit">[1]</span> in the spirit of connectivity-constrained multi-agent control <span class="cit">[19]</span>. The <em>critic</em> is a permutation-invariant set function <span class="cit">[6,7]</span>; the <em>credit</em> scheme is the difference reward <span class="cit">[8,9]</span>; the optimizer is cooperative proximal policy optimization <span class="cit">[4,5]</span> on a Dec-POMDP <span class="cit">[2]</span>, with frontier-driven exploration <span class="cit">[3]</span> as the classical backbone of the coverage task.</p>
+<p>One cross-cutting caution shapes the reading of T5. A well-known study of hierarchy in reinforcement learning found that its benefit comes chiefly from improved exploration rather than from the imposed structure itself <span class="cit">[15]</span>; the lesson we carry is to distrust the reflex to add machinery, and to demand that a richer representation prove itself against the cheaper hypothesis that the learning signal, not the architecture, was the limit. If belief-wide attention is eventually warranted, it will be as the transformer's attention over map tokens <span class="cit">[16]</span>&mdash;but only after the evidence has ruled out the simpler explanation.</p>
+
+<h2 id="refs" style="counter-increment:none">References</h2>
+<ol class="refs">
+  <li>M. Fiedler. <cite>Algebraic connectivity of graphs.</cite> Czechoslovak Mathematical Journal, 1973.</li>
+  <li>D. S. Bernstein, R. Givan, N. Immerman, S. Zilberstein. <cite>The complexity of decentralized control of Markov decision processes.</cite> Mathematics of Operations Research, 2002.</li>
+  <li>B. Yamauchi. <cite>A frontier-based approach for autonomous exploration.</cite> IEEE CIRA, 1997.</li>
+  <li>J. Schulman, F. Wolski, P. Dhariwal, A. Radford, O. Klimov. <cite>Proximal Policy Optimization Algorithms.</cite> arXiv:1707.06347, 2017.</li>
+  <li>C. Yu, A. Velu, E. Vinitsky, et&nbsp;al. <cite>The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games (MAPPO).</cite> arXiv:2103.01955, 2021.</li>
+  <li>M. Zaheer, S. Kottur, S. Ravanbakhsh, et&nbsp;al. <cite>Deep Sets.</cite> NeurIPS, 2017.</li>
+  <li>I.-J. Liu, R. A. Yeh, A. G. Schwing. <cite>PIC: Permutation Invariant Critic for Multi-Agent Deep Reinforcement Learning.</cite> CoRL, 2019. arXiv:1911.00025.</li>
+  <li>D. H. Wolpert, K. Tumer. <cite>Optimal payoff functions for members of collectives.</cite> Advances in Complex Systems, 2001.</li>
+  <li>J. Foerster, G. Farquhar, T. Afouras, N. Nardelli, S. Whiteson. <cite>Counterfactual Multi-Agent Policy Gradients (COMA).</cite> AAAI, 2018. arXiv:1705.08926.</li>
+  <li>C. Tessler, D. J. Mankowitz, S. Mannor. <cite>Reward Constrained Policy Optimization.</cite> ICLR, 2019. arXiv:1805.11074.</li>
+  <li>A. Stooke, J. Achiam, P. Abbeel. <cite>Responsive Safety in Reinforcement Learning by PID Lagrangian Methods.</cite> ICML, 2020. arXiv:2007.03964.</li>
+  <li>S. Agarwal, et&nbsp;al. <cite>LPAC: Learnable Perception-Action-Communication Loops with Applications to Coverage Control.</cite> arXiv:2401.04855, 2024.</li>
+  <li>T. Wang, H. Dong, V. Lesser, C. Zhang. <cite>ROMA: Multi-Agent Reinforcement Learning with Emergent Roles.</cite> ICML, 2020. arXiv:2003.08039.</li>
+  <li>T. Wang, T. Gupta, A. Mahajan, et&nbsp;al. <cite>RODE: Learning Roles to Decompose Multi-Agent Tasks.</cite> ICLR, 2021. arXiv:2010.01523.</li>
+  <li>O. Nachum, H. Tang, X. Lu, S. Gu, H. Lee, S. Levine. <cite>Why Does Hierarchy (Sometimes) Work So Well in Reinforcement Learning?</cite> arXiv:1909.10618, 2019.</li>
+  <li>A. Vaswani, et&nbsp;al. <cite>Attention Is All You Need.</cite> NeurIPS, 2017.</li>
+  <li><cite>IR2: Implicit Rendezvous for Robotic Exploration Teams under Sparse Intermittent Connectivity.</cite> arXiv:2409.04730, 2024.</li>
+  <li><cite>MARVEL: Multi-Agent Reinforcement learning for constrained field-of-View multi-robot Exploration.</cite> arXiv:2502.20217, 2025.</li>
+  <li><cite>Multi-Robot Distributed Control for Connectivity Maintenance</cite> (algebraic-connectivity-constrained multi-agent reinforcement learning). arXiv:2109.08536, 2021.</li>
+</ol>
+<p class="small" style="margin-top:14px">References mark the ideas the program builds on or is inspired by; entries [17]&ndash;[19] are cited by their public preprint identifiers, and their specific claims are described in the text rather than restated here.</p>
+
+<div class="footer">
+  Project Zymera &mdash; a research program on the resiliency of missions carried out by teams of autonomous systems. This note documents the blue-team foundation (the nominal team and mission) that the adversarial studies are built upon; it describes work in progress and will be revised as the performance studies (T2&ndash;T5) return.
+</div>
+</main>
+</div>

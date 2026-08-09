@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learning architecture — machinery · Zymera</title>
+<style>
+ :root{--ink:#1a1f29;--muted:#5a6472;--line:#e3e7ec;--bg:#fff;--panel:#f7f8fa;--accent:#2b5fb8;
+  --serif:Georgia,"Times New Roman",serif;--sans:"Helvetica Neue",Arial,system-ui,sans-serif}
+ *{box-sizing:border-box} html,body{margin:0}
+ body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.55}
+ nav.top{display:flex;gap:2px;align-items:center;flex-wrap:wrap;padding:8px 22px;background:#10233f;
+  border-bottom:1px solid #0a1830;position:sticky;top:0;z-index:8}
+ nav.top .home{font-weight:700;font-size:13px;color:#fff;letter-spacing:.3px;margin-right:14px;text-decoration:none}
+ nav.top a.lnk{font-size:12px;color:#aebfd8;text-decoration:none;padding:5px 9px;border-radius:5px}
+ nav.top a.lnk:hover{background:#1d3157;color:#fff}
+ nav.top a.lnk.active{background:#fff;color:#10233f;font-weight:600}
+ .hero{max-width:1120px;margin:0 auto;padding:24px 24px 2px}
+ .hero .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+ .hero h1{font-size:25px;line-height:1.2;margin:.3em 0 .1em;color:#10233f}
+ .hero p{font-family:var(--serif);font-size:15.5px;color:#27303d;margin:.5em 0}
+ .kindkey{display:flex;gap:13px;flex-wrap:wrap;font-size:11.5px;color:#5a6472;margin:8px 0 0}
+ .kindkey b{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid rgba(0,0,0,.15)}
+ .layout{max-width:1120px;margin:12px auto 60px;padding:0 24px;display:grid;grid-template-columns:250px 1fr;gap:22px;align-items:start}
+ .master{position:sticky;top:56px;max-height:calc(100vh - 70px);overflow:auto}
+ .mgroup{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:13px 0 5px}
+ .mitem{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;margin:0 0 5px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink);transition:.12s}
+ .mitem:hover{border-color:#c3ccd6;background:#fbfcfe}
+ .mitem.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#f4f8ff}
+ .mitem .dot{width:9px;height:9px;border-radius:50%;flex:none}
+ .mitem .nm{font-weight:600;line-height:1.2}
+ .detail{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px 22px;min-height:340px}
+ .detail h2{margin:2px 0 2px;font-size:21px;color:#10233f}
+ .detail .badge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border-radius:20px;color:#fff;vertical-align:2px;margin-left:8px}
+ .detail .tagline{font-family:var(--serif);font-size:15px;color:#3c4654;margin:8px 0 12px}
+ .detail p{font-size:14px;margin:.6em 0}
+ .detail code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-size:12.5px}
+ .detail .cite{font-size:11.5px;color:#94a0b0;border-top:1px solid var(--line);padding-top:10px;margin-top:16px;font-family:ui-monospace,Menlo,monospace}
+ .detail .note{background:#fff8ec;border-left:3px solid #d99a2b;border-radius:0 6px 6px 0;padding:8px 12px;font-size:13px;color:#5c4a24;margin:10px 0}
+ .detail h4{margin:16px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#40506a}
+ table.spec{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
+ table.spec th,table.spec td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+ table.spec th{background:var(--panel);font-weight:700;font-size:11.5px;letter-spacing:.02em;color:#10233f}
+ table.spec code{background:none;padding:0}
+ /* model.summary()-style layer table */
+ table.summ{border-collapse:collapse;width:100%;margin:10px 0 6px;font-size:12px}
+ table.summ th,table.summ td{border-bottom:1px solid var(--line);padding:5px 9px;text-align:left;vertical-align:top}
+ table.summ th{background:var(--panel);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#40506a;border-bottom:1px solid #cfd6e0}
+ table.summ td.op{color:#10233f;font-weight:600}
+ table.summ td.shape{font-family:ui-monospace,Menlo,monospace;color:#22406b;white-space:nowrap}
+ table.summ td.p{font-family:ui-monospace,Menlo,monospace;text-align:right;color:#40506a;white-space:nowrap}
+ table.summ tr.sub td{color:#98a2b0;font-style:italic}
+ table.summ tr.tot td{font-weight:700;background:#f7f9fc;border-top:2px solid #cfd6e0;border-bottom:none}
+ .diagwrap{overflow-x:auto;margin:8px 0 14px;padding:10px 12px;background:#fcfdfe;border:1px solid var(--line);border-radius:10px}
+ svg.diag{display:block;min-width:460px;max-width:100%;height:auto}
+ @media(max-width:820px){.layout{grid-template-columns:1fr}.master{position:static;max-height:none}}
+</style>
+</head>
+<body>
+<nav class="top"><a class="home" href="../index.html">ZYMERA · coverage gallery</a></nav>
+
+<section class="hero">
+ <div class="kicker">Project Zymera · Team Blue · learning stack</div>
+ <h1>Learning architecture — the machinery, part by part</h1>
+ <p>The real system, extracted from the code (not asserted): the end-to-end flow, then a detailed
+ block-and-flow diagram for every component — its inner parts, tensor shapes on the wires, and what is
+ learned vs scripted. Pick a part on the left.</p>
+ <div class="kindkey" id="kindkey"></div>
+</section>
+
+<div class="layout">
+ <div class="master" id="master"></div>
+ <div class="detail" id="detail"></div>
+</div>
+
+<script src="../arch_data.js"></script>
+<script>
+/* ---- tiny SVG block-diagram engine: nodes on a (col,row) grid + edges with arrows ---- */
+var KIND = {
+  input:['#eaf6f1','#2b8a6f','input'], conv:['#eef4ff','#2b5fb8','conv'], pool:['#f4eefb','#7b57c9','pool'],
+  gnn:['#fdf3e8','#c26a1b','GNN'], head:['#eef9f0','#1f7a3d','learned head'], env:['#ededf1','#3b4046','env'],
+  data:['#f6f7f9','#7a8494','tensor / buffer'], loss:['#fdeeee','#b8392e','loss'], ctrl:['#fff7e8','#c98a1e','scripted'],
+  attn:['#eef4ff','#3a5fcd','attention']
+};
+function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function renderSVG(spec){
+  var CW=spec.cellW||150, CH=spec.cellH||56, GX=spec.gapX||56, GY=spec.gapY||46, PAD=18;
+  var boxes={}, maxC=0, maxR=0;
+  spec.nodes.forEach(function(n){
+    var w=n.w||1, h=n.h||1, x=PAD+n.col*(CW+GX), y=PAD+n.row*(CH+GY);
+    boxes[n.id]={x:x,y:y,w:w*CW+(w-1)*GX,h:h*CH+(h-1)*GY,n:n};
+    maxC=Math.max(maxC,n.col+w); maxR=Math.max(maxR,n.row+h);
+  });
+  var W=PAD*2+maxC*(CW+GX)-GX, H=PAD*2+maxR*(CH+GY)-GY;
+  var s='<svg class="diag" viewBox="0 0 '+W+' '+H+'" width="'+W+'">';
+  s+='<defs>'+
+     '<marker id="a1" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto"><path d="M0,0 L7.5,3 L0,6 Z" fill="#6b7480"/></marker>'+
+     '<marker id="a2" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto"><path d="M0,0 L7.5,3 L0,6 Z" fill="#b8392e"/></marker>'+
+     '<marker id="a3" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto"><path d="M0,0 L7.5,3 L0,6 Z" fill="#c98a1e"/></marker>'+
+     '</defs>';
+  // anchor an edge to box SIDES (leave/enter from the nearest face) so lines travel in the
+  // empty gaps between rows/cols instead of cutting through blocks. Vertically-overlapping
+  // boxes connect side-to-side; otherwise top/bottom.
+  function anchor(a,b){
+    var ay=a.y+a.h/2, by=b.y+b.h/2, ax=a.x+a.w/2, bx=b.x+b.w/2;
+    var vov=(a.y<b.y+b.h-3)&&(b.y<a.y+a.h-3);
+    if(!vov&&by>ay) return [{x:ax,y:a.y+a.h},{x:bx,y:b.y}];        // A bottom → B top
+    if(!vov&&by<ay) return [{x:ax,y:a.y},{x:bx,y:b.y+b.h}];        // A top → B bottom
+    if(bx>=ax) return [{x:a.x+a.w,y:ay},{x:b.x,y:by}];            // A right → B left
+    return [{x:a.x,y:ay},{x:b.x+b.w,y:by}];                       // A left → B right
+  }
+  (spec.edges||[]).forEach(function(e){
+    var a=boxes[e.from], b=boxes[e.to]; if(!a||!b) return;
+    var col=e.kind==='grad'?'#b8392e':(e.kind==='soft'?'#c98a1e':'#6b7480');
+    var mk=e.kind==='grad'?'a2':(e.kind==='soft'?'a3':'a1');
+    var dash=(e.kind==='grad'||e.kind==='feedback')?' stroke-dasharray="6 4"':'';
+    var path, lx, ly;
+    if(e.route==='margin'){                 // long loop → route around the right margin (clear of all blocks)
+      var sx=a.x+a.w, sy=a.y+a.h/2, tx=b.x+b.w, ty=b.y+b.h/2, chan=W-9;
+      path='M'+sx+','+sy+' H'+chan+' V'+ty+' H'+tx; lx=chan; ly=(sy+ty)/2;
+    } else {
+      var pp=anchor(a,b); path='M'+pp[0].x+','+pp[0].y+' L'+pp[1].x+','+pp[1].y;
+      lx=(pp[0].x+pp[1].x)/2; ly=(pp[0].y+pp[1].y)/2;
+    }
+    s+='<path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="1.6"'+dash+' marker-end="url(#'+mk+')"/>';
+    if(e.label){ var wpx=e.label.length*6.1+10; if(e.route==='margin') lx=W-2-wpx/2;
+      s+='<rect x="'+(lx-wpx/2)+'" y="'+(ly-8.5)+'" width="'+wpx+'" height="16" rx="3" fill="#fff" stroke="#e3e7ec"/>'+
+         '<text x="'+lx+'" y="'+(ly+3)+'" text-anchor="middle" font-size="10.5" fill="#40506a" font-family="ui-monospace,Menlo,monospace">'+esc(e.label)+'</text>'; }
+  });
+  spec.nodes.forEach(function(n){
+    var b=boxes[n.id], c=KIND[n.kind]||KIND.data, cx=b.x+b.w/2;
+    s+='<rect x="'+b.x+'" y="'+b.y+'" width="'+b.w+'" height="'+b.h+'" rx="9" fill="'+c[0]+'" stroke="'+c[1]+'" stroke-width="1.5"/>';
+    var lines=[[n.label,12.5,700,'#10233f',0]];
+    if(n.sub) lines.push([n.sub,11,400,'#33507a',1]);
+    if(n.op)  lines.push([n.op,9.5,400,'#7a8494',0]);
+    var y0=b.y+b.h/2-(lines.length-1)*7.5+4.5;
+    lines.forEach(function(L,i){ s+='<text x="'+cx+'" y="'+(y0+i*15)+'" text-anchor="middle" font-size="'+L[1]+
+      '" font-weight="'+L[2]+'" fill="'+L[3]+'"'+(L[4]?' font-family="ui-monospace,Menlo,monospace"':'')+'>'+esc(L[0])+'</text>'; });
+  });
+  return s+'</svg>';
+}
+
+/* ---- master-detail shell ---- */
+(function(){
+  var A = window.ARCH || [];
+  var BADGE={learned:{c:'#1f7a3d',t:'learned'}, scripted:{c:'#6b7480',t:'scripted'},
+             mixed:{c:'#b5651d',t:'learned + scripted'}, measure:{c:'#7b4397',t:'measurement only'},
+             map:{c:'#2b5fb8',t:'flow'}};
+  document.getElementById('kindkey').innerHTML = Object.keys(KIND).map(function(k){
+    return '<span><b style="background:'+KIND[k][0]+';border-color:'+KIND[k][1]+'"></b>'+KIND[k][2]+'</span>'; }).join('');
+  var master=document.getElementById('master'), detail=document.getElementById('detail');
+  var order=[], seen={};
+  A.forEach(function(a){ if(!seen[a.group]){seen[a.group]=1;order.push(a.group);} });
+  order.forEach(function(g){
+    var h=document.createElement('div'); h.className='mgroup'; h.textContent=g; master.appendChild(h);
+    A.filter(function(a){return a.group===g;}).forEach(function(a){
+      var b=BADGE[a.badge]||BADGE.map, it=document.createElement('button');
+      it.className='mitem'; it.dataset.id=a.id;
+      it.innerHTML='<span class="dot" style="background:'+b.c+'"></span><span class="nm">'+a.name+'</span>';
+      it.onclick=function(){show(a.id);}; master.appendChild(it);
+    });
+  });
+  function show(id){
+    var a=A.find(function(x){return x.id===id;}); if(!a) return;
+    var b=BADGE[a.badge]||BADGE.map;
+    var svg=a.graph?('<div class="diagwrap">'+renderSVG(a.graph)+'</div>'):'';
+    detail.innerHTML='<h2>'+a.name+'<span class="badge" style="background:'+b.c+'">'+b.t+'</span></h2>'+
+      '<div class="tagline">'+(a.tagline||'')+'</div>'+svg+(a.detail||'');
+    [].forEach.call(master.querySelectorAll('.mitem'),function(el){el.classList.toggle('on',el.dataset.id===id);});
+    if(history.replaceState) history.replaceState(null,'','#'+id);
+    document.querySelector('.detail').scrollIntoView({block:'nearest'});
+  }
+  var start=(location.hash||'').replace('#','');
+  show(A.some(function(a){return a.id===start;})?start:A[0].id);
+  if(!A.length) detail.innerHTML='<p style="color:#b22">arch_data.js not found.</p>';
+})();
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

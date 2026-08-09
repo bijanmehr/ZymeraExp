@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SuperBlue upgrade — one forward pass, on real data</title>
+<style>
+ :root{--ink:#1a1f29;--muted:#5a6472;--line:#e3e7ec;--panel:#f7f8fa;--acc:#2b5fb8;
+  --new:#1f7a3d;--chg:#b5651d;--des:#2b5fb8;--gap:#c98a1e;
+  --serif:Georgia,"Times New Roman",serif;--sans:"Helvetica Neue",Arial,system-ui,sans-serif}
+ *{box-sizing:border-box} html,body{margin:0}
+ body{font-family:var(--sans);color:var(--ink);background:#fff;line-height:1.55}
+ header.top{background:#10233f;color:#fff;padding:26px 28px 22px}
+ header.top .k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fb4e8;font-weight:700}
+ header.top h1{margin:.25em 0 .2em;font-size:26px;letter-spacing:-.01em}
+ header.top p{margin:0;color:#cfe0f5;font-size:14.5px;max-width:900px}
+ .status{display:inline-block;margin-top:12px;background:#c98a1e;color:#fff;font-weight:700;font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;padding:4px 11px;border-radius:20px}
+ .wrap{max-width:1080px;margin:0 auto;padding:10px 28px 70px}
+ .stage{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:start;margin:30px 0 0;
+  background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+ .stage.flip{grid-template-columns:1fr auto}
+ @media(max-width:860px){.stage,.stage.flip{grid-template-columns:1fr}}
+ .stage .num{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--acc);margin-bottom:4px}
+ .stage h2{font-size:19px;margin:0 0 6px;color:#0d1b2b}
+ .stage p{font-size:14px;color:#2b3644;margin:.4em 0;max-width:560px}
+ .stage .stat{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--panel);
+  border:1px solid var(--line);border-radius:7px;padding:7px 11px;margin:8px 0;color:#22406b;display:inline-block}
+ canvas.grid{border:1px solid var(--line);border-radius:8px;display:block;background:#313949}
+ .cap{font-size:11.5px;color:var(--muted);margin-top:6px;max-width:460px}
+ .connector{text-align:center;color:#98a2b2;font-size:18px;margin:6px 0 0}
+ .badge{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  padding:2px 8px;border-radius:12px;color:#fff;vertical-align:2px;margin-left:6px}
+ table.cand{border-collapse:collapse;font-size:12.5px;margin:8px 0;width:100%}
+ table.cand th,table.cand td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--line)}
+ table.cand th{background:#eef2f8;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#3a4c66}
+ table.cand td.n{font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+ table.cand tr.win td{background:#eef9f0;font-weight:600}
+ .bar{height:10px;border-radius:5px;background:#2b5fb8;display:inline-block;vertical-align:middle}
+ .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid rgba(0,0,0,.2)}
+ section.extra{margin:40px 0 0}
+ section.extra h2{font-size:20px;color:#0d1b2b;margin:0 0 8px}
+ .kick{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);font-weight:700;margin-bottom:4px}
+ .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin:14px 0}
+ .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+ .card h3{margin:0 0 6px;font-size:15px;color:#0d1b2b}
+ .card p{font-size:13.5px;margin:.4em 0}
+ .card blockquote{margin:8px 0;padding:8px 12px;background:var(--panel);border-left:3px solid var(--acc);
+  border-radius:0 7px 7px 0;font-family:var(--serif);font-size:13px;color:#3a4654}
+ .card .src{font-size:11px;color:#94a0b0;font-family:ui-monospace,Menlo,monospace}
+ table.z{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0;background:#fff;border:1px solid var(--line)}
+ table.z th,table.z td{padding:8px 11px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+ table.z th{background:#eef2f8;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#3a4c66}
+ table.z tr:last-child td{border-bottom:none}
+ .chips{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+ .chip{border:2px solid var(--acc);color:var(--acc);border-radius:22px;padding:7px 16px;font-weight:700;font-size:14px}
+ .chip.alt{border-color:#c3ccd6;color:#5a6472;font-weight:600}
+ footer{max-width:1080px;margin:0 auto;padding:14px 28px 50px;font-size:12px;color:#94a0b0;border-top:1px solid var(--line)}
+ code{background:#eef1f5;padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<header class="top">
+ <div class="k">SuperBlue · shared exploration · design proposal</div>
+ <h1>One forward pass, on real data — under a hard connectivity requirement</h1>
+ <p>Below is a real <b>32×32 world with 10 agents</b>, simulated in this page for 45 steps (deterministic —
+ same picture every load). We take <b>one agent</b> and feed its actual data through the proposed pipeline:
+ perception → KB → <b>Surveyor</b> → <b>goal-selector</b> → <b>A*</b> → move. Every panel is rendered from
+ the live state; every number is computed, not typed. <b>v2:</b> revised end-to-end after fixing the mission
+ requirement — <i>the team stays one connected body, ~every step</i> — the rethink section right below records
+ what that changed and why.</p>
+ <span class="status">Proposal v2 — rethought under hard connectivity · not built · 2026-07-01</span>
+</header>
+
+<!-- ============ THE RETHINK (v2) ============ -->
+<div class="wrap">
+ <section class="extra" style="margin-top:26px">
+  <div class="kick">The rethink — how the requirement changed the design</div>
+  <h2>Near-perfect connectivity makes the team ONE body</h2>
+  <p style="font-size:14px;max-width:880px">With the graph required to hold ~every step, no agent goes anywhere
+  alone — <b>the team is one kinematic body with ten joints</b>, and every move is a deformation of the whole.
+  Two consequences reorganize everything: <b>coverage = the body sweeping</b> (a connected comb walking the map
+  lane by lane — our boustrophedon oracle already proves ~80–90% coverage at 100% connectivity exists), and
+  <b>the failure mode = the body sitting</b> — not fragmentation but the <b>huddle</b>, exactly what every
+  per-step guardrail produced in our own history. Both huddle and comb satisfy the constraint; the entire game
+  is which equilibrium the team finds. Division of labour therefore isn't scattered territories — it's
+  <b>structure on the body</b>: lanes at the front, hinges at the folds, chains where terrain demands depth.</p>
+  <table class="z">
+   <tr><th>Piece</th><th>Verdict</th><th>Why</th></tr>
+   <tr><td><b>Surveyor</b></td><td><span class="badge" style="background:#1f7a3d">SURVIVES +</span></td>
+    <td>gains a co-equal second job: <b>formation sensing</b> — per-step slack/stretch and "where am I in the body
+    (edge · interior · hinge)". Graph-position awareness moves up the priority list.</td></tr>
+   <tr><td><b>Candidate menu</b></td><td><span class="badge" style="background:#b5651d">CHANGES</span></td>
+    <td>a map-wide menu was wrong for an individual — a far region is the <i>front's</i> option, not mine. Individual
+    candidates = <b>lane claims within my slack</b>; far frontier mass acts as a shared compass (everyone reads the
+    same gossip-synced KB → the front translates by consensus, no coordinator, no L4).</td></tr>
+   <tr><td><b>Goal-selector</b></td><td><span class="badge" style="background:#1f7a3d">SURVIVES</span></td>
+    <td>semantics shift to "which part of the shared work I own"; goal <b>commitment</b> becomes load-bearing —
+    one agent dithering perturbs the whole body through the stretch coupling.</td></tr>
+   <tr><td><b>A* executor</b></td><td><span class="badge" style="background:#1f7a3d">SURVIVES</span></td>
+    <td>gated: <i>step along the path only if the step keeps my links; else hold/side-step</i>.</td></tr>
+   <tr><td><b>Claim market</b></td><td><span class="badge" style="background:#1f7a3d">STRONGER</span></td>
+    <td>inside a connected body gossip syncs in ~3–5 hops → claims are fresh; nearest-claimant assignment
+    <i>is</i> lane assignment. The market and the constraint want the same geometry.</td></tr>
+   <tr><td><b>Marginal credit Dᵢ</b></td><td><span class="badge" style="background:#1f7a3d">STRONGER</span></td>
+    <td>the huddle is a <b>credit desert</b> (everyone's Dᵢ ≈ 0 — a teammate beside you would visit the same cell);
+    the comb is the <b>credit optimum</b> (every lane uniquely yours). A flat team reward cannot tell them apart —
+    which explains our huddle history. And with connectivity in G, remove-i evaluation <b>automatically pays the
+    hinge</b> (a relay's Dᵢ = everything its link enables) and auto-sizes the relay count (two agents crowding one
+    hinge halve each other's necessity).</td></tr>
+   <tr><td><b>Role head</b></td><td><span class="badge" style="background:#b8392e">DEMOTED</span></td>
+    <td>honest revision: under this frame "relay" is a <i>goal choice</i> (hold the hinge — that's where your Dᵢ is),
+    not a distinct program. Your own STRATEGY correction says roles are <b>measured outcomes, not authored
+    modules</b>. Primary Rover v1 = goal-selector only; the role head survives as an ablation arm.</td></tr>
+   <tr><td><b>Scripted reference</b></td><td><span class="badge" style="background:#b5651d">CHANGES</span></td>
+    <td>nearest-frontier + claims would fragment the graph — invalid. The designed upper bound becomes the
+    <b>connected comb sweeper</b> (boustrophedon formation with door-folding).</td></tr>
+   <tr><td><b>Breathing (disperse↔regroup)</b></td><td><span class="badge" style="background:#b8392e">RETRACTED</span></td>
+    <td>trades away the requirement itself. Diagnostic comparison only — never the agent's strategy.</td></tr>
+   <tr><td><b>Old oracle ceilings</b></td><td><span class="badge" style="background:#b8392e">RETRACTED</span></td>
+    <td>computed <i>without</i> the constraint → wrong denominators (composite_a's deep cells are unreachable by any
+    connected 10-agent body — max span ~45 &lt; depth 76). First build: a <b>connected-sweep oracle</b> per map.</td></tr>
+  </table>
+  <p style="font-size:14px;max-width:880px"><b>The emergence claim gets sharper, not weaker:</b> it becomes a
+  <b>phase transition with credit as the control parameter</b> — same body, same rules, same constraint; flat
+  credit → the huddle phase; marginal credit → the comb phase, with lanes, and hinge-holding appearing at
+  doorways <i>without any role head to author it</i>. A macro phase change driven by one micro-level knob on the
+  interaction layer — measurable via front coherence, lane-ness, redundancy → 1, hinge-Dᵢ spikes, and coverage
+  against the <i>connected</i> ceiling.</p>
+ </section>
+</div>
+
+<div class="wrap" id="story"><!-- stages injected --></div>
+
+<div class="wrap">
+ <!-- ============ THE THREE GAPS ============ -->
+ <section class="extra">
+  <div class="kick">Why exactly these changes</div>
+  <h2>Each one closes a gap your own docs recorded</h2>
+  <div class="cards">
+   <div class="card">
+    <h3>① Goal module: abstract → concrete <span class="badge" style="background:var(--chg)">CHANGED</span></h3>
+    <blockquote>"Goal — … e.g. <b>a frontier region</b> for explorer… Goal selection may be learned or heuristic <b>(TBD)</b>."</blockquote>
+    <blockquote>"Build the 2-level <b>goal-selector over the GNN</b>… a coarse spatial <b>goal/region action head</b> is the one temporal abstraction the evidence cleanly backs."</blockquote>
+    <p>Stage 4 below <i>is</i> that goal-selector, running on charted regions. The K=9 compass stencil was v0.5 of this head.</p>
+    <div class="src">agent_architecture.md §5 · STRATEGY.md correction</div>
+   </div>
+   <div class="card">
+    <h3>② A* was designed, never built <span class="badge" style="background:var(--des)">AS-DESIGNED</span></h3>
+    <blockquote>"Execution (primitive) | always on | <b>A*</b>/RRT, collision avoidance…" · "…behavior sets goal → <b>A* executes</b>."</blockquote>
+    <p>Stage 5 shows why: on this very map the greedy executor stalls against a wall the planner walks around.</p>
+    <div class="src">COGNITION_DESIGN.md — layers table + pipeline</div>
+   </div>
+   <div class="card">
+    <h3>③ Mission-safety as a brain INPUT <span class="badge" style="background:var(--gap)">GAP→INPUT</span></h3>
+    <blockquote>"⚠ OPEN BUILD ITEM: wire the connectivity-danger signal (λ̂₂ / barrier proximity) as an explicit <b>INPUT</b> to the head."</blockquote>
+    <p>The Surveyor adds <b>team-stretch</b> (wall-true distance to the nearest teammate — stage 3 computes it) to λ̂₂ + barrier-proximity, feeding the role picker.</p>
+    <div class="src">agent_architecture.md §4 — flagged gap</div>
+   </div>
+  </div>
+ </section>
+
+ <!-- ============ SUPERBLUE CONTRACT ============ -->
+ <section class="extra">
+  <div class="kick">Objective discipline</div>
+  <h2>Trained on the mission spec only</h2>
+  <p style="font-size:14px;max-width:860px">The lab stays reward-agnostic. The agent trains on <b>(G, K)</b> —
+  coverage with <b>connectivity as the hard mission requirement</b> (the team in one piece), enforced softly via the
+  <b>Lagrangian dual</b> (with the <b>Hyper-Singularity floor</b> as backstop) — and per-agent credit comes from
+  <b>marginal-contribution credit</b> (difference rewards: a decomposition of the same G, zero new reward content).
+  With connectivity in G, remove-i evaluation <b>automatically pays the hinge</b> — a relay's Dᵢ is everything its
+  link enables — and auto-sizes the relay count. The free market moves from a congestion <i>price</i> (an implicit
+  reward — now forbidden) to a <b>claim feature in the KB</b>: the "teammate wall-true closer?" column in stage 4.
+  Bump · anti-overlap · congestion-as-reward: ablation arms only.</p>
+ </section>
+
+ <!-- ============ BUILD & FALSIFICATION ============ -->
+ <section class="extra">
+  <div class="kick">Build & falsification — v2 order</div>
+  <h2>Fix the yardstick first, then the agent, then the phase test</h2>
+  <table class="z">
+   <tr><th>#</th><th>Build</th><th>Why first</th></tr>
+   <tr><td>1</td><td><b>Connected-sweep oracle + map feasibility audit</b> — max coverage achievable by any
+     <i>connected</i> 10-agent trajectory in 100 steps, per map</td>
+     <td>the old ceilings ignored the constraint → wrong denominators (composite_a's deep cells are unreachable
+     connected). We've been burned by infeasible targets before; this closes the hole before any training.</td></tr>
+   <tr><td>2</td><td><b>Surveyor v2</b> — geodesic field <i>plus</i> slack/stretch + body-position senses; A* with the
+     link gate</td><td>the geometry every arm reuses.</td></tr>
+   <tr><td>3</td><td><b>Goal-selector on slack-aware candidates + connectivity-aware Dᵢ</b> (remove-i with the graph
+     term)</td><td>the agent itself — one learned head; roles measured, not authored.</td></tr>
+   <tr><td>4</td><td><b>The phase test @16²/4, hard metric:</b> credit {flat · marginal} × claim {on · off}, plus a
+     role-head-on arm and the <b>connected comb sweeper</b> as the designed reference</td>
+     <td>the 2×2 that decides everything, cheap first, winners warm-start to 32²/10.</td></tr>
+  </table>
+  <p style="font-size:14px;max-width:860px"><b>Pre-registered predictions:</b>
+  <b>P1</b> flat credit reproduces the huddle (our own history, now as the control arm) ·
+  <b>P2</b> marginal credit produces the sweep — coverage climbs toward the <i>connected</i> ceiling, redundancy → 1 ·
+  <b>P3</b> hinge-holding appears at doorways with <i>no role head</i>, visible as Dᵢ spikes on the hinge agents ·
+  <b>P4</b> the role-head arm adds nothing beyond the emergent roles (its ablation tests exactly that) ·
+  <b>P5</b> on deep maps coverage saturates at the connected ceiling, validating the oracle.
+  If P2 fails, the honest conclusion is that (G,K)+credit is insufficient at this scale — a finding, and we report it.</p>
+  <p class="cap">Naming still open for the new capability:</p>
+  <div class="chips"><span class="chip">Surveyor</span><span class="chip alt">Cartographer</span><span class="chip alt">terrain-sense</span><span class="chip alt">your call…</span></div>
+ </section>
+</div>
+
+<footer>Sources: agent_architecture.md · COGNITION_DESIGN.md · STRATEGY.md correction. This page simulates its own
+figures (deterministic seed); it lives beside the design docs, not under report/ — a site republish cannot leak it.</footer>
+
+<script>
+/*CORE*/
+var H=32,W=32,N=10,SENSE=1,COMM=5,STEPS=45;
+function lcg(seed){var s=seed>>>0;return function(){s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+function idx(r,c){return r*W+c;}
+function inb(r,c){return r>=0&&r<H&&c>=0&&c<W;}
+function mkWorld(){
+  var wall=new Uint8Array(H*W);
+  function set(r,c){if(inb(r,c))wall[idx(r,c)]=1;}
+  for(var i=0;i<W;i++){set(0,i);set(H-1,i);}
+  for(var r=0;r<H;r++){set(r,0);set(r,W-1);}
+  for(r=1;r<H-1;r++) if(!(r===6||r===7||r===22||r===23)) set(r,12);       // vertical wall, two doors
+  for(var c=13;c<W-1;c++) if(!(c===21||c===22)) set(14,c);               // horizontal wall, one door
+  [[5,5],[5,6],[10,4],[17,7],[17,8],[24,5],[6,20],[7,20],[20,18],[25,24],[26,24]]
+    .forEach(function(p){set(p[0],p[1]);});
+  return wall;
+}
+/* BFS distance over walkable mask from multiple sources; -1 unreachable */
+function bfs(walkable,srcs){
+  var d=new Int16Array(H*W).fill(-1),q=[],qi=0;
+  srcs.forEach(function(s){ if(d[s]===-1&&walkable[s]){ d[s]=0;q.push(s);} });
+  var DR=[1,-1,0,0],DC=[0,0,1,-1];
+  while(qi<q.length){
+    var u=q[qi++],r=(u/W)|0,c=u%W;
+    for(var k=0;k<4;k++){var nr=r+DR[k],nc=c+DC[k];
+      if(!inb(nr,nc))continue;var v=idx(nr,nc);
+      if(walkable[v]&&d[v]===-1){d[v]=d[u]+1;q.push(v);}}
+  }
+  return d;
+}
+function sim(seed){
+  var rnd=lcg(seed),wall=mkWorld();
+  var spawn=[];
+  for(var r=25;r<=29;r++)for(var c=2;c<=7;c++)if(!wall[idx(r,c)])spawn.push(idx(r,c));
+  // pick N distinct spawn cells
+  var pos=[],used={};
+  while(pos.length<N){var s=spawn[(rnd()*spawn.length)|0];if(!used[s]){used[s]=1;pos.push(s);}}
+  // per-agent belief: 0 unknown · 1 known-free · 2 known-wall
+  var bel=[];for(var i=0;i<N;i++)bel.push(new Uint8Array(H*W));
+  function sense(i){
+    var r=(pos[i]/W)|0,c=pos[i]%W;
+    for(var dr=-SENSE;dr<=SENSE;dr++)for(var dc=-SENSE;dc<=SENSE;dc++){
+      var nr=r+dr,nc=c+dc;if(!inb(nr,nc))continue;
+      bel[i][idx(nr,nc)]=wall[idx(nr,nc)]?2:1;}
+  }
+  function gossip(){
+    // connected components on chebyshev<=COMM, union beliefs inside each
+    var par=[];for(var i=0;i<N;i++)par.push(i);
+    function find(x){while(par[x]!==x)x=par[x]=par[par[x]];return x;}
+    for(i=0;i<N;i++)for(var j=i+1;j<N;j++){
+      var ri=(pos[i]/W)|0,ci=pos[i]%W,rj=(pos[j]/W)|0,cj=pos[j]%W;
+      if(Math.max(Math.abs(ri-rj),Math.abs(ci-cj))<=COMM){var a=find(i),b=find(j);if(a!==b)par[a]=b;}}
+    var groups={};for(i=0;i<N;i++){var g=find(i);(groups[g]=groups[g]||[]).push(i);}
+    Object.keys(groups).forEach(function(g){
+      var m=groups[g];if(m.length<2)return;
+      var u=new Uint8Array(H*W);
+      m.forEach(function(i){for(var v=0;v<H*W;v++)if(bel[i][v]>u[v])u[v]=bel[i][v];});
+      m.forEach(function(i){bel[i].set(u);});
+    });
+    return par;
+  }
+  var DR=[1,-1,0,0],DC=[0,0,1,-1];
+  for(var t=0;t<STEPS;t++){
+    for(var a=0;a<N;a++)sense(a);
+    gossip();
+    for(a=0;a<N;a++){
+      var free=new Uint8Array(H*W);
+      for(var v=0;v<H*W;v++)free[v]=bel[a][v]===1?1:0;
+      // frontier cells of agent a's belief
+      var fr=[];
+      for(v=0;v<H*W;v++)if(free[v]){var r0=(v/W)|0,c0=v%W;
+        for(var k=0;k<4;k++){var nr=r0+DR[k],nc=c0+DC[k];
+          if(inb(nr,nc)&&bel[a][idx(nr,nc)]===0){fr.push(v);break;}}}
+      var move=null;
+      if(fr.length){
+        var df=bfs(free,fr);                       // distance-to-nearest-frontier
+        var best=1e9,cand=[];
+        var pr=(pos[a]/W)|0,pc=pos[a]%W;
+        for(k=0;k<4;k++){var mr=pr+DR[k],mc=pc+DC[k];
+          if(!inb(mr,mc)||wall[idx(mr,mc)])continue;      // env blocks true walls
+          var u=idx(mr,mc),score=(df[u]===-1)?9999:df[u];
+          if(score<best){best=score;cand=[u];}else if(score===best)cand.push(u);}
+        if(cand.length)move=cand[(rnd()*cand.length)|0];
+      } else {
+        var opts=[];var pr2=(pos[a]/W)|0,pc2=pos[a]%W;
+        for(k=0;k<4;k++){var r2=pr2+DR[k],c2=pc2+DC[k];
+          if(inb(r2,c2)&&!wall[idx(r2,c2)])opts.push(idx(r2,c2));}
+        if(opts.length)move=opts[(rnd()*opts.length)|0];
+      }
+      if(move!==null)pos[a]=move;
+    }
+  }
+  for(a=0;a<N;a++)sense(a);
+  var par=gossip();
+  return {wall:wall,pos:pos,bel:bel,par:par};
+}
+/* frontier regions of one agent's belief -> clusters (8-connected), top by size */
+function regionsOf(bel){
+  var isFr=new Uint8Array(H*W),DR=[1,-1,0,0],DC=[0,0,1,-1];
+  for(var v=0;v<H*W;v++)if(bel[v]===1){var r=(v/W)|0,c=v%W;
+    for(var k=0;k<4;k++){var nr=r+DR[k],nc=c+DC[k];
+      if(inb(nr,nc)&&bel[idx(nr,nc)]===0){isFr[v]=1;break;}}}
+  var lab=new Int16Array(H*W).fill(-1),nl=0,comps=[];
+  for(v=0;v<H*W;v++)if(isFr[v]&&lab[v]===-1){
+    var q=[v],qi=0;lab[v]=nl;var cells=[];
+    while(qi<q.length){var u=q[qi++];cells.push(u);
+      var ur=(u/W)|0,uc=u%W;
+      for(var dr=-1;dr<=1;dr++)for(var dc=-1;dc<=1;dc++){
+        if(!dr&&!dc)continue;var rr=ur+dr,cc=uc+dc;
+        if(!inb(rr,cc))continue;var w=idx(rr,cc);
+        if(isFr[w]&&lab[w]===-1){lab[w]=nl;q.push(w);}}}
+    comps.push(cells);nl++;
+  }
+  comps=comps.filter(function(c){return c.length>=3;});
+  comps.sort(function(a,b){return b.length-a.length;});
+  return comps.slice(0,6);
+}
+/* full pipeline for one featured agent */
+function pipeline(S,ai){
+  var bel=S.bel[ai];
+  var free=new Uint8Array(H*W);
+  for(var v=0;v<H*W;v++)free[v]=bel[v]===1?1:0;
+  var field=bfs(free,[S.pos[ai]]);
+  var comps=regionsOf(bel);
+  // teammates in the same comm component (positions the agent plausibly knows)
+  function find(x,par){while(par[x]!==x)x=par[x];return x;}
+  var mates=[];for(var j=0;j<N;j++)if(j!==ai&&find(j,S.par.slice())===find(ai,S.par.slice()))mates.push(j);
+  var mateFields=mates.map(function(j){return bfs(free,[S.pos[j]]);});
+  var cands=[];
+  comps.forEach(function(cells,ci){
+    var best=-1,bd=1e9;
+    cells.forEach(function(u){ if(field[u]>=0&&field[u]<bd){bd=field[u];best=u;} });
+    if(best<0)return;                       // unreachable in own belief
+    var claimed=false,mateMin=1e9;
+    mateFields.forEach(function(mf){ if(mf[best]>=0&&mf[best]<mateMin)mateMin=mf[best]; });
+    if(mateMin<bd)claimed=true;
+    var br=(best/W)|0,bc=best%W,ar=(S.pos[ai]/W)|0,ac=S.pos[ai]%W;
+    var ang=Math.atan2(br-ar,bc-ac),dirs=['E','SE','S','SW','W','NW','N','NE'];
+    var dir=dirs[((Math.round(ang/(Math.PI/4))%8)+8)%8];
+    cands.push({cells:cells,rep:best,size:cells.length,cost:bd,dir:dir,claimed:claimed});
+  });
+  // illustrative fixed-weight scorer (the learned q·k replaces these weights)
+  var maxS=1,maxC=1;
+  cands.forEach(function(c){maxS=Math.max(maxS,c.size);maxC=Math.max(maxC,c.cost);});
+  cands.forEach(function(c){ c.score=2.2*(c.size/maxS)-1.6*(c.cost/maxC)-0.9*(c.claimed?1:0); });
+  var mx=-1e9;cands.forEach(function(c){mx=Math.max(mx,c.score);});
+  var Z=0;cands.forEach(function(c){c.p=Math.exp(c.score-mx);Z+=c.p;});
+  cands.forEach(function(c){c.p/=Z;});
+  var win=0;cands.forEach(function(c,i){if(c.score>cands[win].score)win=i;});
+  // A* path: descend the field from rep back to agent
+  var path=null;
+  if(cands.length){
+    var rep=cands[win].rep;
+    if(field[rep]>=0){
+      path=[rep];var cur=rep,DR=[1,-1,0,0],DC=[0,0,1,-1];
+      while(field[cur]>0){
+        var r=(cur/W)|0,c=cur%W,nxt=cur;
+        for(var k=0;k<4;k++){var nr=r+DR[k],nc=c+DC[k];
+          if(!inb(nr,nc))continue;var u=idx(nr,nc);
+          if(field[u]>=0&&field[u]===field[cur]-1){nxt=u;break;}}
+        if(nxt===cur)break;
+        path.push(nxt);cur=nxt;
+      }
+      path.reverse();
+    }
+  }
+  // greedy executor trace toward the same rep (euclidean descent, believed-free)
+  var greedy=[S.pos[ai]],stalled=false;
+  if(cands.length){
+    var tgt=cands[win].rep,tr=(tgt/W)|0,tc=tgt%W,seen={},cur2=S.pos[ai];
+    seen[cur2]=1;
+    for(var step=0;step<120;step++){
+      if(cur2===tgt)break;
+      var cr=(cur2/W)|0,cc2=cur2%W;
+      var dNow=Math.hypot(cr-tr,cc2-tc),bestU=-1,bestD=dNow-1e-9;
+      var DR2=[1,-1,0,0],DC2=[0,0,1,-1];
+      for(k=0;k<4;k++){var r3=cr+DR2[k],c3=cc2+DC2[k];
+        if(!inb(r3,c3))continue;var u2=idx(r3,c3);
+        if(bel[u2]!==1||seen[u2])continue;
+        var d2=Math.hypot(r3-tr,c3-tc);
+        if(d2<bestD){bestD=d2;bestU=u2;}}
+      if(bestU<0){stalled=true;break;}
+      seen[bestU]=1;greedy.push(bestU);cur2=bestU;
+    }
+    if(cur2!==tgt&&!stalled)stalled=true;
+  }
+  // mission-safety numbers
+  var stretch=1e9;
+  mateFields.forEach(function(mf){ if(mf[S.pos[ai]]>=0)stretch=Math.min(stretch,mf[S.pos[ai]]); });
+  var known=0;for(v=0;v<H*W;v++)if(bel[v])known++;
+  return {ai:ai,bel:bel,field:field,cands:cands,win:win,path:path,greedy:greedy,stalled:stalled,
+          stretch:stretch===1e9?-1:stretch,knownPct:Math.round(100*known/(H*W)),mates:mates};
+}
+/* pick a deterministic seed+agent where the story is visible:
+   >=3 reachable regions · mixed claimed/unclaimed (the market column has contrast) ·
+   greedy stalls EARLY (< 60% of the A* length — a vivid failure) · belief 25-75% */
+function pickScenario(){
+  for(var seed=1;seed<=80;seed++){
+    var S=sim(seed);
+    for(var a=0;a<N;a++){
+      var P=pipeline(S,a);
+      if(P.cands.length<3||!P.path||P.path.length<=7||!P.stalled)continue;
+      if(P.knownPct<25||P.knownPct>75)continue;
+      var nc=P.cands.filter(function(c){return c.claimed;}).length;
+      if(!(nc>0&&nc<P.cands.length))continue;
+      if((P.greedy.length-1)>(P.path.length-1)*0.6)continue;
+      return {seed:seed,agent:a,S:S,P:P};
+    }
+  }
+  var S2=sim(1);return {seed:1,agent:0,S:S2,P:pipeline(S2,0)};
+}
+/*ENDCORE*/
+
+/* ---------------- rendering ---------------- */
+var OKABE=['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#999999','#F0E442','#111111','#882255'];
+var FOG='#313949',FREE='#f2f3ef',WALLC='#3a4150',KWALL='#4a5568';
+function mkCanvas(px){var cv=document.createElement('canvas');cv.className='grid';
+ var dpr=window.devicePixelRatio||1;cv.style.width=(W*px)+'px';cv.style.height=(H*px)+'px';
+ cv.width=Math.round(W*px*dpr);cv.height=Math.round(H*px*dpr);
+ var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return {cv:cv,ctx:ctx,px:px};}
+function cell(ctx,px,v,col){ctx.fillStyle=col;ctx.fillRect((v%W)*px,((v/W)|0)*px,px,px);}
+function gridlines(ctx,px){ctx.strokeStyle='rgba(20,30,60,.10)';ctx.lineWidth=1;
+ for(var c=0;c<=W;c++){ctx.beginPath();ctx.moveTo(c*px+.5,0);ctx.lineTo(c*px+.5,H*px);ctx.stroke();}
+ for(var r=0;r<=H;r++){ctx.beginPath();ctx.moveTo(0,r*px+.5);ctx.lineTo(W*px,r*px+.5);ctx.stroke();}}
+function agentDot(ctx,px,v,col,ring){var x=(v%W+.5)*px,y=(((v/W)|0)+.5)*px;
+ ctx.beginPath();ctx.arc(x,y,px*.34,0,7);ctx.fillStyle=col;ctx.fill();
+ ctx.strokeStyle='#20242c';ctx.lineWidth=1;ctx.stroke();
+ if(ring){ctx.beginPath();ctx.arc(x,y,px*.62,0,7);ctx.strokeStyle='#e8433f';ctx.lineWidth=2.4;ctx.stroke();}}
+function heat(t){ // 0..1 -> light to deep blue
+ var a=[238,244,255],b=[11,79,184],c=[Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)];
+ return 'rgb('+c[0]+','+c[1]+','+c[2]+')';}
+
+var SC=pickScenario(),S=SC.S,P=SC.P,AI=SC.agent;
+var story=document.getElementById('story');
+function stage(num,title,html,drawFn,capHtml,statHtml){
+ var d=document.createElement('div');d.className='stage';
+ var left=document.createElement('div');
+ var right=document.createElement('div');
+ right.innerHTML='<div class="num">'+num+'</div><h2>'+title+'</h2>'+html+(statHtml?'<div class="stat">'+statHtml+'</div>':'');
+ var m=mkCanvas(13);drawFn(m.ctx,m.px);left.appendChild(m.cv);
+ if(capHtml){var cp=document.createElement('div');cp.className='cap';cp.innerHTML=capHtml;left.appendChild(cp);}
+ d.appendChild(left);d.appendChild(right);story.appendChild(d);
+ var cn=document.createElement('div');cn.className='connector';cn.textContent='▼';story.appendChild(cn);
+}
+
+/* 0 · the world */
+stage('Stage 0 · the world (ground truth)','32×32 · 10 agents · step 45',
+ '<p>The true world: walls, two rooms behind a vertical wall with two doors, one more door in the horizontal wall. '+
+ 'Ten agents (Okabe-Ito dots) have explored for 45 steps from a clustered spawn. The <b>red-ringed agent</b> is the '+
+ 'one whose head we look inside — call it <b>agent i</b>.</p><p>No agent sees this panel. It exists only here, for you.</p>',
+ function(ctx,px){
+   for(var v=0;v<H*W;v++)cell(ctx,px,v,S.wall[v]?WALLC:FREE);
+   gridlines(ctx,px);
+   S.pos.forEach(function(p,i){agentDot(ctx,px,p,OKABE[i%10],i===AI);});
+ },'ground truth · seed '+SC.seed,null);
+
+/* 1 · perception */
+stage('Stage 1 · perception (firsthand)','What agent i senses RIGHT NOW',
+ '<p>Firsthand sensing is a <b>3×3 window</b> (sense_r = 1) — everything else is dark to the agent this step. '+
+ 'This is the only thing perception contributes per step; the rest of its knowledge must come from memory and the radio.</p>',
+ function(ctx,px){
+   var ar=(S.pos[AI]/W)|0,ac=S.pos[AI]%W;
+   for(var v=0;v<H*W;v++){
+     var r=(v/W)|0,c=v%W,inWin=Math.abs(r-ar)<=SENSE&&Math.abs(c-ac)<=SENSE;
+     cell(ctx,px,v,inWin?(S.wall[v]?WALLC:FREE):FOG);
+   }
+   gridlines(ctx,px);
+   agentDot(ctx,px,S.pos[AI],OKABE[AI%10],true);
+   var x=(ac-SENSE)*px,y=(ar-SENSE)*px,w=(2*SENSE+1)*px;
+   ctx.strokeStyle='#e8433f';ctx.lineWidth=2;ctx.strokeRect(x,y,w,w);
+ },'the 3×3 sense window','9 cells / 1024 = <b>0.9%</b> of the world per step');
+
+/* 2 · KB */
+stage('Stage 2 · the KB (memory + radio)','Agent i’s accumulated belief',
+ '<p>The KB fuses <b>own perception over time</b> + <b>gossip from teammates</b> (union within the comm component, '+
+ 'range '+COMM+'). Light = known-free, dark grey = known walls, deep blue = still unknown. Teammates whose position '+
+ 'agent i currently knows are drawn faded.</p><p>Everything downstream — Surveyor, goal-selector, A* — reads '+
+ '<b>only this panel</b>, never the ground truth.</p>',
+ function(ctx,px){
+   for(var v=0;v<H*W;v++)cell(ctx,px,v,P.bel[v]===0?FOG:(P.bel[v]===2?KWALL:FREE));
+   gridlines(ctx,px);
+   P.mates.forEach(function(j){agentDot(ctx,px,S.pos[j],OKABE[j%10]+'99',false);});
+   agentDot(ctx,px,S.pos[AI],OKABE[AI%10],true);
+ },'known-free · known-wall · unknown',
+ 'KB knows <b>'+P.knownPct+'%</b> of the world · '+P.mates.length+' teammate positions via the radio');
+
+/* 3 · Surveyor */
+(function(){
+ var reach=0,dmax=1;for(var v=0;v<H*W;v++)if(P.field[v]>0){reach++;dmax=Math.max(dmax,P.field[v]);}
+ stage('Stage 3 · the SURVEYOR (new capability)','Wall-true distances + charted frontier regions',
+ '<p>The Surveyor floods agent i’s believed-free space: every cell gets its <b>walking</b> distance (around known '+
+ 'walls — not crow-flies). Deeper blue = farther. On top, it charts the <b>frontier</b> (known-free touching unknown) '+
+ 'into <b>regions</b> — the numbered blobs. Each region gets features: wall-true cost, size, direction, and '+
+ '<i>"is a teammate wall-true closer?"</i> (the free-market claim bit, computed from the same fields).</p>'+
+ '<p>It also reads <b>team-stretch</b> — wall-true distance to the nearest teammate — the new mission-safety input (gap ③).</p>',
+ function(ctx,px){
+   for(var v=0;v<H*W;v++){
+     if(P.bel[v]===0)cell(ctx,px,v,FOG);
+     else if(P.bel[v]===2)cell(ctx,px,v,KWALL);
+     else cell(ctx,px,v,P.field[v]>=0?heat(Math.pow(P.field[v]/dmax,.75)):'#d8dde6');
+   }
+   P.cands.forEach(function(cd,ci){
+     cd.cells.forEach(function(u){cell(ctx,px,u,OKABE[ci%10]);});
+   });
+   gridlines(ctx,px);
+   P.cands.forEach(function(cd,ci){
+     var x=(cd.rep%W+.5)*px,y=(((cd.rep/W)|0)+.5)*px;
+     ctx.beginPath();ctx.arc(x,y,px*.55,0,7);ctx.fillStyle='#fff';ctx.fill();
+     ctx.strokeStyle='#20242c';ctx.lineWidth=1.2;ctx.stroke();
+     ctx.fillStyle='#10233f';ctx.font='bold '+(px*.8)+'px Helvetica';ctx.textAlign='center';
+     ctx.fillText(String(ci+1),x,y+px*.28);
+   });
+   agentDot(ctx,px,S.pos[AI],OKABE[AI%10],true);
+ },'geodesic field (blue) + frontier regions (numbered)',
+ 'field covers '+reach+' cells · deepest '+dmax+' steps · team-stretch = <b>'+(P.stretch<0?'∞ (alone)':P.stretch+' steps')+'</b>');
+})();
+
+/* 4 · goal-selector */
+(function(){
+ var rows='';
+ P.cands.forEach(function(c,i){
+   var barW=Math.max(3,Math.round(120*c.p));
+   rows+='<tr'+(i===P.win?' class="win"':'')+'>'+
+    '<td><span class="dot" style="background:'+OKABE[i%10]+'"></span><b>'+(i+1)+'</b></td>'+
+    '<td class="n">'+c.size+' cells</td><td class="n">'+c.cost+' steps</td><td class="n">'+c.dir+'</td>'+
+    '<td class="n">'+(c.claimed?'yes':'no')+'</td>'+
+    '<td class="n">'+c.score.toFixed(2)+'</td>'+
+    '<td><span class="bar" style="width:'+barW+'px"></span> <span class="n">'+(100*c.p).toFixed(0)+'%</span></td></tr>';
+ });
+ var d=document.createElement('div');d.className='stage';
+ d.innerHTML='<div style="max-width:460px"><div class="num">Stage 4 · the GOAL-SELECTOR (replaces the goal head)</div>'+
+  '<h2>Score the charted regions, pick one</h2>'+
+  '<p>The old goal head chose among <b>9 fixed compass offsets</b>. Here the menu is the Surveyor’s '+
+  '<b>'+P.cands.length+' regions</b> — scored by their features, softmaxed, sampled (the PPO action). '+
+  'Note region weights: big and cheap wins; a region a teammate is closer to gets <b>claimed = yes</b> and loses value '+
+  '— that is the free market as <i>information</i>, paid through marginal-contribution credit, not a reward term.</p>'+
+  '<p class="cap">Scores here use fixed illustrative weights (size − cost − claimed). In the real agent the learned '+
+  'q·k scorer replaces those weights — that is exactly what training tunes. <b>v2:</b> under the hard-connectivity '+
+  'requirement these candidates are effectively <b>lane claims within my slack</b> — a far region steers the whole '+
+  'front (everyone reads the same KB and pulls the same way) rather than sending any single agent off alone; a '+
+  'region’s cost includes the stretch it inflicts on my links.</p></div>'+
+  '<div><table class="cand"><tr><th>region</th><th>size</th><th>wall-true cost</th><th>dir</th><th>teammate closer?</th><th>score</th><th>π (softmax)</th></tr>'+
+  rows+'</table><div class="cap">Winner: region <b>'+(P.win+1)+'</b> — the PPO action. Tomorrow’s sample could pick another; that is exploration.</div></div>';
+ story.appendChild(d);
+ var cn=document.createElement('div');cn.className='connector';cn.textContent='▼';story.appendChild(cn);
+})();
+
+/* 5 · execution */
+(function(){
+ var glen=P.greedy.length-1,plen=P.path?P.path.length-1:0;
+ stage('Stage 5 · A* executes (greedy would stall)','Same target, two executors',
+ '<p><b>Green:</b> the A* path — descending the Surveyor’s field, '+plen+' steps around the known walls to region '+
+ (P.win+1)+'.</p><p><b>Red:</b> what today’s greedy executor does with the <i>same</i> target: it walks straight at '+
+ 'it, hits the wall, and <b>stalls after '+glen+' steps</b> (✗). This is the rooms/corridors failure signature in one '+
+ 'picture — and why A* “executes” in your design was always the right call.</p>'+
+ '<p>The env move this step is simply the first green cell — <b>v2: gated by the links</b> (take the step only if it '+
+ 'keeps me within comm range of my neighbours; else hold or side-step — the body moves as fast as its joints allow). '+
+ 'Then the world steps, everyone senses and gossips, and the loop repeats. At training time, PPO updates the scorer + '+
+ 'backbone from <b>(G, K) + marginal credit</b>; ES individuates the small heads per generation.</p>',
+ function(ctx,px){
+   for(var v=0;v<H*W;v++)cell(ctx,px,v,P.bel[v]===0?FOG:(P.bel[v]===2?KWALL:FREE));
+   var wc=P.cands[P.win];
+   wc.cells.forEach(function(u){cell(ctx,px,u,OKABE[P.win%10]);});
+   if(P.path)P.path.forEach(function(u,i){ if(i>0)cell(ctx,px,u,'#79c98b'); });
+   P.greedy.forEach(function(u,i){ if(i>0)cell(ctx,px,u,'#e8837f'); });
+   gridlines(ctx,px);
+   if(P.stalled&&P.greedy.length){
+     var last=P.greedy[P.greedy.length-1],x=(last%W+.5)*px,y=(((last/W)|0)+.5)*px;
+     ctx.strokeStyle='#b8392e';ctx.lineWidth=2.4;
+     ctx.beginPath();ctx.moveTo(x-px*.4,y-px*.4);ctx.lineTo(x+px*.4,y+px*.4);ctx.stroke();
+     ctx.beginPath();ctx.moveTo(x+px*.4,y-px*.4);ctx.lineTo(x-px*.4,y+px*.4);ctx.stroke();
+   }
+   var rep=wc.rep,rx=(rep%W+.5)*px,ry=(((rep/W)|0)+.5)*px;
+   ctx.beginPath();ctx.arc(rx,ry,px*.5,0,7);ctx.strokeStyle='#10233f';ctx.lineWidth=2;ctx.stroke();
+   agentDot(ctx,px,S.pos[AI],OKABE[AI%10],true);
+ },'A* (green) vs greedy (red, ✗ = stall) — on the KB, not ground truth',
+ 'A*: <b>'+plen+' steps</b> · greedy: stalls after <b>'+glen+'</b>');
+})();
+
+/* 6 · zoom out — the two equilibria under the SAME hard-connectivity constraint */
+(function(){
+ function drawLinks(ctx,px,pts,maxD){
+   ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#1b7f76';
+   for(var i=0;i<pts.length;i++)for(var j=i+1;j<pts.length;j++){
+     var d=Math.max(Math.abs(pts[i][0]-pts[j][0]),Math.abs(pts[i][1]-pts[j][1]));
+     if(d<=maxD){ctx.beginPath();ctx.moveTo((pts[i][1]+.5)*px,(pts[i][0]+.5)*px);
+       ctx.lineTo((pts[j][1]+.5)*px,(pts[j][0]+.5)*px);ctx.stroke();}}
+   ctx.setLineDash([]);
+ }
+ function panel(title,drawFn,capHtml){
+   var box=document.createElement('div');
+   var m=mkCanvas(10);drawFn(m.ctx,m.px);
+   box.appendChild(m.cv);
+   var t=document.createElement('div');t.className='cap';t.innerHTML='<b>'+title+'</b> — '+capHtml;
+   box.appendChild(t);return box;
+ }
+ var d=document.createElement('div');d.className='stage';
+ var left=document.createElement('div');left.style.display='flex';left.style.gap='16px';left.style.flexWrap='wrap';
+ // COMB: 10 agents spaced 3 apart at row 20, lanes swept rows 2..20 (empty floor for clarity)
+ left.appendChild(panel('The comb (sweep)',function(ctx,px){
+   for(var v=0;v<H*W;v++)cell(ctx,px,v,FREE);
+   var pts=[];
+   for(var i=0;i<10;i++){var c=2+3*i,r=20;pts.push([r,c]);
+     ctx.fillStyle=OKABE[i%10]+'2e';
+     for(var rr=2;rr<=r;rr++)for(var cc=c-1;cc<=c+1;cc++)if(cc>0&&cc<W-1)
+       ctx.fillRect(cc*px,rr*px,px,px);}
+   gridlines(ctx,px);
+   drawLinks(ctx,px,pts,5);
+   pts.forEach(function(p,i){agentDot(ctx,px,idx(p[0],p[1]),OKABE[i%10],false);});
+ },'connected ✓ (chain, spacing 3 ≤ comm_r 5) · every next step lands on a fresh cell — <b>each agent’s Dᵢ = its whole lane</b>'));
+ // HUDDLE: 10 agents packed in the middle, tiny covered blob
+ left.appendChild(panel('The huddle (sit)',function(ctx,px){
+   for(var v=0;v<H*W;v++)cell(ctx,px,v,FREE);
+   ctx.fillStyle='#cfe3c8';
+   for(var rr=12;rr<=20;rr++)for(var cc=12;cc<=20;cc++)ctx.fillRect(cc*px,rr*px,px,px);
+   gridlines(ctx,px);
+   var pts=[];var spots=[[15,15],[15,16],[15,17],[16,15],[16,16],[16,17],[17,15],[17,16],[17,17],[16,14]];
+   spots.forEach(function(p){pts.push(p);});
+   drawLinks(ctx,px,pts,5);
+   pts.forEach(function(p,i){agentDot(ctx,px,idx(p[0],p[1]),OKABE[i%10],false);});
+ },'connected ✓ (dense clique) · any cell you’d visit, a neighbour would visit anyway — <b>everyone’s Dᵢ ≈ 0: a credit desert</b>'));
+ var right=document.createElement('div');
+ right.innerHTML='<div class="num">Stage 6 · zoom out — the two equilibria</div>'+
+  '<h2>Same constraint satisfied twice — only one covers</h2>'+
+  '<p>Both configurations keep the comm graph fully connected at every step. The <b>huddle</b> is what every '+
+  'per-step guardrail actually produced in our runs; the <b>comb</b> is what the boustrophedon oracle proves is '+
+  'possible (~80–90% coverage at 100% connectivity). The question the whole proposal turns on: <b>which signal can '+
+  'tell them apart?</b></p>'+
+  '<p>A <b>flat team reward cannot</b> — the huddle still accrues reward, so learning happily sits in it (our own '+
+  'history). <b>Marginal credit can</b>: in the huddle every agent’s marginal contribution is ≈ 0; in the comb every '+
+  'lane is uniquely yours. Same constraint, opposite credit landscape — the huddle is a desert, the comb an optimum. '+
+  'That single micro-level change of accounting is the predicted <b>phase transition</b>: flat → huddle, marginal → '+
+  'comb with lanes, and hinge-holding appearing at doorways with no role head to author it.</p>';
+ d.appendChild(left);d.appendChild(right);story.appendChild(d);
+})();
+</script>
+</body>
+</html>

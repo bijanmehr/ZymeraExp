@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Occupancy A/B · belief richer than walls · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>
+ :root{--accent:#8a5cd0;--accent-soft:#f0eafb}
+ .resulttbl{max-width:880px;margin:16px 0 2px;margin-left:18px;border-collapse:collapse;
+  font-family:var(--sans);font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+ .resulttbl caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);padding:0 0 6px 2px}
+ .resulttbl th,.resulttbl td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line)}
+ .resulttbl thead th{background:var(--accent-soft);color:#10233f;font-weight:700;font-size:12px;
+  letter-spacing:.02em;border-bottom:1px solid var(--accent)}
+ .resulttbl tbody tr:last-child td{border-bottom:none}
+ .resulttbl td.arm{font-weight:700;color:#10233f}
+ .resulttbl td.num{font-variant-numeric:tabular-nums}
+ .resulttbl .win{color:var(--accent);font-weight:700}
+ .resulttbl .worse{color:#b22;font-weight:700}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="recipe-ablation.html">Recipe ablation</a>
+ <a class="lnk" href="frontier.html">Cov↔conn frontier</a>
+ <a class="lnk active" href="occupancy-ab.html">Occupancy A/B</a>
+ <a class="lnk" href="warm-bigger.html">Warm-start → bigger</a>
+ <a class="lnk" href="best-arch.html">Best-arch × maps</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Occupancy A/B · 32×32 / 10 agents · 2 arms × 4 maps × 2 seeds (16 runs)</div>
+  <h1>Occupancy A/B — does a richer belief help, or hurt?</h1>
+  <p class="what"><b>What it tests:</b> a head-to-head between two perception arms on all four maps, two
+  seeds each. <em>SLAM-only</em> (the baseline) senses only walls and gossips them. <em>occupancy</em>
+  adds a full occupancy belief — <code>sense_free</code> (mark cells known-empty), a boundary channel, and
+  an occupancy-frontier signal (Yamauchi-style) — strictly <em>more</em> information per step. The
+  question is whether feeding the policy that richer map actually buys coverage.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt"><span id="oc-finding">Measured live from the rendered tiles below.</span>
+   <b>Occupancy is worse, not better.</b> On <b>all four terrains and both seeds</b> the richer
+   occupancy belief loses to plain SLAM-only by <b>≈ 3–7 points</b> of coverage. A clear
+   <b>negative lever</b>: the extra channels do not pay for themselves here.</span>
+  </div>
+
+  <table class="resulttbl">
+   <caption>Per map — mean of 2 seeds · rollout coverage = final % of free cells visited (100-step re-roll) · Δ = occupancy − SLAM-only</caption>
+   <thead>
+    <tr><th>Map</th><th>SLAM-only</th><th>occupancy</th><th>Δ (occ − base)</th><th>seeds</th></tr>
+   </thead>
+   <tbody id="oc-rows"><tr><td colspan="5" style="opacity:.6">computing from the rendered rollouts…</td></tr></tbody>
+  </table>
+  <p class="what" style="margin-top:10px;opacity:.85">The run list is grouped <em>by arm, then map</em> —
+  expand SLAM-only vs occupancy to compare the same map under each belief. The table is computed
+  <em>live from the rendered rollouts</em>, so it self-corrects on every re-render.</p>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ var CAT = 'Occupancy A/B';
+ function mine(k, v){ return v && v.cat === CAT; }
+ // label = "occ - <arm> - <map> - s<seed>"  (arm = "SLAM-only" | "occupancy")
+ var AORD = {'SLAM-only':'1', 'occupancy':'2'};
+ var MORD = {open:'1', rooms:'2', mixed:'3', crowded:'4'};
+ function armOf(v){ return (v.label||'').split(' - ')[1] || '?'; }
+ function mapOf(v){ return (v.label||'').split(' - ')[2] || '?'; }
+ function groupOf(k, v){
+   var a=armOf(v), m=mapOf(v);
+   return (AORD[a]||'9') + ' · ' + a + '  ›  ' + (MORD[m]||'9') + '·' + m;
+ }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#8a5cd0', group: groupOf });
+
+ // --- live summary table: SLAM-only vs occupancy coverage per map ---
+ (function(){
+   var T = window.TRAJ || {};
+   var ORDER=['open','rooms','mixed','crowded'];
+   var NAME={open:'Open', rooms:'Rooms + corridors', mixed:'Mixed obstacles', crowded:'Crowded'};
+   var byMA={}, k;   // map -> arm -> [cov]
+   for(k in T){ var v=T[k]; if(!v||v.cat!==CAT) continue;
+     var a=(v.label||'').split(' - ')[1], m=(v.label||'').split(' - ')[2];
+     (byMA[m]=byMA[m]||{}); (byMA[m][a]=byMA[m][a]||[]).push(v.cov); }
+   function mean(a){ var s=0,i; for(i=0;i<a.length;i++) s+=a[i]; return a.length?s/a.length:0; }
+   var rows='', deltas=[];
+   ORDER.forEach(function(m){
+     var rec=byMA[m]; if(!rec) return;
+     var b=rec['SLAM-only']||[], o=rec['occupancy']||[];
+     if(!b.length && !o.length) return;
+     var bm=mean(b), om=mean(o), d=om-bm; deltas.push(d);
+     var n=Math.max(b.length,o.length);
+     rows += '<tr><td class="arm">'+NAME[m]+'</td>'+
+       '<td class="num win">'+bm.toFixed(1)+'%</td>'+
+       '<td class="num worse">'+om.toFixed(1)+'%</td>'+
+       '<td class="num '+(d<0?'worse':'')+'">'+(d>=0?'+':'')+d.toFixed(1)+' pts</td>'+
+       '<td class="num">'+n+'</td></tr>';
+   });
+   var tb=document.getElementById('oc-rows'); if(tb && rows) tb.innerHTML = rows;
+   if(deltas.length){
+     function mn(a){var s=0,i;for(i=0;i<a.length;i++)s+=a[i];return s/a.length;}
+     var lo=Math.min.apply(null,deltas), hi=Math.max.apply(null,deltas);
+     var allNeg = deltas.every(function(d){return d<0;});
+     var fe=document.getElementById('oc-finding');
+     if(fe) fe.innerHTML = 'Across the four maps the occupancy arm trails SLAM-only by <b>'+
+       Math.abs(hi).toFixed(1)+' to '+Math.abs(lo).toFixed(1)+' points</b> of coverage'+
+       (allNeg?' on every map':'')+' — a negative lever.';
+   }
+ })();
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

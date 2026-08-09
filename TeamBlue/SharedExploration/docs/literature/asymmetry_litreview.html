@@ -1,0 +1,165 @@
+<title>Symmetry-Breaking in Parameter-Shared Multi-Agent Coverage — Literature Review</title>
+<style>
+ :root{--paper:#f7f5ef;--ink:#211e19;--soft:#4f4a40;--faint:#857c6c;--accent:#2e4057;--rule:#ddd6c7;--panel:#fbfaf5;
+   --train:#2e5f8a;--infer:#7a4ea0;--warn:#b0752a;--good:#2e7d55;--bad:#b02a2a;
+   --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;--sans:ui-sans-serif,system-ui,Arial,sans-serif;--mono:"SF Mono",ui-monospace,Menlo,monospace;}
+ *{box-sizing:border-box} body{background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:18px;line-height:1.65;margin:0}
+ .wrap{max-width:52em;margin:0 auto;padding:56px 24px 90px}
+ .eyebrow{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--infer);margin:0 0 10px}
+ h1{font-size:32px;line-height:1.2;margin:0 0 8px;letter-spacing:-.01em;text-wrap:balance}
+ .sub{color:var(--soft);font-style:italic;font-size:19px;margin:0 0 8px}
+ .meta{font-family:var(--sans);font-size:13px;color:var(--faint);border-bottom:1px solid var(--rule);padding-bottom:22px;margin-bottom:8px}
+ h2{font-size:23px;margin:44px 0 4px;letter-spacing:-.01em;padding-top:8px}
+ h2 .n{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--infer);letter-spacing:.05em;margin-right:10px;vertical-align:2px}
+ h3{font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--accent);margin:26px 0 4px}
+ p{margin:0 0 15px} .lead{font-size:19px}
+ em{color:var(--ink)} strong{font-weight:700}
+ .abstract{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:16px 20px;margin:18px 0 6px;font-size:16.5px}
+ .note{border-left:3px solid var(--accent);background:var(--panel);padding:12px 16px;margin:18px 0;font-size:16px}
+ .note.warn{border-left-color:var(--warn)} .note .lab{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:5px}
+ .note.warn .lab{color:var(--warn)}
+ table{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:13px;margin:16px 0}
+ th,td{padding:8px 10px;border-bottom:1px solid var(--rule);text-align:left;vertical-align:top}
+ thead th{color:var(--accent);border-bottom:2px solid var(--rule);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+ td.r,th.r{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+ .tier1{color:var(--good);font-weight:700} .tier2{color:var(--warn);font-weight:700} .tier3{color:var(--bad);font-weight:700}
+ .yes{color:var(--good);font-weight:700} .no{color:var(--bad);font-weight:700}
+ .tbox{overflow-x:auto;margin:16px 0}
+ code,.mono{font-family:var(--mono);font-size:.9em;background:#efe;background:#f0ede4;padding:1px 4px;border-radius:3px}
+ .refs{font-family:var(--sans);font-size:13px;line-height:1.5;color:var(--soft)} .refs li{margin:0 0 7px} .refs b{color:var(--ink)}
+ ol.refs{padding-left:22px} .refs a{color:var(--train);text-decoration:none;border-bottom:1px solid #cdd6df}
+ .kicker{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+ .kicker.train{color:var(--train)} .kicker.infer{color:var(--infer)}
+ .foot{font-family:var(--sans);font-size:12px;color:var(--faint);border-top:1px solid var(--rule);margin-top:40px;padding-top:14px}
+</style>
+
+<div class="wrap">
+<p class="eyebrow">Project Zymera · TeamBlue · Literature Review</p>
+<h1>Breaking symmetry in a parameter-shared coverage swarm</h1>
+<p class="sub">Why identical agents flood instead of dividing — and the mechanisms, training and inference-time, that fix it.</p>
+<p class="meta">Consolidated from two structured literature sweeps (12 domain scouts, adversarial verification) and our own inference-time probes on the frozen 24²/6 checkpoints · rooms/open-trained LPAC-CNN+GNN policy · decentralized obstacle-grid coverage under a soft connectivity objective.</p>
+
+<div class="abstract"><p style="margin:0"><span class="kicker">Abstract.</span> A parameter-shared CNN+GNN coverage policy applied per agent is <em>permutation-equivariant end to end</em>, so under determinism identical, co-located agents provably emit identical actions and cover the same cells — the flooding we measure as a redundancy floor ≥ 2.2. This is a theorem with two independent causes (an expressiveness gap and a credit/coupling gap), not a hyperparameter to tune. Breaking it needs an asymmetry source (unique IDs or randomness, per Angluin) <em>plus</em> a way for the frozen policy to <em>execute</em> the asymmetry. That second requirement is decisive and empirical: because the policy navigates by a radius-1 local frontier, edits to what it <em>perceives</em> can repel but cannot attract across a gap, so they only disperse. Mechanisms that <em>physically move</em> each agent into a complementary region are the only ones that produce true division. We rank the training-time and inference-time options against these constraints, fold in our probe results, and note that the winning wrapper is standard multi-robot practice, not a contribution.</p></div>
+
+<h2><span class="n">1</span>The flood is a theorem, not a bug</h2>
+<p>The stack is <strong>permutation-equivariant</strong>: a per-agent CNN → global-average-pool → a GNN knowledge-base whose normalized-max aggregator sits at or below the <strong>1-Weisfeiler–Leman</strong> expressiveness limit → a shared goal head, one 160,869-parameter network <span class="mono">vmap</span>ped across agents. Two clustered agents with automorphic communication neighbourhoods and identical CNN features therefore receive <em>provably identical</em> fused beliefs <span class="mono">z_i</span>, choose identical goals, and overlap by construction [1,2]. The redundancy floor has <strong>two independent causes that must both be paid</strong>:</p>
+<ul>
+<li><strong>Expressiveness gap.</strong> The network cannot even <em>represent</em> different actions for two symmetric agents — a 1-WL limitation, independent of the reward.</li>
+<li><strong>Credit / coupling gap.</strong> From a symmetric state the exact per-agent difference reward <span class="mono">D_i</span> is itself symmetric — both overlappers score ≈ 0 — so it can <em>ratchet</em> a split once one exists but cannot <em>initiate or allocate</em> one.</li>
+</ul>
+<p>Two theorems frame the fix. <strong>Angluin's impossibility</strong> [3]: in an anonymous network, symmetry cannot be broken deterministically — <em>unique IDs or randomness are required</em>, which is exactly what justifies our unique-ID assumption. And the load-bearing distinction throughout: <strong>diversity ≠ division</strong>. Making agents <em>distinguishable</em> (a label, a random tag) is necessary but not sufficient; making them <em>complementary</em> (a partition that tiles the space) is the actual goal, and only mechanisms that <em>couple</em> agents' choices or <em>assign disjoint regions</em> deliver it.</p>
+
+<h2><span class="n">2</span>Two axes that organize everything</h2>
+<p><strong>Axis A — when it acts:</strong> a <span class="kicker train">training-time</span> mechanism changes the weights (the network learns to use an asymmetry); an <span class="kicker infer">inference-time</span> mechanism is a wrapper on the frozen policy (no weight change).</p>
+<p><strong>Axis B — can the frozen policy execute it?</strong> This is the decisive filter we <em>measured</em>, and it sorts every inference-time mechanism into three tiers:</p>
+<div class="tbox"><table>
+<thead><tr><th>Tier</th><th>What it does</th><th>Result</th><th>Examples</th></tr></thead>
+<tbody>
+<tr><td class="tier1">Tier 1</td><td>Physically <b>moves</b> agents into complementary regions, or supplies a live local gradient every step</td><td class="tier1">true division</td><td>region deployment (DARP / seq-greedy), Voronoi–Lloyd descent, graph dispersion</td></tr>
+<tr><td class="tier2">Tier 2</td><td>Respects locality but only <b>spreads</b> agents (repulsion, no region ownership)</td><td class="tier2">dispersion only</td><td>potential-field anti-flocking, anti-pheromone stigmergy</td></tr>
+<tr><td class="tier3">Tier 3</td><td><b>Relabels</b> or edits far-field perception; needs the frozen net to already read a signal it never learned</td><td class="tier3">weak / OOD</td><td>Notch–Delta, response-thresholds, static perception masking, random-feature injection, per-agent action sampling</td></tr>
+</tbody></table></div>
+<p>The filter is subtle: Angluin guarantees you <em>can</em> create asymmetry; the real question is whether a <strong>radius-1 frozen navigator can act on it</strong>. That single criterion demotes the entire perception-edit family and elevates deployment.</p>
+
+<h2><span class="n">3</span>Training-time mechanisms</h2>
+<p>Ranked for our setup (shared CNN+GNN, submodular coverage, soft connectivity). All require retraining unless noted.</p>
+<div class="tbox"><table>
+<thead><tr><th class="r">#</th><th>Mechanism</th><th>Inject site</th><th>Effect</th><th>Key refs</th></tr></thead>
+<tbody>
+<tr><td class="r">1</td><td><b>KB-level coupling</b> — distributed sequential-greedy / rank-masked intent round: each agent broadcasts a provisional goal claim + priority; higher-priority claims are masked from lower-priority neighbours' frontier before they re-select</td><td>KB message + goal head</td><td><span class="tier1">division</span> by construction</td><td>[4,5,6,7]</td></tr>
+<tr><td class="r">2</td><td><b>Own-identity self-conditioning</b> — concatenate each agent's own <span class="mono">i/N</span> code to its feature before message-passing; key the aggregator on sender-id instead of mean-pooling</td><td>own feature + KB</td><td><span class="tier2">tiebreak</span> (makes division representable)</td><td>[8,9]</td></tr>
+<tr><td class="r">3</td><td><b>Position-grounding ON</b> — add boundary-relative normalized position to the feature (emergent Voronoi split)</td><td>observation</td><td><span class="tier2">split stabilizer</span>, not causer</td><td>[10]</td></tr>
+<tr><td class="r">4</td><td><b>Persistent per-agent random latent (RNI)</b> — fixed per-episode tag to lift the 1-WL bound to universality</td><td>private latent</td><td><span class="tier2">tiebreak</span>; arbitrary, hurts transfer</td><td>[11,12]</td></tr>
+<tr><td class="r">5</td><td><b>Explicit diversity / role-MI</b> (CDS, ROMA, RODE, EOI) — <b>demoted</b> to at most an accelerant</td><td>reward</td><td>redundant with submodularity</td><td>[13,14,15,16]</td></tr>
+</tbody></table></div>
+<p><span class="kicker train">Theory takeaway.</span> Only <em>coupling</em> (rank 1) has an output that is complementarity-by-construction, certified to (1−1/e) for monotone-submodular coverage [7]. Identity tags and position make division <em>representable</em>; <span class="mono">D_i</span> <em>selects</em> the useful break; a committing goal head <em>holds</em> it — but the coupling round is what turns diffusion into division. For submodular coverage the "When Is Diversity Rewarded" theorem [13] shows heterogeneity is <em>already</em> optimal under the right aggregator, so an added diversity bonus is largely redundant — which is why rank 5 is demoted.</p>
+<div class="note warn"><span class="lab">Adversarial caveats (verification pass)</span>
+The rank-1 pitch overstates its warrant on three points: (i) the "exact submodular <span class="mono">D_i</span>" is only truly submodular at <span class="mono">cover_r=1</span> — at <span class="mono">cover_r=0</span> coverage is one-cell-per-agent, i.e. <em>modular</em>, and the per-<em>sector</em> claim-conditioned marginal the rank-mask needs is not what the code computes; (ii) the (1−1/e) bound is for <em>sequential</em> greedy, but <span class="mono">mp_rounds=2</span> is a <em>parallel</em> masked relaxation, and a clustered start is a near-complete conflict clique that needs sequential tiers ≈ its clique-cover number, not a fixed 2; (iii) priority must be <em>temporally persistent</em> (position or a stable scalar) — a per-step random priority reshuffles the assignment every step and collapses back to diffusion. Rank 2's <span class="mono">i/N</span> risks being <em>index-relabeling</em> whose cross-N allocation is unproven at a held-out team size. Rank 3 is an <em>anchor</em>, not a causer — it is weakest exactly at the clustered onset where division must originate. Net: rank-1 is the right <em>class</em>; the guarantee is the weaker parallel-greedy bound and must be validated empirically at <span class="mono">cover_r=1</span>.</div>
+
+<h2><span class="n">4</span>Inference-time mechanisms (frozen policy)</h2>
+<p>The constraint is strict: no weight change; the policy navigates by radius-1 local frontier; must generalize to any N and grid. Ranked by ability to produce division a frozen local navigator can execute.</p>
+<div class="tbox"><table>
+<thead><tr><th class="r">#</th><th>Mechanism</th><th class="r">Tier</th><th class="r">moves agents?</th><th>Effect</th><th>Key refs</th></tr></thead>
+<tbody>
+<tr><td class="r">1</td><td><b>One-shot region deployment from the t=0 snapshot</b> — ID-ordered DARP / sequential-greedy partition into N obstacle-aware territories, physically deploy each agent to its region seed, then release the frozen policy inside its territory</td><td class="r tier1">1</td><td class="r yes">yes</td><td><span class="tier1">division (certified)</span></td><td>[4,17,5,6]</td></tr>
+<tr><td class="r">2</td><td><b>Centroidal-Voronoi / Lloyd deployment</b> — descend toward the (geodesic, uncovered-mass-weighted) Voronoi-cell centroid, then release</td><td class="r tier1">1</td><td class="r yes">yes</td><td><span class="tier1">division</span></td><td>[18,19,20]</td></tr>
+<tr><td class="r">3</td><td><b>Mobile-agent graph dispersion</b> — co-located agents fan out to distinct nodes one local step at a time, ID-tiebroken; <em>no snapshot needed</em></td><td class="r tier1">1</td><td class="r yes">yes</td><td>separated seeds</td><td>[21,22]</td></tr>
+<tr><td class="r">4</td><td><b>Market / auction (CBBA)</b> — one consensus round over the t=0 graph assigns conflict-free target regions (the <em>where</em>; still needs a mover for the <em>how</em>)</td><td class="r tier1">1</td><td class="r yes">via mover</td><td><span class="tier1">division</span></td><td>[23,24]</td></tr>
+<tr><td class="r">5</td><td><b>Potential-field repulsion</b> (anti-flocking) — mutual repulsion expands the cluster; cheap seed, weak alone</td><td class="r tier2">2</td><td class="r yes">spread</td><td><span class="tier2">dispersion</span></td><td>[25,26]</td></tr>
+<tr><td class="r">6</td><td><b>Anti-pheromone on a gossiped visit field</b> — the <em>correct local</em> version of masking: down-weights marked cells <em>among reachable frontier</em>, never deletes the near gradient</td><td class="r tier2">2</td><td class="r no">no</td><td><span class="tier2">weak division</span></td><td>[27,28]</td></tr>
+<tr><td class="r">7</td><td><b>Distributed (Δ+1)-coloring</b> (Cole–Vishkin) → color indexes a distinct outward heading</td><td class="r tier2">2</td><td class="r no">nudge</td><td><span class="tier2">local tiebreak</span></td><td>[29,30]</td></tr>
+<tr><td class="r">8</td><td><b>Response-threshold role assignment</b> (ID-seeded) — arbitrates <em>which</em> mode, not <em>where</em>; needs a mover, collapses onto ranks 1–3</td><td class="r tier3">3</td><td class="r no">no</td><td>relabel only</td><td>[31,32]</td></tr>
+</tbody></table></div>
+<p><span class="kicker infer">Best candidate.</span> One-shot region deployment: run the ID-ordered obstacle-aware partition once <em>while the team is fully connected at t=0</em> (the only moment the global snapshot exists), physically deploy each agent to its region via a go-to-seed step or Lloyd descent (both supply the live local gradient the frozen policy lacks), then hand navigation back to the unchanged weights inside a contiguous territory where its own frontier is again live. It uses exactly our assets (one snapshot + unique IDs), produces certified division, and generalizes because regions are defined as fractions of N and of the free-cell mass.</p>
+<div class="note warn"><span class="lab">Adversarial caveats (verification pass)</span>
+Deployment <em>seeds</em> division; it does not <em>maintain</em> it. Three checkpoint-specific attacks: (i) the frozen weights are <em>region-blind</em> and were trained under a global-λ₂ connectivity drive, so after handback at a spread-out layout the learned connectivity term actively pulls agents back across territory borders — redundancy can rebound. Durable division may need a <em>deploy + far-field-mask leash</em> (which we confirmed repels reliably), i.e. the real mechanism is deploy+mask, not deploy alone. (ii) The "certified obstacle-aware DARP" is <em>not computable at t=0</em>: only a small gossiped patch of the occupancy map exists then, so the partition degrades to geometric equal-area Voronoi on an <em>optimistic</em> (unknown = free) grid, and seeds can straddle walls or land in disconnected pockets. (iii) A <em>transit tax</em>: driving ~10 clustered agents to spread seeds burns ≈ 15–30% of the 100-step horizon, and the god-view per-step re-Voronoi oracle (which is strictly stronger) already caps at ≈ 72% raw / ≈ 45% decentralized at 32²/10 — so a static t=0 assignment cannot exceed that ceiling and pays transit on top. <strong>Durable division must be measured, not assumed.</strong></div>
+
+<h2><span class="n">5</span>What our own probes measured</h2>
+<p>Our inference-time experiments on the frozen 24²/6 checkpoints empirically instantiate the taxonomy — and confirm it.</p>
+<div class="tbox"><table>
+<thead><tr><th>Probe</th><th class="r">Δ vs baseline</th><th class="r">tier</th><th>Reading</th></tr></thead>
+<tbody>
+<tr><td><b>Far-field belief mask</b> (mark non-territory as known)</td><td class="r">repels, cannot attract</td><td class="r tier3">3</td><td>Deletes the local gradient → radius-1 agent strands. Works only when the target is adjacent.</td></tr>
+<tr><td><b>k-step mask kick, then release</b></td><td class="r">no persistence</td><td class="r tier3">3</td><td>Far territories never reached; even always-on masking left the far column at 0% coverage.</td></tr>
+<tr><td><b>Persistent heading personality</b> (flat, λ=2)</td><td class="r">−4 cov / <span class="bad">−28 conn</span></td><td class="r tier2">2</td><td>Disperses the team past comm range across 8 layouts; does not generalize.</td></tr>
+<tr><td><b>Role relay personality</b> (role ckpt)</td><td class="r">−3 cov / <span class="good">+15 conn</span></td><td class="r tier2">2</td><td>A blunt coverage↔connectivity trade; relay count uncontrolled (0–4).</td></tr>
+<tr><td><b>Deploy-then-release</b> (Tier 1)</td><td class="r">— not yet run —</td><td class="r tier1">1</td><td>The predicted winner; the one untested family.</td></tr>
+</tbody></table></div>
+<p>Every bias/perception edit we tried lands in Tier 2/3 and only disperses — exactly the taxonomy's prediction. The one mechanism the theory and both searches point to, deploy-then-release, is the experiment still owed.</p>
+
+<h2><span class="n">6</span>Novelty assessment</h2>
+<p>As a <em>mechanism</em>, the winning wrapper is <strong>standard multi-robot practice, not a contribution</strong>. Composing a frozen local navigator with a classical global allocator — DARP, Voronoi/Lloyd, CBBA, distributed submodular greedy — is the textbook hierarchical pattern in multi-robot exploration; the learned-policy analog is LPAC [33], the size-invariant coverage backbone this policy already resembles. This is consistent with the program's own architecture-positioning verdict. The only defensible novelty is <em>framing</em>: (a) the negative result that far-field perception edits provably cannot steer a radius-1 frozen shared policy while deployment can — which motivates the allocator-in-front pattern <em>specifically as symmetry-breaking for a parameter-shared learned policy that otherwise floods</em>; and (b) using the once-available t=0 connected snapshot as the exact and only window for the global partition. The wrapper is engineering scaffolding; the survivable novelty in this program remains the covert-adversary substrate and the coverage/connectivity Pareto-ceiling.</p>
+
+<h2><span class="n">7</span>Verdict &amp; recommended experiments</h2>
+<p><strong>Inference-only (no retrain).</strong> The frozen ceiling is a <em>deployment</em> mechanism: partition + physically move + release. A cheaper same-day probe is decode-time distributed sequential-greedy goal arbitration over the frozen 9-compass goal-logits — the one inference lever that imposes complementarity <em>externally</em> rather than hoping the symmetric net emits it. Everything that needs the net to <em>use</em> an asymmetry (identity channel, position-grounding) needs at least warm-start retraining.</p>
+<p><strong>The experiment to run:</strong> a 2-phase rollout on the frozen open/rooms checkpoints at 16²/4 and 32²/10 — (A) frozen-from-clustered baseline; (B) one-shot equal-area Voronoi deploy (optimistic grid) → release; (C) deploy + far-field-mask leash; (D) god-view per-step re-Voronoi ceiling. Log the redundancy floor, %-of-optimal coverage, and inter-agent distance <em>across the handback boundary</em>. The mechanism is real iff redundancy drops toward 1 and <em>stays</em> below baseline through step 100 while %-of-optimal ≥ baseline despite the transit tax. If redundancy rebounds after handback, arm (C) is required and "deploy alone" is falsified.</p>
+<p><strong>If a retrain is on the table:</strong> a learned rank-masked coupling round inside the <span class="mono">mp_rounds</span> KB, trained under the submodular <span class="mono">D_i</span> with the goal head holding the split and position-grounding ON — no discrete role heads, no standalone diversity bonuses (redundant with submodularity).</p>
+
+<h2><span class="n">8</span>Open questions</h2>
+<ul>
+<li>Does the frozen policy expose any goal/waypoint input, or must a separate go-to-seed controller sit in front of it? (Determines whether deployment is drop-in.)</li>
+<li>How much does a static t=0 partition degrade when regions turn out wall-blocked or agents are lost after the graph fragments — is a local region-steal / re-auction-on-reconnect rule needed?</li>
+<li>What fraction of the horizon is the deployment transit tax at small grids / short horizons — does it erase the coverage benefit?</li>
+<li>After deployment, is a single contiguous local frontier inside a sub-region actually in-distribution for a policy trained on the clustered multi-agent frontier?</li>
+<li>Once choices are coupled, does <span class="mono">D_i</span> still cleanly separate "redundant-but-blue" from a covert red agent — or does coupling confound the contribution-as-detector signal the resilience story depends on?</li>
+</ul>
+
+<h2><span class="n">9</span>References</h2>
+<ol class="refs">
+<li><b>Patil, Malegaonkar, Christensen</b> (2026). Permutation-equivariance and provable redundancy in parameter-shared multi-agent policies. <em>(flood-as-theorem; "Diamond Attention": structured protocol-space masking, plain-noise ablation = 0%).</em></li>
+<li><b>Xu et al.</b> (2019), <b>Abboud et al.</b> (2021). GNN expressiveness and the 1-Weisfeiler–Leman bound.</li>
+<li><b>Angluin</b> (1980). Local and global properties in networks of processors — impossibility of symmetry-breaking in anonymous networks (IDs or randomness required).</li>
+<li><b>Kapoutsis, Chatzichristofis, Kosmatopoulos</b> (2017). DARP: Divide Areas Algorithm for optimal multi-robot coverage. <em>J. Intell. Robot. Syst.</em></li>
+<li><b>Corah &amp; Michael</b> (2019/2021). Distributed matroid-constrained submodular maximization (DSGA / RSP). <em>Auton. Robots</em> / arXiv:2107.08550.</li>
+<li><b>Grimsman et al.</b> (2018). The impact of information in greedy submodular maximization / equal-partition principle. arXiv:1807.10639.</li>
+<li><b>Fisher, Nemhauser, Wolsey</b> (1978). Analysis of approximations for maximizing submodular set functions — sequential greedy (1−1/e), matroid 1/2.</li>
+<li><b>Gupta, Egorov, Kochenderfer</b> (2017). Cooperative multi-agent control using deep RL — parameter sharing + agent indication.</li>
+<li><b>Foerster et al.</b> (2017). Stabilising experience replay — fingerprints.</li>
+<li>Zymera <span class="mono">nets.py</span> <b>position-grounding</b> (<span class="mono">_norm_position</span> + posground); DiCo goal-residual self-conditioning.</li>
+<li><b>Abboud et al.</b> (2021); <b>Sato et al.</b> (2021). Random node initialization lifts GNNs to universality.</li>
+<li><b>Universally Expressive Communication in MARL</b> (2022). arXiv:2206.06758.</li>
+<li><b>Amir, Bettini, Prorok</b> (2025). When is diversity rewarded in cooperative MARL — heterogeneity optimal under min-inner/max-outer aggregation.</li>
+<li><b>Wang et al.</b> ROMA (2020); <b>Wang et al.</b> RODE (2021); LDSA; ACORM; R3DM — role-conditioned MARL.</li>
+<li><b>Li et al.</b> (2021). Celebrating Diversity in Shared MARL (CDS).</li>
+<li><b>Jiang &amp; Lu</b> (2021). The place of nurture: EOI, exploration via its own identity.</li>
+<li><b>Cortés, Martínez, Karatas, Bullo</b> (2004). Coverage control for mobile sensing networks — Lloyd / centroidal Voronoi.</li>
+<li><b>Breitenmoser, Schwager</b> et al. (2010). Voronoi coverage of non-convex environments. <em>ICRA.</em></li>
+<li>Two-Layer Voronoi Coverage Control (2025). arXiv:2510.10781.</li>
+<li><b>Augustine &amp; Moses</b> (2018). Dispersion of mobile robots. arXiv:1805.12242.</li>
+<li><b>Kshemkalyani et al.</b> (2020). Dispersion of mobile robots without global knowledge. arXiv:2008.09379.</li>
+<li><b>Choi, Brunet, How</b> (2009). Consensus-based bundle algorithm (CBBA).</li>
+<li>Multi-robot exploration using self-biddings (IEEE).</li>
+<li><b>Howard, Matarić, Sukhatme</b> (2002). Mobile sensor network deployment using potential fields.</li>
+<li>Fast uniform dispersion of a crash-prone swarm (2019). arXiv:1907.00956.</li>
+<li><b>Font Llenas et al.</b> (2019). Testing the limits of pheromone stigmergy in high-density swarms. <em>R. Soc. Open Sci.</em> (caveat: worse than random at high density).</li>
+<li>Dynamic frontier-led swarming (2023). <em>IEEE/CAA J. Autom. Sinica.</em></li>
+<li><b>Cole &amp; Vishkin</b> (1986). Deterministic coin tossing — (Δ+1)-coloring in O(log* n).</li>
+<li><b>Barenboim &amp; Elkin</b>. Distributed Graph Coloring (monograph).</li>
+<li><b>Bonabeau, Theraulaz, Deneubourg</b> (1998). Fixed response thresholds and division of labour.</li>
+<li><b>Zahadat &amp; Schmickl</b> (2015). Division of labour via partitioning social inhibition. <em>Bioinspir. Biomim.</em></li>
+<li><b>Collier et al.</b> (1996); <b>Sprinzak et al.</b> (2010). Notch–Delta lateral inhibition; <b>Slavkov et al.</b> (2018) Turing morphogenesis on robot swarms (<em>Sci. Robotics</em>).</li>
+<li><b>Schwager et al.</b> LPAC — Learnable Perception-Action Coverage (size-invariant learned coverage backbone).</li>
+</ol>
+
+<p class="foot">Sources: two structured literature sweeps (12 domain scouts + adversarial verification, ~960k tokens) plus Zymera inference-time probes on the frozen 24²/6 checkpoints. Citations are as surfaced by the search; where a scout gave author-year without a venue, treat the entry as a pointer to verify, not a settled reference — the coverage-partition scout failed on an API error and its primaries (DARP, Lloyd) were recovered via synthesis. This is a working review, not a settled bibliography.</p>
+</div>

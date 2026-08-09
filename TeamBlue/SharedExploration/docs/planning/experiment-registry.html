@@ -1,0 +1,376 @@
+<!doctype html><html><head><!-- frame-runtime --><script>window.__FRAME_PREAMBLE={"capabilities":{"assets":"assets.hcOK0ALv.js","comments":"comments.D1Mkjxge.js","db":"db.CeV_J5G-.js","downloads":"downloads.BXsoAvg9.js","mcp":"mcp.CYSdpjo0.js","permissions":"permissions.DdITF2Mk.js","sample":"sample.DpdXn9di.js","self":"self.BN4be5De.js","user":"user.Cr_h1ETf.js"},"transforms":"_transforms.VaITkagF.js","comments":"_comments.CNSvmFji.js","translate":"_translate.BOzFH2D9.js"}</script><script>(function(){"use strict";var ne=["light","dark","system"];function oe(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_init;return t!==null&&typeof t=="object"}function W(e){return e!==null&&typeof e=="object"&&e.__frame_size_poke===!0}function se(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_theme;if(t===null||typeof t!="object")return!1;const n=t.theme;return typeof n=="string"&&ne.includes(n)}function ie(e){try{typeof reportError=="function"?reportError(e):setTimeout(()=>{throw e},0)}catch{}}var Y=Object.freeze(Object.assign(Object.create(null),{user:Object.freeze(Object.assign(Object.create(null),{id:null,isOwner:!1,canEdit:!1,name:null,avatarUrl:null,email:null}))})),ae={sample:"sample"};function x(){const e=new Uint8Array(20);try{crypto.getRandomValues(e)}catch{for(let n=0;n<e.length;n++)e[n]=Math.floor(Math.random()*256)}let t="";for(const n of e)t+=(n%36).toString(36);return t}function ce(e,t){const n=r=>{const o={path:r},i=r.split("/");return{id:i[i.length-1],path:r,get:()=>t("get",[o]),set:g=>t("set",[o,g]),update:g=>t("update",[o,g]),delete:()=>t("delete",[o]),acquire:g=>t("acquire",[o,g]),onSnapshot:(g,y)=>t("subscribe",[o,g,y]),collection:g=>a(r+"/"+String(g))}},u=r=>({where:(o,i,g)=>u({...r,where:[...r.where??[],{f:String(o),op:String(i),v:g}]}),orderBy:(o,i)=>u({...r,orderBy:{f:String(o),dir:i===void 0?"asc":String(i)}}),limit:o=>u({...r,limit:Number(o)}),get:()=>t("query",[r]),onSnapshot:(o,i)=>t("subscribe",[r,o,i])}),a=r=>({...u({collection:r}),path:r,doc:o=>n(r+"/"+(o===void 0?x():String(o))),add:o=>{const i=n(r+"/"+x());return Promise.resolve(i.set(o)).then(()=>i)}});e.doc=r=>n(String(r)),e.collection=r=>a(String(r))}function J(e){if(window===top||e.type==="auxclick"&&e.button!==1)return;const t=e.composedPath?e.composedPath():[e.target];let n=null;for(let o=0;o<t.length;o++){const i=t[o];if(i&&i.matches&&i.matches("a[href],area[href]")){n=i;break}}if(!n&&e.target&&e.target.closest&&(n=e.target.closest("a[href],area[href]")),!n)return;const u=n.getAttribute("href");if(!u)return;let a,r;try{a=new URL(u,document.baseURI),r=new URL(document.baseURI).origin}catch{return}if((a.protocol==="http:"||a.protocol==="https:")&&a.origin!==r){e.preventDefault();const o=(n.getAttribute("target")??document.querySelector("base[target]")?.getAttribute("target")??"").toLowerCase(),i=e.type==="auxclick"||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||!["","_self","_top","_parent"].includes(o);parent.postMessage({__frame_nav:!0,url:a.href,newTab:i},"*")}}var G={};function I(e){if(window===top)return;const t=Date.now();t-(G[e]||0)<500||(G[e]=t,parent.postMessage({__frame_engaged:!0,kind:e},"*"))}var le=2e3,V=["wheel","touchstart","touchmove","keydown","pointerdown"],X=0;function ue(e){e.isTrusted&&(X=Date.now())}function fe(){addEventListener("click",J,!0),addEventListener("auxclick",J,!0)}function de(){for(let e=0;e<V.length;e++)addEventListener(V[e],ue,{capture:!0,passive:!0});addEventListener("scroll",e=>{e.isTrusted&&Date.now()-X<le&&I("scroll")},{capture:!0,passive:!0}),addEventListener("pointermove",e=>{e.isTrusted&&I("pointer")},{capture:!0,passive:!0}),addEventListener("click",e=>{e.isTrusted&&I("click")},{capture:!0,passive:!0})}var q="__frame_scroll",me=150,pe=310,ge=160,he=3e4;function ve(){let e=0,t=!1,n=!1,u=!1,a=0,r=null;const o=d=>{try{sessionStorage.setItem(q,JSON.stringify({y:d}))}catch{}},i=()=>{if(clearTimeout(e),r===null)return;const d=r;r=null,o(d)},g=()=>{if(t){t=!1;return}n=!0,r=scrollY,clearTimeout(e),e=setTimeout(i,me)};try{addEventListener("scroll",g,{passive:!0}),addEventListener("pagehide",i)}catch{}const y=()=>{let d;try{d=sessionStorage.getItem(q)}catch{return null}if(d===null)return null;let l;try{l=JSON.parse(d)}catch{l=null}const p=l?.y;if(!(typeof p=="number"&&Number.isFinite(p)&&p>=0)){try{sessionStorage.removeItem(q)}catch{}return null}return p};let c=!1;const f=d=>{try{const l=scrollY;scrollTo({top:d,left:0,behavior:"instant"}),a=d,u=!0,clearTimeout(e),r=null,o(d);const p=scrollY;p!==l&&(t=!0),p!==d&&!c&&(c=!0,addEventListener("load",()=>{try{if(scrollY===p){const v=y();f(v!==null?v:a)}}catch{}},{once:!0}))}catch{}},m=()=>{try{return!!location.hash}catch{return!0}};let h=!1;const _=()=>{try{if(h||innerWidth>pe||innerHeight>ge)return;h=!0;const d=Date.now(),l=()=>{try{removeEventListener("resize",l)}catch{}if(Date.now()-d>he||n||m())return;const p=y();f(p!==null?p:a)};addEventListener("resize",l)}catch{}};let w=!1,S=!1;return{restore(){if(w||(w=!0,m()))return;const d=y();d!==null&&(f(d),_())},promoted(){if(S||(S=!0,m()))return;const d=y();d!==null?(f(d),_()):u&&f(a)}}}function _e(e,t,n){const u=[...t.values()].filter(a=>a.targets.some(r=>r.startsWith(e+".")));return{wrap(a,r){const o=`${e}.${a}`,i=u.filter(g=>g.targets.includes(o));return i.length===0?(...g)=>{try{return r(...g)}catch(y){return Promise.reject(y)}}:(...g)=>{let y=g;for(const f of i){const m=f.module.parameters;if(m)try{y=m(y)}catch{return Promise.reject({code:"transform_error",id:f.id,scope:e,message:"parameters transform failed"})}}let c;try{c=r(...y)}catch(f){c=Promise.reject(f)}return c.then(f=>{for(let m=i.length-1;m>=0;m--){const h=i[m],_=h.module.returns;if(_)try{f=_(f)}catch{return n({id:h.id,scope:e,leg:"returns"}),f}}return f},f=>{for(let m=i.length-1;m>=0;m--){const h=i[m],_=h.module.throws;if(_)try{f=_(f)}catch{return n({id:h.id,scope:e,leg:"throws"}),Promise.reject(f)}}return Promise.reject(f)})}}}}function ye(e,t,n,u=()=>{}){const a=new Set(e.changes??[]),r=new Map;for(const o of a){const i=t[o];i&&r.set(o,i)}return{contract:e.contract,changes:a,flags:new Set(e.flags??[]),capabilities:e.capabilities??{},capBudgets:e.capBudgets??{},transforms:r,shellOrigin:n.shellOrigin,mount:n.mount,pipe:o=>_e(o,r,u)}}var Ae="modulepreload",Re=function(e){return"/"+e},je={},be=function(t,n,u){let a=Promise.resolve();function r(o){const i=new Event("vite:preloadError",{cancelable:!0});if(i.payload=o,window.dispatchEvent(i),!i.defaultPrevented)throw o}return a.then(o=>{for(const i of o||[])i.status==="rejected"&&r(i.reason);return t().catch(r)})};(function(){const e=Object.defineProperty,t=globalThis,n=["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceCandidate","RTCSessionDescription","RTCRtpSender","RTCRtpReceiver"];let u=0;for(let a=0;a<n.length;a++){const r=n[a];try{e(t,r,{value:void 0,writable:!1,configurable:!1})}catch{try{delete t[r]}catch{}try{e(t,r,{value:void 0,writable:!1,configurable:!0})}catch{}}typeof t[r]=="function"&&u++}if(u&&window!==top)try{parent.postMessage({__frame_rtc_lockdown_failed:u},"*")}catch{}})();var Ee=1e4,we=Object.freeze([...window.__FRAME_PREAMBLE?.origins??["https://claude.ai","https://preview.claude.ai"]]);function Q(e){for(const t of we)if(t.endsWith(":*"))try{const n=new URL(e);if(`${n.protocol}//${n.hostname}:*`===t)return!0}catch{}else if(e===t)return!0;return!1}var k=Object.freeze({...window.__FRAME_PREAMBLE?.capabilities}),D=window.__FRAME_PREAMBLE?.transforms,z=window.__FRAME_PREAMBLE?.comments,B=window.__FRAME_PREAMBLE?.translate,C=/^[\w.-]+\.js$/,Se=/^[a-z][a-z0-9_-]{0,63}$/,Z=null,M=null;function $(e,t,n){try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!1,enumerable:!0})}catch{try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!0,enumerable:!0})}catch{}}}var F=!1;function ee(e){const t=document.documentElement;e==="light"||e==="dark"?(t.dataset.theme=e,t.style.colorScheme=e,F=!0):F&&(delete t.dataset.theme,t.style.colorScheme="",F=!1)}var te=256,P=Object.assign(Object.create(null),{mcp:Object.assign(Object.create(null),{watchTool:{handlerArg:3}}),db:Object.assign(Object.create(null),{subscribe:{handlerArg:1,errArg:2}})}),L=new Map;function re(e,t){const n=L.get(e);if(!n)return;const u=Object.assign(Object.create(null),t);Object.assign(n.impl,u),n.impl.__settled=()=>Promise.reject({code:"capability_removed",message:`${e}: method not in this runtime`});const a=n.queue;n.queue=[];for(const r of a){const o=u[r.method];if(o)if(P[e]?.[r.method])try{r.resolve(o(...r.args))}catch{T(r,P[e][r.method],{code:"transform_error",message:`${e}.${r.method} rejected its arguments`})}else o(...r.args).then(r.resolve,r.reject);else{const i={code:"capability_removed",message:`${e}.${r.method} is not in this runtime`},g=P[e]?.[r.method];if(g){T(r,g,i);continue}r.reject(i)}}}function Oe(e,t){const n=L.get(e);if(!n)return;n.impl.__settled=()=>Promise.reject(t);const u=n.queue;n.queue=[];for(const a of u){const r=P[e]?.[a.method];if(r){T(a,r,t);continue}a.reject(t)}}function N(e,t){const n=Y[e];if(!n){Oe(e,t);return}re(e,Object.fromEntries(Object.entries(n).map(([u,a])=>[u,()=>Promise.resolve(a)])))}function T(e,t,n){if(e.syncState?.dead)return;const u=t.errArg===void 0?void 0:e.args[t.errArg],a=t.errArg===void 0?e.args[t.handlerArg]:u;typeof a=="function"&&queueMicrotask(()=>{if(!e.syncState?.dead)try{a(t.errArg===void 0?{type:"error",error:n}:n)}catch(r){ie(r)}})}var H=Object.getOwnPropertyDescriptor(window,"claude");if(window!==top&&!(H&&H.writable===!1)){fe(),de();let e=null;try{e=ve()}catch{}const t=H?.value??{};$(window,"claude",t);const n=c=>{const f={impl:Object.create(null),queue:[]};L.set(c,f);const m=f.impl,h=d=>({code:"queue_overflow",message:`${c}.${d}: pre-init call queue is full`}),_=(d,l)=>{if(f.queue.length>=te){const p=Y[c];return p&&d in p?Promise.resolve(p[d]):Promise.reject(h(d))}return new Promise((p,v)=>{f.queue.push({method:d,args:l,resolve:p,reject:v})})},w=ae[c],S=new Proxy(w===void 0?m:(()=>{}),{apply:(d,l,p)=>{const v=w,E=m[v]??m.__settled;return E?E(...p):_(v,p)},get:(d,l)=>{if(typeof l!="string"||l==="then"||l==="toJSON"||l==="valueOf")return;if(l==="toString")return Object.prototype.toString;if(w!==void 0&&(l==="call"||l==="apply"||l==="bind"))return Function.prototype[l];const p=P[c]?.[l];return p?(...v)=>{if(typeof v[p.handlerArg]!="function")throw new TypeError(`${c}.${l} requires a handler function`);const E=m[l];if(E)return E(...v);if(m.__settled){const b={dead:!1},U={args:[...v],syncState:b};return m.__settled().catch(s=>T(U,p,s)),()=>{b.dead=!0}}if(f.queue.length>=te){const b={dead:!1};return T({args:[...v],syncState:b},p,h(l)),()=>{b.dead=!0}}let A=null;const R={dead:!1};return f.queue.push({method:l,args:v,resolve:b=>{A=typeof b=="function"?b:null,R.dead&&A?.()},reject:()=>{},syncState:R}),()=>{R.dead=!0,A?.()}}:(...v)=>{const E=m[l]??m.__settled;return E?E(...v):_(l,v)}},set:()=>!1});c==="db"&&ce(m,(d,l)=>S[d](...l)),$(t,c,S)};for(const c of Object.keys(k)){if(t[c]!==void 0){$(t,c,t[c]);continue}n(c)}let u=null,a=null,r=0;const o=c=>{c.source!==parent||!Q(c.origin)||oe(c.data)&&(u=c.data.__frame_init,M=c.origin,removeEventListener("message",o),clearTimeout(r),a?.())};addEventListener("message",o),parent.postMessage({__frame_connect:!0},"*");const i=new Promise(c=>{a=c,r=setTimeout(()=>{removeEventListener("message",o),c()},Ee)}),g=document.readyState==="loading"?new Promise(c=>document.addEventListener("DOMContentLoaded",()=>c(),{once:!0})):Promise.resolve();g.then(()=>{try{e?.restore()}catch{}});const y=c=>{if(!(c.source!==parent||!Q(c.origin))&&W(c.data)){removeEventListener("message",y);try{e?.promoted()}catch{}}};addEventListener("message",y),i.then(async()=>{if(!u||!M){for(const s of L.keys())N(s,{code:"not_granted",message:"frame initialization did not arrive - capability unavailable"});return}ee(u.theme);const c=M;let f=!1,m=!1;addEventListener("message",s=>{if(s.source!==parent||s.origin!==c)return;se(s.data)&&ee(s.data.__frame_theme.theme);const O=s.data?.__fc_mode;O&&typeof O=="object"&&!f&&z&&C.test(z)&&(f=!0,h(z).then(K=>K.install?.(c,O.on===!0)).catch(()=>{}));const j=s.data?.__ft_cmd;j&&typeof j=="object"&&!m&&B&&C.test(B)&&(m=!0,h(B).then(K=>K.install?.(c,j)).catch(()=>{}))});const h=s=>be(()=>import("/_runtime/"+s),void 0),_=Object.keys(u.capabilities??{});for(const s of _)Object.hasOwn(k,s)||Se.test(s)&&t[s]===void 0&&(n(s),N(s,{code:"capability_disabled",message:"capability not in this runtime generation"}));const w=_.filter(s=>Object.hasOwn(k,s)).map(s=>[s,k[s]]).filter(s=>typeof s[1]=="string"&&C.test(s[1])),[S,...d]=await Promise.allSettled([D&&C.test(D)?h(D):Promise.resolve({}),...w.map(([,s])=>h(s))]),l=M;Z=ye(u,S.status==="fulfilled"&&S.value?.TRANSFORMS||{},{shellOrigin:l,mount:re},s=>parent.postMessage({__frame_cap_telemetry:s},l));const p=s=>parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:s}},l),v=Z;d.forEach((s,O)=>{const j=w[O][0];if(s.status!=="fulfilled"){p(j);return}try{s.value?.install?.(v)}catch{p(j)}});for(const[s,O]of L)if(!(O.queue.length===0&&Object.keys(O.impl).length>0)){if(_.includes(s)){N(s,{code:"capability_disabled",message:"capability not available in this session"});continue}N(s,{code:"not_granted",message:"capability not available in this session"})}await g,parent.postMessage({__frame_ready:!0},M);let E=-1,A=0;const R=()=>{A=0;const s=Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0);s!==E&&(E=s,parent.postMessage({__frame_size:!0,h:s},l))},b=()=>{A||(A=setTimeout(R,200))},U=new ResizeObserver(b);U.observe(document.documentElement),document.body&&U.observe(document.body),document.addEventListener("load",b,!0),document.fonts?.ready.then(b,()=>{}),addEventListener("beforeprint",()=>{E=-1,R()}),b(),addEventListener("message",s=>{if(!(s.source!==parent||s.origin!==l)&&W(s.data)){try{e?.promoted()}catch{}E=-1,b()}})})}})();</script><!-- /frame-runtime --><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>Zymera Experiment Registry</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --surface:#fff; --surface2:#eef1f5; --ink:#151a22; --muted:#5a6473; --faint:#8a93a3;
+    --line:#dde2e8; --accent:#0c7a8c; --accent-ink:#0a5f6e; --accent-soft:#e2f0f2;
+    --s-active:#0c7a8c; --s-built:#3a8f7d; --s-planned:#3f6bd0; --s-done:#5a6473;
+    --s-parked:#a6771a; --s-dropped:#98a0ab; --s-super:#98a0ab; --s-unclear:#98a0ab;
+    --shadow:0 1px 2px rgba(20,27,35,.05),0 8px 26px rgba(20,27,35,.06);
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Arial,sans-serif;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+    --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0d1017;--surface:#141a22;--surface2:#1b222c;--ink:#e7eaf0;--muted:#9aa4b4;--faint:#6c7686;
+    --line:#262e3a;--accent:#3ec7d6;--accent-ink:#7adbe6;--accent-soft:#11282e;
+    --s-active:#3ec7d6;--s-built:#4fc6a8;--s-planned:#6d92ec;--s-done:#8b95a5;
+    --s-parked:#d8a94e;--s-dropped:#5f6874;--s-super:#5f6874;--s-unclear:#5f6874;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);
+  }}
+  :root[data-theme="light"]{--bg:#f4f6f8;--surface:#fff;--surface2:#eef1f5;--ink:#151a22;--muted:#5a6473;--faint:#8a93a3;--line:#dde2e8;--accent:#0c7a8c;--accent-ink:#0a5f6e;--accent-soft:#e2f0f2;--s-active:#0c7a8c;--s-built:#3a8f7d;--s-planned:#3f6bd0;--s-done:#5a6473;--s-parked:#a6771a;--s-dropped:#98a0ab;--s-super:#98a0ab;--s-unclear:#98a0ab;--shadow:0 1px 2px rgba(20,27,35,.05),0 8px 26px rgba(20,27,35,.06);}
+  :root[data-theme="dark"]{--bg:#0d1017;--surface:#141a22;--surface2:#1b222c;--ink:#e7eaf0;--muted:#9aa4b4;--faint:#6c7686;--line:#262e3a;--accent:#3ec7d6;--accent-ink:#7adbe6;--accent-soft:#11282e;--s-active:#3ec7d6;--s-built:#4fc6a8;--s-planned:#6d92ec;--s-done:#8b95a5;--s-parked:#d8a94e;--s-dropped:#5f6874;--s-super:#5f6874;--s-unclear:#5f6874;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 clamp(16px,3vw,36px)}
+  header.mast{padding:34px 0 18px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-ink)}
+  h1{font-family:var(--serif);font-weight:700;font-size:clamp(26px,4vw,40px);margin:8px 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--muted);max-width:70ch;margin:0 0 18px}
+  .stats{display:flex;flex-wrap:wrap;gap:8px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:7px 12px;box-shadow:var(--shadow)}
+  .stat b{font-variant-numeric:tabular-nums;font-size:17px}
+  .stat span{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-left:5px}
+
+  section.active{margin:26px 0 8px}
+  h2{font-family:var(--serif);font-size:22px;margin:26px 0 10px;letter-spacing:-.005em}
+  h2 .k{color:var(--faint);font-family:var(--mono);font-size:13px;font-weight:400;margin-left:8px}
+  .cards{display:grid;grid-template-columns:1fr;gap:9px}
+  @media(min-width:720px){.cards{grid-template-columns:1fr 1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+  .card .tt{font-weight:700;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .card .id{font-family:var(--mono);font-size:12px;color:var(--accent-ink);font-weight:700}
+  .card .d{color:var(--muted);font-size:13.5px;margin-top:3px}
+
+  .toolbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 10px;margin-top:18px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{font-family:var(--sans);font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:5px 11px;cursor:pointer;user-select:none}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root[data-theme="dark"] .chip[aria-pressed="true"]{color:#08222a}
+  @media (prefers-color-scheme:dark){.chip[aria-pressed="true"]{color:#08222a}}
+  #q{flex:1 1 180px;min-width:140px;font-family:var(--sans);font-size:13px;padding:7px 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+  #q:focus,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .count{color:var(--faint);font-size:12px;font-family:var(--mono)}
+
+  .cat{margin-top:22px}
+  .cat h3{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+  .cat h3 .n{color:var(--faint);font-family:var(--mono);font-weight:400;font-size:12px}
+  .rows{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+  .row{display:grid;grid-template-columns:132px 1fr;gap:12px;padding:9px 13px;border-bottom:1px solid var(--line);align-items:start}
+  .row:last-child{border-bottom:none}
+  @media(max-width:640px){.row{grid-template-columns:1fr}}
+  .row .badge{align-self:start}
+  .row .nm{font-weight:600;font-size:13.5px}
+  .row .ts{color:var(--muted);font-size:12.5px;margin-top:1px}
+  .badge{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:5px;white-space:nowrap;display:inline-block;border:1px solid transparent}
+  .b-active{background:var(--accent-soft);color:var(--s-active);border-color:var(--s-active)}
+  .b-built{color:#fff;background:var(--s-built)}
+  .b-planned{color:#fff;background:var(--s-planned)}
+  .b-done{color:#fff;background:var(--s-done)}
+  .b-parked{color:#fff;background:var(--s-parked)}
+  .b-dropped{color:var(--s-dropped);border-color:var(--line);background:transparent}
+  .b-superseded{color:var(--s-super);border-color:var(--line);background:transparent}
+  .b-unclear{color:var(--s-unclear);border-color:var(--line);background:transparent}
+  .row.dim .nm{color:var(--muted)}
+  .callout{background:var(--accent-soft);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:14px 16px;margin:24px 0 6px}
+  .callout b{color:var(--accent-ink)}
+  footer{margin:40px 0 30px;padding-top:18px;border-top:1px solid var(--line);color:var(--faint);font-size:12.5px}
+  .hide{display:none!important}
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">Zymera · Shared-Exploration · complete master list</div>
+    <h1>Experiment Registry</h1>
+    <p class="sub">Every experiment, ablation, probe and idea — mined from all 12 design docs and merged with the current planning thread. Filter by status, search, or read the near-term active plan up top. Nothing dropped.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section class="active">
+    <h2>Near-term active plan <span class="k">what we build / run now</span></h2>
+    <div class="cards">
+      <div class="card"><div class="tt"><span class="id">T0</span> Build &amp; validate the KB-planning agent</div><div class="d">The new baseline: SLAM occupancy KB → LPAC backbone → L3 goal-region head → L2 nav-field planner over the KB → L1 reactive controller. Replaces greedy. <b>Gate: lock the region-head design (region type × commit).</b></div></div>
+      <div class="card"><div class="tt"><span class="id">T1</span> Mechanism viz <span class="badge b-built">built</span></div><div class="d">Does frontier-attn aim at frontiers (vs chance)? Does the GNN use neighbors (graph-off)? Two CPU probes. <b>Early signal: both YES.</b></div></div>
+      <div class="card"><div class="tt"><span class="id">T2</span> Role-picker baseline <span class="badge b-built">built</span></div><div class="d">flat vs expl_relay × ladder × 3 seeds; the clean role delta.</div></div>
+      <div class="card"><div class="tt"><span class="id">T3</span> Connectivity Lagrangian <span class="badge b-built">built</span></div><div class="d">soft / lagrangian / pid × global-λ₂ target θ∈{0.5,0.7}; log λ(t) &amp; λ₂(t); the coverage↔connectivity frontier + does the dual track the target.</div></div>
+      <div class="card"><div class="tt"><span class="id">T4</span> Count-invariant critic <span class="badge b-built">built</span></div><div class="d">conv vs DeepSets-mean vs DeepSets-attention; warm-start transfer + value-error. Is the critic a hidden bottleneck?</div></div>
+      <div class="card"><div class="tt"><span class="id">T5</span> Backbone screen</div><div class="d"><b>GCRN recurrent belief</b> (built-but-unplugged; the transfer lever) · <b>attention-over-KB</b> (memory + region read, vs GRU) · aggregator max/mean/attn · mp-rounds · message-content · capacity · position-grounding · LPAC size-transfer.</div></div>
+      <div class="card"><div class="tt"><span class="id">D</span> Contribution / credit</div><div class="d">Exact submodular difference reward Dᵢ=G−G₋ᵢ (keystone #70) · test COMA/MAAC against it · per-agent share/Gini redundancy readout.</div></div>
+      <div class="card"><div class="tt"><span class="id">S</span> Symmetry-break / individuation</div><div class="d">B-dico identity residual · anti-overlap · congestion price · SND/role-diversity MI · stochastic/spawn; policy-level vs reward-level, at inference.</div></div>
+    </div>
+    <div class="callout"><b>Where "transformer" lives:</b> T5 aggregator (graph-attention = <code>--agg multihead</code>) · attention-over-KB memory · MARVEL graph-attention reference. Parked next-run: Decision-Transformer / sequence-model L3 + the SLM. Dropped 06-29: the neighbor-attn / critic-attn / mission-token / KAN / distillation stack (wrong tool for sparse coverage → difference rewards). All in the registry below.</div>
+  </section>
+
+  <div class="toolbar" id="bar">
+    <input id="q" type="search" placeholder="Search all experiments…" aria-label="search">
+    <span class="chip" data-f="active" aria-pressed="false">active</span>
+    <span class="chip" data-f="planned" aria-pressed="false">planned</span>
+    <span class="chip" data-f="built-not-run" aria-pressed="false">built</span>
+    <span class="chip" data-f="done" aria-pressed="false">done</span>
+    <span class="chip" data-f="parked" aria-pressed="false">parked</span>
+    <span class="chip" data-f="dropped" aria-pressed="false">dropped</span>
+    <span class="chip" data-f="superseded" aria-pressed="false">superseded</span>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="reg"></div>
+
+  <footer>Merged from IDEAS · EXPERIMENT_PLAN · TRANSFORMER_DESIGN · STRATEGY · TOMORROW · OPEN_THREADS · CAMPAIGN_REVIEW · JOURNEY · agent_architecture · COGNITION_DESIGN · LOCALITY_DESIGN, plus the current planning thread. Status is as recorded in the docs; "active" = the current near-term plan.</footer>
+</div>
+
+<script>
+const CATS={adv:"Adversarial / red-team",gnn:"Backbone · GNN / CNN / GAP / LPAC",base:"Baseline panel & benchmarks",conn:"Connectivity",ctrl:"Controller / planner / hierarchy",credit:"Critic / credit / contribution",msg:"Message design / comms",xf:"Transformer / attention",rec:"Recurrence & memory",pos:"Position grounding",rew:"Reward engineering",skill:"Skills / roles / selector",warm:"Warm-start / scale transfer",other:"Other / infra / trainer"};
+const CATORD=["gnn","xf","rec","pos","conn","ctrl","credit","skill","rew","msg","warm","base","adv","other"];
+const D=[
+// ---- active (current plan) ----
+{s:"active",c:"gnn",n:"GCRN recurrent-message-passing belief",t:"belief state carried across steps through the comm-graph MP; the size-invariance/zero-shot lever (77–81% vs 46%); BUILT-BUT-UNPLUGGED — wire & test"},
+{s:"active",c:"gnn",n:"Attention / multi-head over the KB",t:"spatial attention over the belief map as the belief read + region scoring, vs the compass reduction"},
+{s:"active",c:"rec",n:"Memory: attention-over-KB vs GRU vs GCRN vs history-transformer",t:"the KB IS the memory; attention reads it (favored) vs a separate GRU hidden vs graph-recurrence vs sequence model"},
+{s:"active",c:"ctrl",n:"T0 · KB-planning agent (region head + nav-field + reactive L1)",t:"the new baseline: L3 goal-region → L2 nav-field over KB → L1 reactive; replaces greedy; gate = region-head design lock"},
+{s:"active",c:"gnn",n:"T1 · frontier-attn + GNN mechanism probes",t:"built; early signal both YES (attn 2.6× chance & flips goal 47%; GNN not dead on graph-off)"},
+{s:"active",c:"skill",n:"T2 · role-picker flat vs expl_relay",t:"built; the clean role delta × ladder × 3 seeds"},
+{s:"active",c:"conn",n:"T3 · Lagrangian soft/lag/pid × global-λ₂ θ",t:"built (corrected); target θ∈{0.5,0.7}; log λ(t)+λ₂(t); coverage↔connectivity frontier + dual tracking"},
+{s:"active",c:"credit",n:"T4 · count-invariant critic conv/setpool/setattn",t:"built; warm-start transfer + value-error; is the critic a hidden bottleneck"},
+{s:"active",c:"gnn",n:"T5 · backbone screen (agg/mp/msg/capacity)",t:"aggregator max/mean/multihead · mp-rounds · message-content · width/depth — cheap flag sweeps on the baseline"},
+{s:"active",c:"pos",n:"Position-grounding (boundary-relative)",t:"fix LPAC GAP position-blindness; CoordConv / attention-pool / a position channel — build"},
+{s:"active",c:"credit",n:"Exact submodular difference reward Dᵢ=G−G₋ᵢ",t:"the keystone (#70): per-agent credit + relay incentive; test COMA/MAAC against it"},
+{s:"active",c:"skill",n:"Symmetry-break: B-dico / anti-overlap / congestion / SND",t:"policy-level vs reward-level individuation, tried at inference"},
+{s:"active",c:"warm",n:"LPAC size-transfer (train-16²→zero-shot 24²/32²)",t:"is LPAC really the size-invariance engine warm-start depends on"},
+// ---- adversarial ----
+{s:"parked",c:"adv",n:"Ensemble + multi-head (resilience reframe)",t:"ensemble disagreement = covert-adversary anomaly detection + multi-mission"},
+{s:"planned",c:"adv",n:"Pivot to adversarial / resilience layer",t:"contribution + degradation curve → minimum m-of-n; covert-misbehavior→mission-failure bridge"},
+{s:"planned",c:"adv",n:"Scripted auction + shared-map (baseline + attack surface)",t:"SLAM+A*+frontier-bidding & blackboard/pheromone as baselines AND red-team surfaces"},
+{s:"planned",c:"adv",n:"Adversarial / red core",t:"covert internal misbehavior → macro failure; the thesis destination"},
+// ---- backbone / gnn ----
+{s:"planned",c:"gnn",n:"Connectivity-respecting frontier attention",t:"re-validate FrontierAttnAC (~98% cov/32% conn); can it be λ̂₂-gated and keep coverage"},
+{s:"parked",c:"gnn",n:"Physics-inspired priors",t:"potential fields, heat-eqn frontier, Lloyd/Voronoi flow, Laplacian/λ₂ dynamics, LPAC"},
+{s:"planned",c:"gnn",n:"Network fundamentals ablation axis",t:"type × size × HP (GNN/attn/recurrent vs MLP; depth/width/norm) tied to warm-start"},
+{s:"planned",c:"gnn",n:"Graph-embedding KB / role-picker vs flat features",t:"spectral/Laplacian/node2vec/Fiedler/centrality graph embedding as size-invariant KB"},
+{s:"dropped",c:"gnn",n:"Diffusion belief-prior / planner / conditioning",t:"map-completion prior / Diffuser / MADiff; per-step cost vs 100-step budget"},
+{s:"planned",c:"gnn",n:"LPAC graph-net backbone adoption",t:"CNN perception + equivariant GNN comms; zero-shot scale transfer"},
+{s:"planned",c:"gnn",n:"Backbone type sweep (1a): GNN / GAT-attention / recurrent-GNN",t:"lock the architecture that transfers 16²→32²"},
+{s:"planned",c:"gnn",n:"Backbone depth sweep {2,3}",t:"OFAT"},
+{s:"planned",c:"gnn",n:"Backbone width sweep {64,128,256}",t:"OFAT"},
+{s:"planned",c:"gnn",n:"Message-passing rounds sweep {1,2,3}",t:"OFAT"},
+{s:"planned",c:"gnn",n:"Normalization sweep {layer-norm, none}",t:"OFAT"},
+{s:"planned",c:"gnn",n:"Degree/local-structure regularization (SizeShiftReg)",t:"de-risk from-scratch RL against bad-minima that breaks size-transfer"},
+{s:"dropped",c:"gnn",n:"KAN backbone / KAN actors",t:"no equivariance, slower forward; rejected"},
+{s:"planned",c:"gnn",n:"Break/group parameter-sharing",t:"fix over-sharing — documented cause of exploration breaking cooperation"},
+{s:"built-not-run",c:"gnn",n:"Occupancy-grid / mission-field belief",t:"free/occupied/unknown + boundary channels (sense_free→occupancy, occ_frontier Yamauchi)"},
+{s:"built-not-run",c:"gnn",n:"occ A/B run",t:"base(SLAM) vs occ(+sense_free+boundary) × 4 terrains × 2 seeds @32²"},
+{s:"done",c:"gnn",n:"Backbone diagnostic (mp-rounds, aggregator)",t:"more mp-rounds over-smooth into huddle; max-agg best"},
+{s:"done",c:"gnn",n:"Recurrence / GRU variant (Phase-1a)",t:"temporal twin of more mp-rounds; neutral, ~44%"},
+{s:"done",c:"gnn",n:"Occupancy / boundary belief (#72)",t:"vs SLAM-only; falsified, worse by 3–7 pts"},
+{s:"done",c:"gnn",n:"Fiedler λ₂ estimator aggregator sweep",t:"max/multihead/attn/gcn/sum/gated/laplacian; max+multihead co-best ~0.66"},
+{s:"done",c:"gnn",n:"Fiedler estimator combination grid (20 cfg)",t:"best max+learned+index .703; ~0.70 ceiling"},
+{s:"done",c:"gnn",n:"First CTDE aux-λ₂ head run @16²",t:"aux 21→90% but coverage collapsed 30→7%"},
+{s:"done",c:"gnn",n:"LPAC weight-shared GNN spine",t:"size-invariance enabler; adopted/kept (validated)"},
+{s:"done",c:"gnn",n:"From-scratch RL vs imitation for scale-transfer (#5)",t:"resolved: RL-from-scratch transfers (imitation not required)"},
+{s:"planned",c:"gnn",n:"KB / belief representation axis",t:"flat certainty-field vs learned graph belief (GCRN) vs relational belief-graph"},
+{s:"parked",c:"gnn",n:"Sensor-fusion sub-stack (EKF)",t:"classical fusion for multiple/noisy sensors"},
+{s:"done",c:"gnn",n:"Vision size = 3×3 locked",t:"bigger vision only speeds discovery; skills read the fused KB"},
+{s:"done",c:"gnn",n:"Memory = KB, no extra recurrence by default",t:"the neighbor-fused map IS the memory"},
+// ---- transformer ----
+{s:"superseded",c:"xf",n:"Neighbor-attention / GAT aggregator (--agg multihead)",t:"softmax attention over in-range neighbors vs mean/max; scale-safe — RETEST"},
+{s:"parked",c:"xf",n:"Mission token",t:"small learned embedding of WHICH mission, attended like an LLM system prompt"},
+{s:"done",c:"xf",n:"Local perception patch tokens (CNN over obs)",t:"already have via the CNN"},
+{s:"dropped",c:"xf",n:"Attention over own trajectory history — DO NOT",t:"redundant with the belief map"},
+{s:"superseded",c:"xf",n:"Neighbor-attention (multihead) as null lever",t:"prior: gives no lift"},
+{s:"planned",c:"xf",n:"MARVEL graph-attention backbone reference",t:"equivariant graph-attention as a Phase-1 reference point"},
+{s:"dropped",c:"xf",n:"Transformer/attention/mission-token axis (the stack)",t:"attn critic + neighbor-attn + mission token + KAN + distillation; wrong tool for sparse coverage"},
+{s:"planned",c:"xf",n:"Comm stack axis (message design)",t:"simple msg vs composition vs learnable comms vs λ₂/Fiedler estimation"},
+{s:"planned",c:"xf",n:"Training algorithm sweep (1b)",t:"IPPO/MAPPO-CTDE/ES/MAP-Elites/MORL"},
+{s:"planned",c:"xf",n:"Algorithm selection under locked arch (1b)",t:"trainer × core HPs, ~10 cfg"},
+// ---- recurrence ----
+{s:"planned",c:"rec",n:"Recurrence as Phase-1a variant",t:"recurrent-GNN optional backbone variant; in-house GCRN already transferred"},
+// ---- connectivity ----
+{s:"dropped",c:"conn",n:"CBF / KKT / Lagrangian per-step constraint",t:"vs hard-mask vs soft-penalty; which reaches 90/90"},
+{s:"built-not-run",c:"conn",n:"Decentralized Fiedler / λ₂ estimator",t:"power-iteration λ₂ + gradient replacing eigendecomp oracle; scale-invariant"},
+{s:"superseded",c:"conn",n:"Connectivity mechanism sweep (Phase 2)",t:"mask/Lagrangian/degree-floor/λ₂-soft/PID; all huddle at scale"},
+{s:"superseded",c:"conn",n:"Trade-off λ sweep (soft mechs)",t:"{0.1,0.3,1,3}; dual λ stays flat at the huddle"},
+{s:"superseded",c:"conn",n:"Connectivity signal source sweep",t:"global-λ₂ vs local_edge_margin; local doesn't rescue coverage"},
+{s:"built-not-run",c:"conn",n:"Decentralized local-Fiedler estimator validation",t:"power-iteration vs true λ₂ across all rungs (Gate G0)"},
+{s:"unclear",c:"conn",n:"Grade on local estimate vs true-λ₂",t:"purist decentralized vs non-gameable grader"},
+{s:"planned",c:"conn",n:"KAN interpretable Lagrangian-dual head",t:"KAN(λ₂, degree, dist-to-frontier)→penalty; readable"},
+{s:"superseded",c:"conn",n:"Connectivity as constraint (constrained-RL/Lagrangian/mask)",t:"maximize coverage s.t. connectivity ≥ bar"},
+{s:"planned",c:"conn",n:"Frontier sweep — 6-point cov↔conn Pareto",t:"soft mechanism, no mask, each point decomposed by contribution"},
+{s:"planned",c:"conn",n:"Connectivity-mechanism inconsistency (33% open vs 84% corridors)",t:"fix it or accept relay structure as the answer"},
+{s:"done",c:"conn",n:"Connectivity-mechanism diagnostic @32²",t:"mask/soft/Lagrangian/PID × global/local; none breaks the huddle"},
+{s:"done",c:"conn",n:"Connectivity-barrier (Hyper-Singularity) term",t:"finite-capped wall on nn-distance; wrong tool, refuted"},
+{s:"done",c:"conn",n:"Connectivity-mechanism shootout @32²",t:"role/base × soft/RCPO/PID/mask; decided role+learned-Lagrangian"},
+{s:"done",c:"conn",n:"Cov↔conn frontier sweep (run_frontier)",t:"soft-λ penalty [0..4]; connectivity saturates ~30% @32²"},
+{s:"done",c:"conn",n:"Fiedler decentralized power-iteration",t:"hits 0.99 but rounds-to-precision grow with N"},
+{s:"planned",c:"conn",n:"Real binding connectivity bar (λ₂>0.5)",t:"honest baseline at comm_r=5, real bar not trivial 1e-3"},
+{s:"done",c:"conn",n:"Per-rung comm-degree measurement (Gate G0)",t:"may set comm_radius per rung to hold local structure"},
+{s:"done",c:"conn",n:"Per-step guardrail panel (mask/soft/degree/edge-margin)",t:"does ANY per-step guardrail fix coverage at scale — no"},
+{s:"parked",c:"conn",n:"Connectivity as hard action-mask safety shell",t:"vs a reasoned brain level; prior +20 pts (forbidden by no-mask rule)"},
+{s:"planned",c:"conn",n:"Mission-safety wired as a brain INPUT (λ̂₂/barrier)",t:"so the brain reasons about connectivity danger, not just enforces"},
+{s:"done",c:"conn",n:"Shootout run_conn_shootout (8/8)",t:"soft 44.7/81.2 vs RCPO 42.4/84.7 vs PID vs mask"},
+{s:"done",c:"conn",n:"Learned-Lagrangian (RCPO) constraint",t:"auto-tunes multiplier to smallest holding λ₂≥τ; scale-robust"},
+{s:"planned",c:"conn",n:"Falsification: 90/90 @32² strict λ₂>0.5, 100 steps",t:"the headline target on the strict bar"},
+// ---- controller / planner ----
+{s:"planned",c:"ctrl",n:"Multi-phase cycle disperse→stabilize→contract",t:"phased vs continuous; learned vs scripted timing; resolves cov↔conn in TIME"},
+{s:"parked",c:"ctrl",n:"Hierarchy tower (L4 strat→role→skill→action)",t:"vs cap at 2 learned levels; benefit = exploration not structure"},
+{s:"planned",c:"ctrl",n:"Action-representation sweep (1a')",t:"1-step move head vs goal/frontier-pointer head + A*/greedy; the ceiling test"},
+{s:"parked",c:"ctrl",n:"L4 phase layer sweep (2')",t:"{off, scripted, learned} disperse↔gather option, OFAT"},
+{s:"parked",c:"ctrl",n:"Phase commit-k sweep {5,8,10}",t:"commit horizon for the phase option"},
+{s:"planned",c:"ctrl",n:"Goal/frontier-pointer action head",t:"graph-attn + pointer decoder selects a frontier + A*/greedy low-level"},
+{s:"done",c:"ctrl",n:"Goal/region action head (frontier-attention)",t:"coarse spatial goal replacing 1-step; the proven lever (16→32%)"},
+{s:"planned",c:"ctrl",n:"2-level manager/worker selector over executor",t:"cap depth at 2 learned levels; the only depth that scales"},
+{s:"dropped",c:"ctrl",n:"3rd hierarchy level / L4 strategy top",t:"rejected without on-task evidence 3>2"},
+{s:"dropped",c:"ctrl",n:"4-tier strategy→role→skill→action tower",t:"anthropomorphic over-engineering; short-circuits emergence"},
+{s:"built-not-run",c:"ctrl",n:"Level-1 executor (behavior→goal→A*)",t:"chosen behavior sets a goal; A* drives there"},
+{s:"planned",c:"ctrl",n:"Parallel toolbox + hardcoded-context selection",t:"all tools on; selection a cheap rule on local state"},
+// ---- credit / critic ----
+{s:"planned",c:"credit",n:"Attention critic (MAAC)",t:"attention over the agent set in the central critic for credit assignment"},
+{s:"dropped",c:"credit",n:"KAN value-decomposition mixer (QMIX/QPLEX)",t:"monotonic interpretable mixer of per-agent Q"},
+{s:"planned",c:"credit",n:"Contribution metric (#70) — keystone",t:"per-agent marginal contribution = resilience measure + relay incentive (difference rewards)"},
+{s:"done",c:"credit",n:"armA-DTE tail collapse",t:"decentralized critic at top rung → 8% huddle; CTDE critic load-bearing"},
+{s:"done",c:"credit",n:"MAAC / COMA attention critic (#68)",t:"too sparse (r≈0.13), shelved → use exact difference reward"},
+{s:"planned",c:"credit",n:"Exact difference-reward + remove-k resilience curve",t:"submodular closed-form credit; remove-k for G(k)"},
+{s:"planned",c:"credit",n:"Emergence measurement on flat baseline",t:"MI(role;behavior), redundancy→1, breathe rhythm, role-diversity"},
+{s:"done",c:"credit",n:"Diversity pressure (SND / role_div MI)",t:"mode–behavior MI regularizer; shipped"},
+{s:"built-not-run",c:"credit",n:"Learned congestion price (local free market)",t:"local same-mode crowding lowers that mode's value → spread"},
+{s:"done",c:"credit",n:"Central critic ablation (DTE collapse A/B)",t:"remove central critic → coverage collapses to ~2%"},
+{s:"done",c:"credit",n:"Task-grounded diversity vs forced congestion price",t:"B-fork/B-dico beat base; forced congestion HURT"},
+{s:"done",c:"credit",n:"Adding-agents-floods redundancy probe",t:"redundancy 3.7→7.9; no method partitions space"},
+{s:"planned",c:"credit",n:"Difference rewards (own your cell)",t:"credit each agent only for coverage no teammate provided"},
+{s:"planned",c:"credit",n:"Falsification: redundancy curve must invert",t:"success = redundancy→1 as agents divide"},
+{s:"done",c:"credit",n:"ES+gradient side-by-side (MERL)",t:"ES evolves selectors, gradient trains executor; they compose @16²"},
+{s:"done",c:"credit",n:"ES policy-optimizer collapse with scale",t:"learned mode-selector collapses 49→25→8%"},
+// ---- skills ----
+{s:"planned",c:"skill",n:"Per-role toolkits (Claude-Code-inspired)",t:"explorer tools (frontier/A*/coverage-grad/attn) vs relay tools (λ₂/bridge/hold/spanning-tree)"},
+{s:"planned",c:"skill",n:"Connectivity-aware explorer tool (Phase-5 slot 1)",t:"non-myopic λ̂₂-biased frontier attention, MAINTAIN ≥90%"},
+{s:"planned",c:"skill",n:"Explorer/relay role-picker (slot 2)",t:"fixed roles vs homogeneous × ROMA embeddings vs RODE action-subsets"},
+{s:"dropped",c:"skill",n:"Attention in toolbox router/selector — DO NOT",t:"learned selector collapsed 49→8%"},
+{s:"planned",c:"skill",n:"CDS-style MI diversity regularizer",t:"MI(identity↔trajectory) to let explorer/relay split emerge"},
+{s:"planned",c:"skill",n:"Measure role-diversity on flat baseline",t:"if low → skip the role level"},
+{s:"dropped",c:"skill",n:"Discrete hand-authored skill library",t:"skills discovered/emergent, not authored"},
+{s:"planned",c:"skill",n:"Roles as learned ROMA-style MI latent",t:"regularized-readable latent measured as outcome, not authored"},
+{s:"dropped",c:"skill",n:"Learned skill-selector (sel)",t:"collapses at scale 49→8%"},
+{s:"done",c:"skill",n:"I1 role-picker sweep @16²",t:"role_expl_relay 90.9% vs ≤5.6% huddle; the make-or-break"},
+{s:"done",c:"skill",n:"Frontier-attention disperse skill (keystone)",t:"per-sector frontier attention; the disperse lever"},
+{s:"done",c:"skill",n:"Hold-relay vs active-relay",t:"hold worse (30.6 vs active)"},
+{s:"done",c:"skill",n:"A/B arm batch @32² (armA/B-fork/B-dico)",t:"diversity arms lead at scale"},
+{s:"done",c:"skill",n:"B-fork grouped-actor architecture",t:"2 param groups + shared critic; highest role differentiation"},
+{s:"done",c:"skill",n:"B-dico identity-residual architecture",t:"shared policy + mean-zero identity residual; best big-rung (61%)"},
+{s:"built-not-run",c:"skill",n:"Selector over skill menu {disperse,flock,hold}",t:"hierarchical skill+offset selector; built, gated"},
+{s:"built-not-run",c:"skill",n:"Flock skill (scripted + learned)",t:"for the skill menu"},
+{s:"planned",c:"skill",n:"2×2 flock × congestion sweep",t:"flock{scripted,learned} × congestion{off,on}"},
+{s:"planned",c:"skill",n:"Fixed-world N-sweep",t:"does adding agents divide labor or flood"},
+{s:"planned",c:"skill",n:"Wire ES ↔ selector head",t:"integrate ES trainer with the built selector"},
+{s:"planned",c:"skill",n:"§0′ flat-baseline falsification (tower vs emergence)",t:"goal-head+GNN+role latent+hard-conn+delivered-coverage"},
+{s:"done",c:"skill",n:"Role picker role_expl_relay vs role_off (huddle-fix)",t:"cures the huddle @16²"},
+{s:"planned",c:"skill",n:"Explorer tool axis: A*/frontier vs frontier-attention",t:"heuristic vs learned explorer tool"},
+{s:"planned",c:"skill",n:"Relay tool axis: hold-connection vs λ₂-estimator",t:"heuristic vs learned relay tool"},
+{s:"superseded",c:"skill",n:"Level-2 learned selector (emergent modes 0/1/2/3)",t:"belief-graph-driven role emergence"},
+{s:"planned",c:"skill",n:"3-behavior menu disperse/flock-gather/hold-relay",t:"disciplined ~3-skill menu; hybrid scripted+learned"},
+{s:"planned",c:"skill",n:"Individuation via per-agent ES selectors",t:"identity biasing each selector → different skill-mixes"},
+{s:"planned",c:"skill",n:"Emergence: gather/disperse rhythm from selector switching",t:"does the rhythm fall out over time"},
+{s:"done",c:"skill",n:"Hardcoded-role coverage-at-scale wall",t:"77%@16²→57%@32²; coverage is the wall, connectivity free"},
+{s:"planned",c:"skill",n:"Local where-to-go skill (Voronoi+in-cell frontier+compass)",t:"fuse CVT cell + in-cell frontier + compass into one local skill"},
+{s:"planned",c:"skill",n:"Per-agent explore temperature (heterogeneity)",t:"one scalar per agent hot/cold; assigned or QD-evolved"},
+// ---- reward ----
+{s:"parked",c:"rew",n:"Energy token / battery cost",t:"per-AREA normalized action-cost budget; efficiency stress-test"},
+{s:"planned",c:"rew",n:"Size-invariant / intrinsic reward",t:"fractional + PBRS + intrinsic info-gain (RND/count/empowerment/entropy)"},
+{s:"planned",c:"rew",n:"Objective sweep coverage vs delivered-coverage",t:"delivered = counts only in-contact (PersistantNetwork)"},
+{s:"built-not-run",c:"rew",n:"Hyper-Singularity barrier sweep",t:"barrier_weight + a/M/p/cap; silent capped conn floor"},
+{s:"planned",c:"rew",n:"Exploration reward sweep (Phase 3)",t:"extrinsic/PBRS/coordinated-intrinsic/max-state-entropy"},
+{s:"planned",c:"rew",n:"Reward normalization sweep",t:"raw vs fractional; normalized expected to transfer better"},
+{s:"planned",c:"rew",n:"Foundation base-task coordination term",t:"local cov↔conn + non-redundant coverage credit"},
+{s:"planned",c:"rew",n:"Go-Explore-style archived exploration",t:"remember frontier states → return → explore"},
+{s:"planned",c:"rew",n:"Potential-based dispersion shaping",t:"reframe-cheap exploration fix alongside diversity"},
+{s:"parked",c:"rew",n:"Relay structure via difference-rewards + delivered-coverage",t:"push frontier out so relays self-organize"},
+{s:"dropped",c:"rew",n:"Info-gain reward (einfo)",t:"null lever, reward-hacks ~1%"},
+{s:"done",c:"rew",n:"Reward-balance sweep (4:2 / 8:1 / conn-off)",t:"do agents disperse with less/zero clump incentive"},
+{s:"done",c:"rew",n:"Exploration-knob sweep (entropy/stride)",t:"entropy made it worse"},
+{s:"done",c:"rew",n:"Obstacle full-factorial batch",t:"ARM×BARRIER×EXPLORE×WORLD; barrier refuted, ebump wins"},
+{s:"done",c:"rew",n:"Recipe ablation (run_bench 3-seed)",t:"bump-explore biggest lever, soft=lagrangian"},
+{s:"built-not-run",c:"rew",n:"Free-market congestion price",t:"local same-skill crowding anti-collapse; built, gated"},
+{s:"built-not-run",c:"rew",n:"Delivered-coverage objective (PersistantNetwork)",t:"does disperse→gather rhythm emerge with NO conn penalty"},
+{s:"planned",c:"rew",n:"Locality redesign toolbox",t:"Voronoi + in-cell frontier + compass + difference rewards + staleness bonus"},
+{s:"superseded",c:"rew",n:"Trade-off objective form",t:"Pareto λ vs preference vs constrained vs weighted; per-step settled-closed"},
+{s:"done",c:"rew",n:"Reward-shaping fragility panel",t:"info-gain hacks, barrier hurts; only coverage up-weight robust"},
+{s:"planned",c:"rew",n:"Event-staleness exploration bonus",t:"bonus at discovery scaled by dry-spell"},
+// ---- message design ----
+{s:"planned",c:"msg",n:"Learnable GNN comms vs fixed gossip",t:"bandwidth/robustness; discrete/continuous/gated; when-to-talk (IC3Net)"},
+{s:"done",c:"msg",n:"Edge-distance message content",t:"inter-agent edge distance; best single dial (+~2pts)"},
+{s:"done",c:"msg",n:"Index-in-messages positional grounding",t:"agent index as message ingredient; top ingredient"},
+// ---- position ----
+{s:"planned",c:"pos",n:"Position-grounding (boundary-relative)",t:"fix LPAC position-blindness (GAP strips absolute coords)"},
+// ---- warm-start / transfer ----
+{s:"planned",c:"warm",n:"Curriculum small→large scale-transfer",t:"connectivity + budget binding at every rung, density-pinned"},
+{s:"planned",c:"warm",n:"Scale strategy sweep (Phase 4)",t:"single-point@32² vs multi-scale-joint vs warm-start-ladder"},
+{s:"planned",c:"warm",n:"Transfer-precondition: per-rung comm-degree",t:"choose comm_radius per rung to hold local degree"},
+{s:"parked",c:"warm",n:"Privileged-teacher → student distillation",t:"full-obs teacher into decentralized student (learning-by-cheating)"},
+{s:"parked",c:"warm",n:"Mission distillation (specialists→generalist)",t:"per-mission specialists into one mission-conditioned generalist"},
+{s:"planned",c:"warm",n:"Human-teleop → BC warm-start (#69)",t:"drive one agent, BC → --init-from RL finetune"},
+{s:"done",c:"warm",n:"Checkpoint warm-start (#65)",t:"weight-transfer 16²→32² ≈26× faster (down-transfer)"},
+{s:"built-not-run",c:"warm",n:"warmbig run",t:"16²→32² warm-start, occ vs base, open+rooms × 2 seeds"},
+{s:"done",c:"warm",n:"Scale-transfer of I1 winner",t:"90.9→53→16% up ladder; win doesn't transfer"},
+{s:"done",c:"warm",n:"Warm-start curriculum (Phase 6)",t:"52% but comm_r-confounded"},
+{s:"done",c:"warm",n:"Crowded curriculum batch",t:"helps @24² washes @32²; weight-transfer not skill"},
+{s:"done",c:"warm",n:"Warm-start into bigger world (run_warmbig)",t:"~60% cov + ~99% strict conn; the win"},
+{s:"planned",c:"warm",n:"Warm-start-survives-fixed-spec re-run",t:"does the 52% survive comm_r=5 fixed"},
+{s:"planned",c:"warm",n:"Multi-scale joint vs single-point warm-start",t:"joint sampling + finetune @32² vs small-only"},
+{s:"planned",c:"warm",n:"Density-pinned ladder AND fixed-world N-sweep",t:"the two 'numbers' tests"},
+{s:"planned",c:"warm",n:"Recursion / scale-invariance-through-locality",t:"'cover my cell'; bigger world = more agents, same per-agent job"},
+{s:"planned",c:"warm",n:"Falsification: scale-invariance (train@16 deploy frozen@24/32)",t:"coverage must hold not collapse"},
+// ---- baseline / other ----
+{s:"planned",c:"base",n:"Non-MARL baseline panel (#56)",t:"greedy-frontier · auction · CVT/Lloyd · potential-field · pheromone · LPAC ref · oracle"},
+{s:"planned",c:"base",n:"Strong flat shared-policy MARL baseline",t:"near-flat + goal-head + temporally-extended exploration; the benchmark"},
+{s:"planned",c:"base",n:"Scripted-compass ceiling probe",t:"is 45% training failure or an info/architecture ceiling"},
+{s:"planned",c:"base",n:"Weak-agent structural check",t:"one-off single-agent run proving a lone agent can't solo"},
+{s:"done",c:"base",n:"r9090 best-arch run",t:"best arch @cover_r=0 × 4 terrains × 3 seeds"},
+{s:"built-not-run",c:"base",n:"bench reproducibility run",t:"role/base × soft/lag × bump/flat × 3 terrains × 3 seeds"},
+{s:"planned",c:"other",n:"Trainer axis (same-agent PPO/ES/QD/MORL)",t:"drive the same agent with different learners"},
+{s:"parked",c:"other",n:"Quality-Diversity (MAP-Elites) frontier-mapper",t:"cov+conn descriptors; deception-escape diagnostic"},
+{s:"planned",c:"other",n:"Trainer core HP sweep",t:"per-trainer lr/entropy/GAE/clip/σ/pop/archive"},
+{s:"built-not-run",c:"other",n:"Phase 0 substrate + config schema + eval harness",t:"trainer-agnostic 8-module skeleton"},
+{s:"parked",c:"other",n:"Mission #2 (chase/patrol/formation)",t:"second mission → generalist + mission token"},
+{s:"done",c:"other",n:"Horizon sweep 100→200→400",t:"plateau: agent or the 100-step budget"},
+{s:"parked",c:"other",n:"Energy/battery tokens (#1)",t:"per-AREA normalization; deferred until 90/90"},
+{s:"planned",c:"other",n:"Ping-pong comm handshake",t:"comm radius > sense radius; feeds the KB"},
+{s:"planned",c:"other",n:"Operation action (mine/deep-scan) homogeneous vs hetero",t:"the at-cell mission action"}
+];
+// merge: mark active first
+const bar=document.getElementById('bar'), reg=document.getElementById('reg'), q=document.getElementById('q'), cnt=document.getElementById('count');
+const filters=new Set();
+document.querySelectorAll('.chip').forEach(ch=>ch.addEventListener('click',()=>{
+  const f=ch.dataset.f; if(filters.has(f)){filters.delete(f);ch.setAttribute('aria-pressed','false');}else{filters.add(f);ch.setAttribute('aria-pressed','true');} render();
+}));
+q.addEventListener('input',render);
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function render(){
+  const term=q.value.trim().toLowerCase();
+  let shown=0;
+  reg.innerHTML='';
+  for(const c of CATORD){
+    const items=D.filter(x=>x.c===c
+      && (filters.size===0||filters.has(x.s))
+      && (!term||(x.n+' '+x.t).toLowerCase().includes(term)));
+    if(!items.length) continue;
+    shown+=items.length;
+    const box=document.createElement('div'); box.className='cat';
+    box.innerHTML=`<h3>${esc(CATS[c])} <span class="n">${items.length}</span></h3>`;
+    const rows=document.createElement('div'); rows.className='rows';
+    for(const x of items){
+      const dim=(x.s==='dropped'||x.s==='superseded'||x.s==='done')?' dim':'';
+      const r=document.createElement('div'); r.className='row'+dim;
+      r.innerHTML=`<span class="badge b-${x.s}">${x.s==='built-not-run'?'built':x.s}</span>`+
+        `<div><div class="nm">${esc(x.n)}</div><div class="ts">${esc(x.t)}</div></div>`;
+      rows.appendChild(r);
+    }
+    box.appendChild(rows); reg.appendChild(box);
+  }
+  cnt.textContent=shown+' / '+D.length+' shown';
+}
+// stats
+const S=['active','planned','built-not-run','done','parked','dropped','superseded'];
+const lbl={'built-not-run':'built','active':'active'};
+const sc={}; D.forEach(x=>sc[x.s]=(sc[x.s]||0)+1);
+document.getElementById('stats').innerHTML=`<div class="stat"><b>${D.length}</b><span>total tracked</span></div>`+
+  S.filter(s=>sc[s]).map(s=>`<div class="stat"><b>${sc[s]}</b><span>${lbl[s]||s}</span></div>`).join('');
+render();
+</script>
+
+</body></html>

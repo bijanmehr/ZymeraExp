@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Best architecture vs optimal · 32×32/10 · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>
+ :root{--accent:#5b3fd6;--accent-soft:#efeafd}
+ /* result table — themed off --accent, sits under the finding box */
+ .resulttbl{max-width:880px;margin:16px 0 2px;margin-left:18px;border-collapse:collapse;
+  font-family:var(--sans);font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+ .resulttbl caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);padding:0 0 6px 2px}
+ .resulttbl th,.resulttbl td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line)}
+ .resulttbl thead th{background:var(--accent-soft);color:#10233f;font-weight:700;font-size:12px;
+  letter-spacing:.02em;border-bottom:1px solid var(--accent)}
+ .resulttbl tbody tr:last-child td{border-bottom:none}
+ .resulttbl td.arm{font-weight:700;color:#10233f}
+ .resulttbl td.num{font-variant-numeric:tabular-nums}
+ .resulttbl .win{color:var(--accent);font-weight:700}
+ .resulttbl .speed{background:var(--accent-soft);font-weight:700;color:#4226b0;padding:1px 7px;border-radius:4px}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk active" href="best-arch.html">Best-arch × maps</a>
+ <a class="lnk" href="recipe-ablation.html">Recipe ablation</a>
+ <a class="lnk" href="frontier.html">Cov↔conn frontier</a>
+ <a class="lnk" href="occupancy-ab.html">Occupancy A/B</a>
+ <a class="lnk" href="warm-bigger.html">Warm-start → bigger</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Best-arch × maps · 32×32 / 10 agents · four maps × 3 seeds (12 runs)</div>
+  <h1>Best-arch vs optimal — how close to the god-view ceiling, map by map?</h1>
+  <p class="what"><b>What it tests:</b> the single best architecture we have — explorer/relay
+  <em>role split</em>, a <em>learned-Lagrangian</em> SOFT connectivity constraint (no hard mask), a
+  <em>frontier-attention</em> LPAC explorer, and SLAM <em>wall-sensing</em> on — run on all four maps at
+  32×32 / 10 agents and scored as <b>cover_r = 0 REAL visited coverage</b>. Each map has a different
+  god-view-oracle ceiling (open 72% · rooms 37% · mixed 31% · crowded 40%), so every tile is read as
+  <em>coverage-vs-optimal</em>: not the raw percent, but the <b>fraction of what is even reachable</b> in
+  100 steps on that map. The question is whether the policy is uniformly good across very different terrain
+  or whether corridors and clutter break it.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt"><span id="ba-finding">Measured live from the finished r9090 seeds below.</span>
+   The best recipe holds <b>≈ 98–100% real connectivity across every terrain</b>; raw coverage runs
+   <b>≈ 18–44%</b> (open highest, the obstacle maps lower because their reachable ceiling is lower).
+   The bet: <em>if</em> the fraction-of-ceiling turns out uniform across maps, an architectural improvement
+   should <b>transfer across terrain</b> rather than help one map and hurt another. Three seeds per map.</span>
+  </div>
+
+  <table class="resulttbl">
+   <caption>Per map — mean of the finished r9090 seeds · cover_r = 0 real coverage · connectivity = mean giant component over the rollout</caption>
+   <thead>
+    <tr><th>Map</th><th>Oracle optimal</th><th>Real coverage</th><th>Coverage ÷ optimal</th><th>Real connectivity</th><th>seeds</th></tr>
+   </thead>
+   <tbody id="ba-rows"><tr><td colspan="6" style="opacity:.6">computing from the rendered rollouts…</td></tr></tbody>
+  </table>
+  <p class="what" style="margin-top:10px;opacity:.85">Scrub any rollout below to watch the explorer/relay
+  split work the map. The table above is computed <em>live from the rendered rollouts</em> (not hand-typed),
+  so it self-corrects whenever the tiles are re-rendered.</p>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // best-arch experiment = tiles tagged with this gallery category (keys are human labels, no shared prefix)
+ var CAT = 'Best-arch x maps';
+ function mine(k, v){ return v && v.cat === CAT; }
+ // group by map so the four terrains read at a glance (label = "r9090 - <map> - s<seed>")
+ var MORD = {open:'1',rooms:'2',mixed:'3',crowded:'4'};
+ function mapTok(v){ return (v.label||'').split(' - ')[1] || '?'; }
+ function mapOf(k, v){ var m = mapTok(v); return (MORD[m]||'9') + ' · ' + m; }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#5b3fd6', group: mapOf });
+
+ // --- summary table + finding computed LIVE from the rendered tiles (never hand-typed) ---
+ (function(){
+   var T = window.TRAJ || {};
+   var OPT = {open:72, rooms:37, mixed:31, crowded:40};        // god-view oracle ceilings
+   var ORDER = ['open','rooms','mixed','crowded'];
+   var NAME = {open:'Open', rooms:'Rooms + corridors', mixed:'Mixed obstacles', crowded:'Crowded'};
+   // mean giant-component fraction over the rollout (= "real connectivity"), from the comm edges
+   function giantPct(v){
+     var fr = v.frames, n = fr[0].pos.length, sum = 0, t, i, e;
+     for(t=0; t<fr.length; t++){
+       var par = []; for(i=0;i<n;i++) par[i]=i;
+       var es = fr[t].edges;
+       for(e=0; e<es.length; e++){
+         var x=es[e][0]; while(par[x]!==x) x=par[x];
+         var y=es[e][1]; while(par[y]!==y) y=par[y];
+         if(x!==y) par[x]=y;
+       }
+       var cnt={}, best=1;
+       for(i=0;i<n;i++){ var z=i; while(par[z]!==z) z=par[z]; cnt[z]=(cnt[z]||0)+1; if(cnt[z]>best) best=cnt[z]; }
+       sum += best/n;
+     }
+     return 100*sum/fr.length;
+   }
+   var byMap = {}, k;
+   for(k in T){ var v=T[k]; if(!v || v.cat!==CAT) continue; var m=(v.label||'').split(' - ')[1];
+     if(!OPT[m]) continue; (byMap[m]=byMap[m]||[]).push(v); }
+   var rows='', fracs=[], conns=[];
+   ORDER.forEach(function(m){
+     var ts = byMap[m]; if(!ts || !ts.length) return;
+     var cov=0, frac=0, conn=0;
+     ts.forEach(function(v){ cov+=v.cov; var f=100*v.cov/OPT[m]; frac+=f; var c=giantPct(v);
+       conn+=c; fracs.push(f); conns.push(c); });
+     var ns=ts.length; cov/=ns; frac/=ns; conn/=ns;
+     rows += '<tr><td class="arm">'+NAME[m]+'</td><td class="num">'+OPT[m]+'%</td>'+
+       '<td class="num">≈ '+cov.toFixed(0)+'%</td><td class="num win">≈ '+frac.toFixed(0)+'%</td>'+
+       '<td class="num">≈ '+conn.toFixed(0)+'%</td><td class="num">'+ns+'</td></tr>';
+   });
+   var tb=document.getElementById('ba-rows'); if(tb && rows) tb.innerHTML = rows;
+   if(fracs.length){
+     var lo=Math.min.apply(null,fracs).toFixed(0), hi=Math.max.apply(null,fracs).toFixed(0);
+     var cl=Math.min.apply(null,conns).toFixed(0), ch=Math.max.apply(null,conns).toFixed(0);
+     var fe=document.getElementById('ba-finding');
+     if(fe) fe.innerHTML = 'Across the finished seeds the policy reaches <b>≈ '+lo+'–'+hi+
+       '% of each map’s optimal</b> (cover_r=0 real coverage) while holding <b>≈ '+cl+'–'+ch+
+       '% real connectivity</b> (mean giant component over the rollout) — connectivity is the easy part '+
+       'here; coverage is the gap.';
+   }
+ })();
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

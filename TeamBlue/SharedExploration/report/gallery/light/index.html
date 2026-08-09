@@ -1,0 +1,137 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Zymera — Light-Tier Report</title>
+<style>
+ body{font-family:"Helvetica Neue",Arial,system-ui,sans-serif;margin:0;background:#ffffff;color:#1a1f29}
+ #bar{padding:11px 22px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#f7f8fa;border-bottom:1px solid #dfe3e8}
+ select,button{font-size:13px;padding:5px 10px;background:#fff;color:#1a1f29;border:1px solid #c7ccd4;border-radius:4px}
+ button{cursor:pointer} button:hover{background:#eef1f5;border-color:#9aa4b2} #slider{width:340px} select{max-width:560px}
+ canvas{display:block;margin:18px auto;background:#fff;border:1px solid #d7dce3;box-shadow:0 1px 4px rgba(20,30,50,.07)}
+ .leg{font-size:12px;color:#5a6472} .sw{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin:0 3px;border:1px solid rgba(0,0,0,.12)}
+</style>
+<style>
+ .report{max-width:1080px;margin:0 auto;padding:26px 22px 6px;font-family:"Helvetica Neue",Arial,system-ui,sans-serif;color:#1a1f29}
+ .report h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+ .report h2{font-size:18px;margin:30px 0 6px;border-bottom:2px solid #e6e9ee;padding-bottom:5px}
+ .report .sub{font-size:13.5px;line-height:1.55;color:#4a5462;max-width:74ch}
+ .report .note{font-size:12.5px;color:#5a6472;margin:3px 0 10px}
+ .report table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13.5px;margin:4px 0 6px}
+ .report th,.report td{padding:6px 14px;text-align:right;border-bottom:1px solid #eceef2}
+ .report thead th{font-weight:600;color:#3a4150;border-bottom:2px solid #d7dce3;text-align:right}
+ .report tbody th{text-align:left;font-weight:600;color:#27303d}
+ .report td .sd{color:#9aa4b2;font-size:11px;margin-left:2px}
+ .report td.na{color:#c7ccd4}
+ .report td.win{background:#e7f3e2}
+ .report td.win b{color:#2c6b23}
+ .win-k{background:#e7f3e2;color:#2c6b23;padding:0 5px;border-radius:3px}
+ .report ul.t1{font-size:13px;line-height:1.5;color:#27303d;margin:2px 0 6px;padding-left:20px}
+</style>
+</head><body>
+<div class='report'>
+  <h1>Near-Term Experiments — Light-Tier Report</h1>
+  <p class='sub'>Blue-team shared exploration · 100-step horizon · cover_r=0 · 7-channel SLAM belief ·
+  frontier-attn explorer · Lagrangian global-λ₂ (θ=0.5) · role split. Numbers are the
+  <b>mean of the final 50 training iterations</b>, ±std across 3 seeds. Coverage is raw % of free
+  cells (at cover_r=0 the god-view budget caps ~72 %, so raw % understates); connectivity is the
+  honest bar (fraction of steps with λ₂ &gt; 0.5).</p>
+
+  <h2>T2 · does the explorer/relay role split beat the flat homogeneous explorer?</h2>
+  <p class='note'>T2 is <b>complete</b> (all 3 worlds × 2 arms × 3 seeds). Higher coverage is
+  <span class='win-k'>highlighted</span>.</p>
+  <table>
+    <thead><tr><th>world</th><th>flat cov%</th><th>role cov%</th>
+      <th>flat conn%</th><th>role conn%</th><th>flat λ₂</th><th>role λ₂</th></tr></thead>
+    <tbody><tr><th>16²/4</th><td><b>68.6</b></td><td class='win'><b>77.4</b><span class='sd'>±1.3</span></td><td><b>94.8</b><span class='sd'>±0.2</span></td><td><b>99.4</b><span class='sd'>±0.3</span></td><td><b>2.3</b><span class='sd'>±0.3</span></td><td><b>2.4</b><span class='sd'>±0.2</span></td></tr><tr><th>24²/6</th><td><b>50.2</b></td><td class='win'><b>53.5</b><span class='sd'>±2.5</span></td><td><b>88.2</b><span class='sd'>±3.7</span></td><td><b>97.3</b><span class='sd'>±1.2</span></td><td><b>2.3</b><span class='sd'>±0.2</span></td><td><b>2.0</b><span class='sd'>±0.2</span></td></tr><tr><th>32²/10</th><td><b>24.7</b></td><td class='win'><b>32.9</b><span class='sd'>±0.1</span></td><td><b>76.9</b><span class='sd'>±7.6</span></td><td><b>63.4</b><span class='sd'>±17.9</span></td><td><b>1.2</b><span class='sd'>±0.1</span></td><td><b>1.0</b><span class='sd'>±0.3</span></td></tr></tbody>
+  </table>
+
+  <h2>T4 · count-invariant critic — in-distribution (16²/24²)</h2>
+  <p class='note'>Light rungs done; the discriminating test is the <b>zero-shot transfer to 32²</b>
+  (the 32² rung + eval are still in the heavy tier — pending). At in-distribution scale the critic
+  should barely change the policy, so near-ties here are expected.</p>
+  <table>
+    <thead><tr><th>critic</th><th>cov% 16²</th><th>cov% 24²</th>
+      <th>conn% 16²</th><th>conn% 24²</th></tr></thead>
+    <tbody><tr><th>conv</th><td><b>80.3</b><span class='sd'>±3.1</span></td><td><b>52.5</b><span class='sd'>±2.4</span></td><td><b>99.8</b><span class='sd'>±0.2</span></td><td><b>95.9</b><span class='sd'>±2.9</span></td></tr><tr><th>setpool</th><td><b>81.1</b><span class='sd'>±0.4</span></td><td><b>58.0</b><span class='sd'>±4.1</span></td><td><b>99.8</b><span class='sd'>±0.2</span></td><td><b>99.4</b><span class='sd'>±0.3</span></td></tr><tr><th>setattn</th><td><b>82.3</b><span class='sd'>±2.0</span></td><td><b>58.3</b><span class='sd'>±1.6</span></td><td><b>99.7</b><span class='sd'>±0.2</span></td><td><b>98.6</b><span class='sd'>±1.0</span></td></tr></tbody>
+  </table>
+
+  <h2>T1 · mechanism probes (done, seed 0)</h2>
+  <ul class='t1'>
+    <li><b>Inter-agent messages are load-bearing</b> — cutting the comm graph moves each agent's
+    belief 0.65–0.77 and flips its goal <b>44–50 %</b> of the time, at both 16² and 32².</li>
+    <li><b>Frontier-attention aligns at 16² (3.9× chance) but is at chance at 32² (1.0×)</b>; even at
+    16² it overrides the goal only 4.2 % — a minor rider on the hand-coded frontier heuristic.</li>
+  </ul>
+
+  <h2>Rollouts — play any run below</h2>
+  <p class='note'>Interactive replay of each finished policy (dot color = role/skill · faint square =
+  sense range · ring = comm range · dashed = comm link · green = covered). Grouped by experiment.</p>
+</div>
+
+<div id="bar">
+  <select id="run"></select>
+  <button id="play">▶ Play</button>
+  <input id="slider" type="range" min="0" value="0">
+  <span id="tlabel" class="leg">t = 0</span>
+  <label class="leg">speed <input id="speed" type="range" min="1" max="30" value="8" style="width:90px"></label>
+  <span class="leg" id="info"></span>
+</div>
+<div id="desc" style="padding:13px 22px;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.5;color:#27303d;background:#fcfcfd;border-bottom:1px solid #e6e9ee"></div>
+<canvas id="cv"></canvas>
+<div class="leg" style="text-align:center;padding:10px 0 14px">
+  <span style="background:#cfe3c8;color:#2c4327;padding:1px 7px;border-radius:3px">covered</span> ·
+  <span style="background:#3a4150;color:#fff;padding:1px 7px;border-radius:3px">wall</span> ·
+  agents = dots (color = skill/role) · faint square = <b>sense range</b> · ring = <b>comm range</b> ·
+  <span style="color:#1b7f76">– – –</span> = <b>delivered comm link</b>
+</div>
+<div class="leg" id="clegend" style="text-align:center;padding-bottom:16px"></div>
+<script src="data.js"></script>
+<script>
+const TRAJ=window.TRAJ, cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const runSel=document.getElementById('run'), slider=document.getElementById('slider'),
+ playBtn=document.getElementById('play'), tlabel=document.getElementById('tlabel'),
+ speed=document.getElementById('speed'), info=document.getElementById('info');
+let cur=null, t=0, playing=false, cell=18;
+const COL=['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#999999','#F0E442','#000000','#882255'];
+const KINDS={skill:['disperse','flock','hold'],role:['explorer','relay']};
+const clegend=document.getElementById('clegend');
+function colorLegend(){
+ if(cur.kind in KINDS){const nm=KINDS[cur.kind];
+  clegend.innerHTML='agent dot color = the '+(cur.kind==='skill'?'skill':'role')+' it is using right now: '+
+   nm.map((n,i)=>'<span class="sw" style="background:'+COL[i]+'"></span>'+n).join(' &nbsp; ')+
+   ' &nbsp;—&nbsp; <i>a dot changes color the moment the policy switches that agent\'s mode</i>';
+ } else {
+  clegend.innerHTML='agent dot color = individual agent id &nbsp;—&nbsp; <i>homogeneous policy: no shared roles, each agent just gets its own color</i>';
+ }}
+const cats={};for(const k in TRAJ){const c=TRAJ[k].cat||'runs';(cats[c]=cats[c]||[]).push(k);}
+for(const c in cats){const og=document.createElement('optgroup');og.label=c;
+ for(const k of cats[c]){const o=document.createElement('option');o.value=k;
+  o.textContent=TRAJ[k].label+'  ('+TRAJ[k].cov+'% cov)';og.appendChild(o);}
+ runSel.appendChild(og);}
+function xy(idx){const W=cur.grid[1];return [idx%W, Math.floor(idx/W)];}
+function ctr(c){return (c+0.5)*cell;}
+function load(k){cur=TRAJ[k];const H=cur.grid[0],W=cur.grid[1];
+ cell=Math.max(6,Math.min(24,Math.floor(700/Math.max(H,W))));cv.width=W*cell;cv.height=H*cell;
+ slider.max=cur.frames.length-1;t=0;slider.value=0;
+ info.textContent=`${H}×${W} · comm_r ${cur.comm_r} · sense_r ${cur.sense_r} · ${cur.frames[0].pos.length} agents · ${cur.kind}`;
+ document.getElementById('desc').innerHTML='<b>'+cur.label+'</b> &nbsp;<span style="opacity:.6">['+(cur.cat||'')+']</span><br>'+(cur.desc||'');
+ colorLegend();draw();}
+function draw(){const H=cur.grid[0],W=cur.grid[1],f=cur.frames[t];
+ ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cv.width,cv.height);
+ for(const idx of f.cov){const[x,y]=xy(idx);ctx.fillStyle='#cfe3c8';ctx.fillRect(x*cell,y*cell,cell,cell);}
+ for(const idx of cur.walls){const[x,y]=xy(idx);ctx.fillStyle='#3a4150';ctx.fillRect(x*cell,y*cell,cell,cell);}
+ ctx.strokeStyle='#eceef2';ctx.lineWidth=.5;
+ for(let i=0;i<=W;i++){ctx.beginPath();ctx.moveTo(i*cell,0);ctx.lineTo(i*cell,H*cell);ctx.stroke();}
+ for(let j=0;j<=H;j++){ctx.beginPath();ctx.moveTo(0,j*cell);ctx.lineTo(W*cell,j*cell);ctx.stroke();}
+ f.pos.forEach((p,i)=>{const r=p[0],c=p[1],col=COL[(f.tags[i]||0)%COL.length],s=cur.sense_r;
+  ctx.fillStyle=col+'22';ctx.fillRect((c-s)*cell,(r-s)*cell,(2*s+1)*cell,(2*s+1)*cell);
+  ctx.beginPath();ctx.arc(ctr(c),ctr(r),cur.comm_r*cell,0,7);ctx.strokeStyle=col+'66';ctx.lineWidth=1;ctx.stroke();});
+ ctx.setLineDash([5,4]);ctx.lineWidth=1.6;ctx.strokeStyle='#1b7f76';
+ for(const e of f.edges){const a=f.pos[e[0]],b=f.pos[e[1]];ctx.beginPath();ctx.moveTo(ctr(a[1]),ctr(a[0]));ctx.lineTo(ctr(b[1]),ctr(b[0]));ctx.stroke();}
+ ctx.setLineDash([]);
+ f.pos.forEach((p,i)=>{const col=COL[(f.tags[i]||0)%COL.length];ctx.beginPath();ctx.arc(ctr(p[1]),ctr(p[0]),cell*.33,0,7);
+  ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='#2a2f3a';ctx.lineWidth=1;ctx.stroke();});
+ tlabel.textContent='t = '+t;}
+slider.oninput=()=>{t=+slider.value;draw();};
+playBtn.onclick=()=>{playing=!playing;playBtn.textContent=playing?'⏸ Pause':'▶ Play';};
+runSel.onchange=()=>{playing=false;playBtn.textContent='▶ Play';load(runSel.value);};
+function tick(){if(playing&&cur){t=(t+1)%cur.frames.length;slider.value=t;draw();}setTimeout(tick,1000/(+speed.value||8));}
+load(runSel.value);tick();
+</script></body></html>

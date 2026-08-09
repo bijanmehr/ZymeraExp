@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warm-start A/B · 32²→16² scale transfer · Zymera coverage gallery</title>
+<link rel="stylesheet" href="page.css">
+<style>
+ :root{--accent:#c0851f;--accent-soft:#fbf2df}
+ /* result table — themed off --accent, sits under the finding box */
+ .resulttbl{max-width:880px;margin:16px 0 2px;margin-left:18px;border-collapse:collapse;
+  font-family:var(--sans);font-size:13.5px;background:#fff;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+ .resulttbl caption{caption-side:top;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--accent);padding:0 0 6px 2px}
+ .resulttbl th,.resulttbl td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--line)}
+ .resulttbl thead th{background:var(--accent-soft);color:#10233f;font-weight:700;font-size:12px;
+  letter-spacing:.02em;border-bottom:1px solid var(--accent)}
+ .resulttbl tbody tr:last-child td{border-bottom:none}
+ .resulttbl td.arm{font-weight:700;color:#10233f}
+ .resulttbl td.num{font-variant-numeric:tabular-nums}
+ .resulttbl .win{color:var(--accent);font-weight:700}
+ .resulttbl .speed{background:var(--accent-soft);font-weight:700;color:#8a5e10;padding:1px 7px;border-radius:4px}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="../index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="../index.html">Overview</a>
+ <a class="lnk" href="open-floor.html">Open floor</a>
+ <a class="lnk" href="team-size.html">Team size</a>
+ <a class="lnk" href="obstacles.html">Obstacles</a>
+ <a class="lnk" href="crowded.html">Crowded</a>
+ <a class="lnk" href="es-ladder.html">ES ladder</a>
+ <a class="lnk" href="connectivity-shootout.html">Connectivity</a>
+ <a class="lnk active" href="warm-start.html">Warm-start</a>
+</nav>
+
+<header class="exp">
+ <div class="inner">
+  <div class="idx">Experiment 07 · scale transfer · 16×16 / 4 agents · open field</div>
+  <h1>Warm-start A/B — does a 32² checkpoint transfer down to 16²?</h1>
+  <p class="what"><b>What it tests:</b> whether initialising a 16×16 / 4-agent run from a checkpoint
+  trained on the larger 32×32 / 10-agent world (<em>warm-started</em>) reaches competence faster than
+  training the same architecture from random weights (<em>from scratch</em>). Four matched runs — two
+  scratch, two warm — same LPAC backbone, same explorer/relay roles, same reward; the only difference
+  is the starting weights.</p>
+  <div class="finding">
+   <span class="tag">Key finding</span>
+   <span class="txt">Warm-starting from 32² is <b>≈ 26× faster</b> to competence: it crosses 70% coverage in
+   about <b>10 iterations</b> versus <b>~262</b> from scratch, and finishes slightly <em>higher</em>
+   on coverage (≈ 83.6% vs ≈ 81.1%) with connectivity essentially perfect (≈ 99%) either way. The LPAC
+   backbone transfers across grid sizes — a policy learned at 32²/10 is a strong initialisation for
+   16²/4, confirming the connectivity-aware coverage backbone is scale-portable.</span>
+  </div>
+
+  <table class="resulttbl">
+   <caption>Headline — averaged over the two seeds per arm</caption>
+   <thead>
+    <tr><th>Arm</th><th>Final coverage</th><th>Connectivity</th><th>Iters to 70% coverage</th><th>Speed-up</th></tr>
+   </thead>
+   <tbody>
+    <tr><td class="arm">From scratch</td><td class="num">81.1%</td><td class="num">≈ 99%</td><td class="num">~262</td><td class="num">1× (baseline)</td></tr>
+    <tr><td class="arm">Warm-started from 32²</td><td class="num win">83.6%</td><td class="num">≈ 99%</td><td class="num win">~10</td><td class="num"><span class="speed">≈ 26× faster</span></td></tr>
+   </tbody>
+  </table>
+ </div>
+</header>
+
+<div id="wrap">
+ <nav id="side">
+  <div class="listhead">Runs <span class="count" id="count"></span></div>
+  <input id="search" placeholder="search runs…">
+ </nav>
+ <main>
+  <div id="ctrl">
+   <button id="play">▶ Play</button>
+   <input id="slider" type="range" min="0" value="0">
+   <span id="tlabel">t = 0</span>
+   <label>speed <input id="speed" type="range" min="1" max="30" value="8"></label>
+   <span id="info"></span>
+  </div>
+  <div id="desc"></div>
+  <canvas id="cv"></canvas>
+  <div class="leg" id="legend"></div>
+  <div class="leg" id="clegend"></div>
+ </main>
+</div>
+
+<script src="../data.js"></script>
+<script src="../viewer.js"></script>
+<script>
+ document.getElementById('legend').innerHTML = Viewer.legendHTML();
+ // warm-start experiment = warmab_* keys (4 runs: scratch_s0/s1, warm_s0/s1)
+ function mine(k){ return k.indexOf('warmab_')===0; }
+ // group the A/B arms so scratch-vs-warm reads at a glance
+ function arm(k){ return k.indexOf('warmab_warm')===0 ? 'Warm-started from 32²' : 'From scratch'; }
+ Viewer.init({ filter: mine, mount: 'side', accent: '#c0851f', group: arm });
+</script>
+<script src="../nav.js"></script>
+</body>
+</html>

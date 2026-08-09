@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arena maps — audit · Zymera</title>
+<style>
+ :root{--ink:#1a1f29;--muted:#5a6472;--line:#e3e7ec;--bg:#fff;--panel:#fafbfc;
+  --serif:Georgia,"Times New Roman",serif;--sans:"Helvetica Neue",Arial,system-ui,sans-serif;
+  --iso:#3a5fcd;--mid:#b5651d;--boss:#b8392e}
+ *{box-sizing:border-box} html,body{margin:0}
+ body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5}
+ nav.top{display:flex;gap:2px;align-items:center;flex-wrap:wrap;padding:8px 22px;background:#10233f;
+  border-bottom:1px solid #0a1830;position:sticky;top:0;z-index:8}
+ nav.top .home{font-weight:700;font-size:13px;color:#fff;letter-spacing:.3px;margin-right:14px;text-decoration:none}
+ nav.top a.lnk{font-size:12px;color:#aebfd8;text-decoration:none;padding:5px 9px;border-radius:5px}
+ nav.top a.lnk:hover{background:#1d3157;color:#fff}
+ nav.top a.lnk.active{background:#fff;color:#10233f;font-weight:600}
+ .hero{max-width:960px;margin:0 auto;padding:30px 24px 4px}
+ .hero .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:600}
+ .hero h1{font-size:26px;line-height:1.2;margin:.3em 0 .15em;color:#10233f}
+ .hero p{font-family:var(--serif);font-size:16px;color:#27303d;margin:.5em 0}
+ .legendbar{max-width:960px;margin:8px auto 0;padding:0 24px;font-size:12.5px;color:var(--muted)}
+ .legendbar .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;
+  margin:0 4px 0 10px;border:1px solid rgba(0,0,0,.15)}
+ .grid{max-width:1180px;margin:6px auto 50px;padding:16px 24px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+ .secdiv{grid-column:1/-1;margin:12px 0 0;padding:0 0 4px;border-bottom:2px solid #10233f;
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+ .secdiv:not(:first-child){margin-top:26px}
+ .secdiv h2{font-size:15px;font-weight:700;color:#10233f;margin:0}
+ .secdiv span{font-family:var(--serif);font-size:13px;color:var(--muted)}
+ .acard{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+ .acard .band{height:6px}
+ .acard .body{padding:13px 15px 15px}
+ .acard .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+ .acard h3{font-size:16.5px;margin:0;color:#10233f;font-weight:700}
+ .acard .badge{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 7px;border-radius:20px;color:#fff}
+ .acard .iso{font-family:var(--serif);font-size:13px;color:#3c4654;margin:7px 0 10px;line-height:1.45;min-height:36px}
+ .acard canvas{border:1px solid var(--line);border-radius:6px;display:block;margin:0 auto 11px;background:#fff}
+ .acard .stats{font-size:12px;color:var(--muted);line-height:1.9}
+ .acard .stats b{color:#10233f;font-variant-numeric:tabular-nums}
+ .acard .reach.ok{color:#1f7a3d;font-weight:600}
+ .acard .reach.bad{color:#b22;font-weight:700}
+ .acard .conn{display:inline-block;margin-top:3px;padding:2px 7px;border-radius:5px;font-size:11.5px}
+ .acard .conn.trade{background:#fdeee9;color:#b8392e}
+ .acard .conn.ok{background:#eaf5ee;color:#1f7a3d}
+ footer{max-width:960px;margin:0 auto;padding:6px 24px 44px;font-size:12px;color:#94a0b0;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="index.html">Overview</a>
+ <a class="lnk active" href="arenas.html">Arenas</a>
+ <a class="lnk" href="mapmaker.html">Map maker</a>
+ <span style="flex:1"></span>
+ <a class="lnk" href="pages/best-arch.html">Best-arch × maps</a>
+ <a class="lnk" href="pages/frontier.html">Cov↔conn frontier</a>
+</nav>
+
+<section class="hero">
+ <div class="kicker">Project Zymera · Team Blue · arena suite</div>
+ <h1>Arena maps — audit before committing</h1>
+ <p>Hand-designed challenge worlds for the next phase: <b>isolators</b> each stress one coordination
+ skill (thread a corridor, funnel a bottleneck, split at a fork, work cul-de-sacs, trade coverage for
+ connectivity), and <b>bosses</b> compose them. Every map is drawn programmatically and
+ <b>flood-fill-validated</b> — the numbers below are measured, not asserted. Checkpoints (gold) mark the
+ "prize" regions at each chokepoint. Audit these here; when they look right we wire the loader + the
+ checkpoint reward and train on them.</p>
+</section>
+
+<div class="legendbar">
+ Tiles:<span class="sw" style="background:#1b2942"></span>wall
+ <span class="sw" style="background:#fff"></span>free
+ <span class="sw" style="background:#f0b429"></span>checkpoint (prize)
+ <span class="sw" style="background:#2ea25b"></span>spawn
+ &nbsp;·&nbsp; <b>trav</b> = cells to cover · <b>depth</b> = BFS steps spawn→farthest cell ·
+ <b>~N</b>/<b>cr</b> = suggested agents / comm-range · <b>relays</b> = chain length to stay connected to the deepest cell.
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+ Generated from <code>maps/gen_arenas.py</code> → <code>arenas_data.js</code>. Edit a builder and rerun to
+ revalidate; or open any map in the <a href="mapmaker.html">map maker</a> to redraw.
+</footer>
+
+<script src="arenas_data.js"></script>
+<script>
+(function(){
+ var A = window.ARENAS || [];
+ var grid = document.getElementById('grid');
+ var COL = {'#':'#1b2942','.':'#ffffff','C':'#f0b429','S':'#2ea25b'};
+ var TIER = {isolator:{c:'#3a5fcd',label:'Isolators',sub:'each stresses one coordination skill'},
+             mid:{c:'#b5651d',label:'Mid',sub:'a step up — several rooms at once'},
+             boss:{c:'#b8392e',label:'Bosses',sub:'compose every challenge'}};
+
+ function drawMap(cv, a){
+   var W=a.W, H=a.H, rows=a.grid;
+   var px=Math.max(4, Math.min(13, Math.floor(300/W)));
+   var dpr=window.devicePixelRatio||1;
+   cv.style.width=(W*px)+'px'; cv.style.height=(H*px)+'px';
+   cv.width=Math.round(W*px*dpr); cv.height=Math.round(H*px*dpr);
+   var ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+   for(var r=0;r<H;r++)for(var c=0;c<W;c++){ ctx.fillStyle=COL[rows[r][c]]||'#fff'; ctx.fillRect(c*px,r*px,px,px); }
+   if(px>=8){ ctx.strokeStyle='rgba(20,30,60,.08)'; ctx.lineWidth=1;
+     for(var cc=0;cc<=W;cc++){ctx.beginPath();ctx.moveTo(cc*px+.5,0);ctx.lineTo(cc*px+.5,H*px);ctx.stroke();}
+     for(var rr=0;rr<=H;rr++){ctx.beginPath();ctx.moveTo(0,rr*px+.5);ctx.lineTo(W*px,rr*px+.5);ctx.stroke();} }
+ }
+ function heading(t){ var d=document.createElement('div'); d.className='secdiv';
+   d.innerHTML='<h2>'+t.label+'</h2><span>'+t.sub+'</span>'; grid.appendChild(d); }
+
+ var curTier=null;
+ A.forEach(function(a){
+   var t=TIER[a.tier]||{c:'#666',label:a.tier,sub:''};
+   if(a.tier!==curTier){ heading(t); curTier=a.tier; }
+   var reachOK = a.unreach===0;
+   var trade = a.relays > a.recN;
+   var card=document.createElement('div'); card.className='acard';
+   card.innerHTML =
+     '<div class="band" style="background:'+t.c+'"></div>'+
+     '<div class="body">'+
+       '<div class="top"><h3>'+a.name+'</h3>'+
+         '<span class="badge" style="background:'+t.c+'">'+a.tier+'</span></div>'+
+       '<div class="iso">'+a.isolates+'</div>'+
+       '<canvas></canvas>'+
+       '<div class="stats">'+
+         '<b>'+a.W+'×'+a.H+'</b> &nbsp;·&nbsp; <b>'+a.trav+'</b> cells to cover &nbsp;·&nbsp; '+
+         '<b>'+a.cps+'</b> checkpoints<br>'+
+         'maze depth <b>'+a.depth+'</b> &nbsp;·&nbsp; suggest <b>'+a.recN+'</b> agents, comm-range <b>'+a.cr+'</b><br>'+
+         '<span class="reach '+(reachOK?'ok':'bad')+'">'+(reachOK?'✓ fully reachable (0 sealed)':'✗ '+a.unreach+' SEALED cells')+'</span> &nbsp; '+
+         '<span class="conn '+(trade?'trade':'ok')+'">connectivity: '+
+           (trade ? 'trade-off — needs ~'+a.relays+' relays for '+a.recN+' agents'
+                  : 'reachable while connected (~'+a.relays+' ≤ '+a.recN+')')+'</span>'+
+       '</div>'+
+     '</div>';
+   grid.appendChild(card);
+   drawMap(card.querySelector('canvas'), a);
+ });
+ if(!A.length){ grid.innerHTML='<p style="padding:20px;color:#b22">arenas_data.js not found — run <code>python3 maps/gen_arenas.py</code>.</p>'; }
+})();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>

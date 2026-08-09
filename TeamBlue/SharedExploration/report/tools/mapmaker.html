@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map maker · Zymera</title>
+<style>
+ :root{--accent:#5b3fd6;--accent-soft:#efeafd;--ink:#10233f;--line:#e5e7eb;
+   --sans:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif}
+ *{box-sizing:border-box}
+ body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f4f8}
+ header{padding:15px 22px;border-bottom:1px solid var(--line);background:#fff}
+ header h1{margin:0;font-size:18px;letter-spacing:.01em}
+ header p{margin:4px 0 0;font-size:13px;color:#556}
+ .wrap{display:flex;gap:18px;padding:18px 22px;align-items:flex-start;flex-wrap:wrap}
+ .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+ .panel h2{margin:0 0 10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+ .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+ label{font-size:12.5px;color:#445}
+ button,select,input[type=text],input[type=number]{font-family:inherit;font-size:13px}
+ button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 11px;cursor:pointer;color:var(--ink)}
+ button:hover{background:#f0f0f6}
+ button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+ button.sw{display:flex;align-items:center;gap:7px}
+ .chip{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.18);display:inline-block;flex:none}
+ input[type=number]{width:56px;padding:5px 7px;border:1px solid var(--line);border-radius:6px}
+ input[type=text]{padding:5px 8px;border:1px solid var(--line);border-radius:6px}
+ select{padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:#fff}
+ canvas{border:1px solid var(--line);border-radius:8px;cursor:crosshair;touch-action:none;background:#fff;display:block}
+ textarea{width:100%;height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+   border:1px solid var(--line);border-radius:7px;padding:8px;resize:vertical;white-space:pre;overflow:auto}
+ .stat{font-size:12.5px;color:#445;line-height:1.75}
+ .stat b{color:var(--ink)}
+ .status{font-family:ui-monospace,monospace;font-size:12px;color:#667;margin-top:8px;min-height:16px}
+ .hint{font-size:11.5px;color:#889;margin-top:8px;line-height:1.55}
+ .hint code{background:#f0f0f6;padding:1px 4px;border-radius:4px;font-size:11px}
+ .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:8px}
+ .legend span{display:flex;align-items:center;gap:6px}
+ nav.top{display:flex;gap:2px;align-items:center;flex-wrap:wrap;padding:8px 22px;background:#10233f;border-bottom:1px solid #0a1830}
+ nav.top .home{font-weight:700;font-size:13px;color:#fff;letter-spacing:.3px;margin-right:14px;text-decoration:none}
+ nav.top a.lnk{font-size:12px;color:#aebfd8;text-decoration:none;padding:5px 9px;border-radius:5px}
+ nav.top a.lnk:hover{background:#1d3157;color:#fff}
+ nav.top a.lnk.active{background:#fff;color:#10233f;font-weight:600}
+</style>
+</head>
+<body>
+<nav class="top">
+ <a class="home" href="index.html">ZYMERA · coverage gallery</a>
+ <a class="lnk" href="index.html">Overview</a>
+ <a class="lnk" href="arenas.html">Arenas</a>
+ <a class="lnk active" href="mapmaker.html">Map maker</a>
+</nav>
+<header>
+ <h1>Zymera · map maker</h1>
+ <p>Draw custom grid worlds — walls, checkpoints (the "prize" regions), spawns — then export for the experiments.</p>
+</header>
+
+<div class="wrap">
+ <!-- LEFT: tools -->
+ <div class="panel" style="width:236px">
+  <h2>Brush</h2>
+  <div class="row" id="palette"></div>
+  <h2 style="margin-top:14px">Tool</h2>
+  <div class="row" id="tools"></div>
+  <div class="row"><label><input type="checkbox" id="outline"> rectangle = outline only</label></div>
+  <h2 style="margin-top:14px">Canvas</h2>
+  <div class="row">
+    <label>W <input type="number" id="w" min="4" max="80" value="24"></label>
+    <label>H <input type="number" id="h" min="4" max="80" value="24"></label>
+    <button id="resize">Resize</button>
+  </div>
+  <div class="row">
+    <button id="border">Border walls</button>
+    <button id="clear">Clear</button>
+  </div>
+  <div class="row">
+    <button id="undo">↶ Undo</button>
+    <button id="redo">↷ Redo</button>
+  </div>
+  <h2 style="margin-top:14px">Template</h2>
+  <div class="row">
+   <select id="tpl">
+     <option value="empty">Empty (bordered)</option>
+     <option value="tworoom">Two rooms · 1-cell door</option>
+     <option value="corridor" selected>Corridor · long tunnel</option>
+     <option value="fourroom">Four rooms · cross</option>
+     <option value="bottleneck">Bottleneck · funnel</option>
+   </select>
+   <button id="apply">Load</button>
+  </div>
+  <div class="hint">Keys: <code>1</code> wall · <code>2</code> free · <code>3</code> checkpoint · <code>4</code> spawn · <code>B</code> brush · <code>L</code> line · <code>R</code> rect · <code>⌘Z</code> undo. Right-drag erases.</div>
+ </div>
+
+ <!-- MIDDLE: canvas -->
+ <div class="panel">
+  <h2>Grid</h2>
+  <canvas id="cv"></canvas>
+  <div class="status" id="status">—</div>
+  <div class="legend" id="legend"></div>
+ </div>
+
+ <!-- RIGHT: export -->
+ <div class="panel" style="width:300px">
+  <h2>Map</h2>
+  <div class="row"><label style="flex:1">name <input type="text" id="name" value="corridor_a" style="width:100%"></label></div>
+  <div class="stat" id="stats"></div>
+  <h2 style="margin-top:14px">Export</h2>
+  <div class="row">
+   <button id="dltxt">Download .txt</button>
+   <button id="dljson">Download .json</button>
+   <button id="copy">Copy ASCII</button>
+  </div>
+  <textarea id="ascii" spellcheck="false"></textarea>
+  <h2 style="margin-top:14px">Import</h2>
+  <div class="hint">Paste an ASCII map into the box above, then:</div>
+  <div class="row"><button id="load">Load from text ↑</button></div>
+  <div class="hint">Save into <code>SharedExploration/maps/&lt;name&gt;.txt</code>. Tiles: <code>#</code>=wall · <code>.</code>=free · <code>C</code>=checkpoint · <code>S</code>=spawn.</div>
+ </div>
+</div>
+
+<script>
+(function(){
+ const CH   = ['#','.','C','S'];
+ const COLOR= {'.':'#ffffff','#':'#1b2942','C':'#f0b429','S':'#2ea25b'};
+ const NAME = {'.':'Free','#':'Wall','C':'Checkpoint','S':'Spawn'};
+ let W=24,H=24, cells=new Array(W*H).fill('.'), brush='#', tool='brush', outline=false;
+ let cellPx=26, painting=false, eraser=false, startC=null, lastC=null, preview=null;
+ let undoStack=[], redoStack=[];
+ const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+ const idx=(r,c)=>r*W+c, inb=(r,c)=>r>=0&&r<H&&c>=0&&c<W;
+
+ // ---- rendering -------------------------------------------------------------
+ function sizeCanvas(){
+   const maxDim=680; cellPx=Math.max(6,Math.min(30,Math.floor(maxDim/Math.max(W,H))));
+   const dpr=window.devicePixelRatio||1;
+   cv.style.width=(W*cellPx)+'px'; cv.style.height=(H*cellPx)+'px';
+   cv.width=Math.round(W*cellPx*dpr); cv.height=Math.round(H*cellPx*dpr);
+   ctx.setTransform(dpr,0,0,dpr,0,0);
+ }
+ function draw(){
+   ctx.clearRect(0,0,W*cellPx,H*cellPx);
+   for(let r=0;r<H;r++)for(let c=0;c<W;c++){
+     ctx.fillStyle=COLOR[cells[idx(r,c)]]||'#fff';
+     ctx.fillRect(c*cellPx,r*cellPx,cellPx,cellPx);
+   }
+   if(preview){ ctx.fillStyle=eraser?'#ffffff':(COLOR[brush]); ctx.globalAlpha=.5;
+     preview.forEach(([r,c])=>ctx.fillRect(c*cellPx,r*cellPx,cellPx,cellPx)); ctx.globalAlpha=1; }
+   if(cellPx>=10){ ctx.strokeStyle='rgba(20,30,60,.09)'; ctx.lineWidth=1;
+     for(let c=0;c<=W;c++){ctx.beginPath();ctx.moveTo(c*cellPx+.5,0);ctx.lineTo(c*cellPx+.5,H*cellPx);ctx.stroke();}
+     for(let r=0;r<=H;r++){ctx.beginPath();ctx.moveTo(0,r*cellPx+.5);ctx.lineTo(W*cellPx,r*cellPx+.5);ctx.stroke();}
+   }
+ }
+
+ // ---- history ---------------------------------------------------------------
+ function snapshot(){ undoStack.push(cells.slice()); if(undoStack.length>80)undoStack.shift(); redoStack.length=0; }
+ function undo(){ if(!undoStack.length)return; redoStack.push(cells.slice()); cells=undoStack.pop(); draw(); refresh(); }
+ function redo(){ if(!redoStack.length)return; undoStack.push(cells.slice()); cells=redoStack.pop(); draw(); refresh(); }
+
+ // ---- geometry helpers ------------------------------------------------------
+ function setCell(r,c,ch){ if(inb(r,c)) cells[idx(r,c)]=ch; }
+ function evCell(e){ const rect=cv.getBoundingClientRect();
+   let c=Math.floor((e.clientX-rect.left)/cellPx), r=Math.floor((e.clientY-rect.top)/cellPx);
+   return [Math.max(0,Math.min(H-1,r)), Math.max(0,Math.min(W-1,c))]; }
+ function lineCells(a,b){ let r0=a[0],c0=a[1],r1=b[0],c1=b[1];
+   const dr=Math.abs(r1-r0),dc=Math.abs(c1-c0),sr=r0<r1?1:-1,sc=c0<c1?1:-1; let err=dc-dr,out=[];
+   for(;;){ out.push([r0,c0]); if(r0===r1&&c0===c1)break; const e2=2*err;
+     if(e2>-dr){err-=dr;c0+=sc;} if(e2<dc){err+=dc;r0+=sr;} } return out; }
+ function rectCells(a,b){ const r0=Math.min(a[0],b[0]),r1=Math.max(a[0],b[0]),
+   c0=Math.min(a[1],b[1]),c1=Math.max(a[1],b[1]),out=[];
+   for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){ if(outline&&r>r0&&r<r1&&c>c0&&c<c1)continue; out.push([r,c]); }
+   return out; }
+
+ // ---- pointer ---------------------------------------------------------------
+ function statusLine(cell){ const [r,c]=cell||[0,0]; const ch=inb(r,c)?cells[idx(r,c)]:'.';
+   document.getElementById('status').textContent='row '+r+', col '+c+'  ·  '+NAME[ch]+'    ['+tool+' · '+NAME[brush]+']'; }
+ cv.addEventListener('contextmenu',e=>e.preventDefault());
+ cv.addEventListener('mousedown',e=>{ e.preventDefault(); eraser=(e.button===2); const cell=evCell(e);
+   snapshot(); painting=true; startC=cell; lastC=cell; const ch=eraser?'.':brush;
+   if(tool==='brush'){ setCell(cell[0],cell[1],ch); draw(); }
+   else { preview=(tool==='rect')?rectCells(cell,cell):lineCells(cell,cell); draw(); } });
+ window.addEventListener('mousemove',e=>{ const cell=evCell(e); lastC=cell; statusLine(cell);
+   if(!painting)return; const ch=eraser?'.':brush;
+   if(tool==='brush'){ lineCells(lastC,cell).forEach(([r,c])=>setCell(r,c,ch)); draw(); }
+   else { preview=(tool==='rect')?rectCells(startC,cell):lineCells(startC,cell); draw(); } });
+ window.addEventListener('mouseup',e=>{ if(!painting)return; const cell=evCell(e); const ch=eraser?'.':brush;
+   if(tool!=='brush'){ ((tool==='rect')?rectCells(startC,cell):lineCells(startC,cell)).forEach(([r,c])=>setCell(r,c,ch)); }
+   painting=false; preview=null; startC=null; draw(); refresh(); });
+
+ // ---- palette / tools / legend ---------------------------------------------
+ const pal=document.getElementById('palette');
+ CH.forEach(ch=>{ const b=document.createElement('button'); b.className='sw'+(ch===brush?' on':''); b.dataset.ch=ch;
+   b.innerHTML='<span class="chip" style="background:'+COLOR[ch]+'"></span>'+NAME[ch];
+   b.onclick=()=>setBrush(ch); pal.appendChild(b); });
+ const tl=document.getElementById('tools');
+ [['brush','Brush'],['line','Line'],['rect','Rect']].forEach(([t,lab])=>{ const b=document.createElement('button');
+   b.className=(t===tool?'on':''); b.dataset.t=t; b.textContent=lab; b.onclick=()=>setTool(t); tl.appendChild(b); });
+ document.getElementById('legend').innerHTML=CH.map(ch=>
+   '<span><span class="chip" style="background:'+COLOR[ch]+'"></span>'+NAME[ch]+'</span>').join('');
+ function setBrush(ch){ brush=ch; [...pal.children].forEach(x=>x.classList.toggle('on',x.dataset.ch===ch)); statusLine(lastC); }
+ function setTool(t){ tool=t; [...tl.children].forEach(x=>x.classList.toggle('on',x.dataset.t===t)); statusLine(lastC); }
+
+ // ---- export / import / stats ----------------------------------------------
+ function asciiStr(){ const rows=[]; for(let r=0;r<H;r++){ let s=''; for(let c=0;c<W;c++)s+=cells[idx(r,c)]; rows.push(s);} return rows.join('\n'); }
+ function refresh(){ document.getElementById('ascii').value=asciiStr(); stats(); }
+ function stats(){ let w=0,f=0,cp=0,sp=0; cells.forEach(ch=>{ if(ch==='#')w++; else if(ch==='C')cp++; else if(ch==='S')sp++; else f++; });
+   document.getElementById('stats').innerHTML=
+     'Grid <b>'+W+'×'+H+'</b> = '+(W*H)+' cells<br>'+
+     'Walls <b>'+w+'</b> · Free <b>'+f+'</b> · Checkpoint <b>'+cp+'</b> · Spawn <b>'+sp+'</b><br>'+
+     'Traversable (coverage target) <b>'+(W*H-w)+'</b>'; }
+ function nm(){ return (document.getElementById('name').value||'map').replace(/[^a-zA-Z0-9_\-]/g,'_'); }
+ function download(fn,txt,type){ const blob=new Blob([txt],{type:type||'text/plain'}); const a=document.createElement('a');
+   a.href=URL.createObjectURL(blob); a.download=fn; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); }
+ function mapJSON(){ const cp=[],sp=[]; for(let r=0;r<H;r++)for(let c=0;c<W;c++){ const ch=cells[idx(r,c)];
+   if(ch==='C')cp.push([r,c]); if(ch==='S')sp.push([r,c]); }
+   return {name:nm(),w:W,h:H,grid:asciiStr().split('\n'),checkpoints:cp,spawns:sp}; }
+ document.getElementById('dltxt').onclick=()=>download(nm()+'.txt',asciiStr());
+ document.getElementById('dljson').onclick=()=>download(nm()+'.json',JSON.stringify(mapJSON()),'application/json');
+ document.getElementById('copy').onclick=()=>{ navigator.clipboard&&navigator.clipboard.writeText(asciiStr()); };
+ document.getElementById('load').onclick=()=>{ const t=document.getElementById('ascii').value.replace(/\r/g,'');
+   const rows=t.split('\n').filter(x=>x.length); if(!rows.length)return;
+   const nh=rows.length, nw=Math.max.apply(null,rows.map(r=>r.length)); snapshot();
+   const ng=new Array(nw*nh).fill('.');
+   for(let r=0;r<nh;r++)for(let c=0;c<rows[r].length;c++){ let ch=rows[r][c]; if(!COLOR[ch])ch='.'; ng[r*nw+c]=ch; }
+   W=nw;H=nh;cells=ng; document.getElementById('w').value=W; document.getElementById('h').value=H; sizeCanvas(); draw(); refresh(); };
+
+ // ---- canvas ops ------------------------------------------------------------
+ function clampInt(id,lo,hi){ let v=parseInt(document.getElementById(id).value||'0',10); v=Math.max(lo,Math.min(hi,v||lo)); document.getElementById(id).value=v; return v; }
+ function border(){ for(let c=0;c<W;c++){setCell(0,c,'#');setCell(H-1,c,'#');} for(let r=0;r<H;r++){setCell(r,0,'#');setCell(r,W-1,'#');} }
+ document.getElementById('resize').onclick=()=>{ const nw=clampInt('w',4,80), nh=clampInt('h',4,80); snapshot();
+   const ng=new Array(nw*nh).fill('.'); for(let r=0;r<Math.min(H,nh);r++)for(let c=0;c<Math.min(W,nw);c++) ng[r*nw+c]=cells[idx(r,c)];
+   W=nw;H=nh;cells=ng; sizeCanvas(); draw(); refresh(); };
+ document.getElementById('border').onclick=()=>{ snapshot(); border(); draw(); refresh(); };
+ document.getElementById('clear').onclick=()=>{ snapshot(); cells=new Array(W*H).fill('.'); draw(); refresh(); };
+ document.getElementById('undo').onclick=undo;
+ document.getElementById('redo').onclick=redo;
+ document.getElementById('outline').onchange=e=>outline=e.target.checked;
+
+ // ---- templates -------------------------------------------------------------
+ function tplEmpty(){ cells=new Array(W*H).fill('.'); border(); }
+ function tplTwoRoom(){ tplEmpty(); const mc=Math.floor(W/2); for(let r=1;r<H-1;r++)setCell(r,mc,'#'); setCell(Math.floor(H/2),mc,'C'); }
+ function tplCorridor(){ tplEmpty(); const c0=Math.floor(W*0.38),c1=Math.floor(W*0.62),tr=Math.floor(H/2);
+   for(let r=1;r<H-1;r++)for(let c=c0;c<=c1;c++)setCell(r,c,'#'); for(let c=c0;c<=c1;c++)setCell(tr,c,'C'); }
+ function tplFourRoom(){ tplEmpty(); const mc=Math.floor(W/2),mr=Math.floor(H/2);
+   for(let r=1;r<H-1;r++)setCell(r,mc,'#'); for(let c=1;c<W-1;c++)setCell(mr,c,'#');
+   setCell(Math.floor(H*0.25),mc,'.'); setCell(Math.floor(H*0.75),mc,'.');
+   setCell(mr,Math.floor(W*0.25),'.'); setCell(mr,Math.floor(W*0.75),'.'); setCell(mr,mc,'C'); }
+ function tplBottleneck(){ tplEmpty(); const mc=Math.floor(W/2),mr=Math.floor(H/2);
+   for(let r=1;r<H-1;r++){ const half=1+Math.abs(r-mr);
+     for(let c=1;c<W-1;c++){ const d=Math.abs(c-mc); if(d>=half&&d<=half+2)setCell(r,c,'#'); } }
+   setCell(mr,mc,'C'); }
+ const TPL={empty:tplEmpty,tworoom:tplTwoRoom,corridor:tplCorridor,fourroom:tplFourRoom,bottleneck:tplBottleneck};
+ document.getElementById('apply').onclick=()=>{ const v=document.getElementById('tpl').value; if(!TPL[v])return; snapshot(); TPL[v](); draw(); refresh(); };
+
+ // ---- keyboard --------------------------------------------------------------
+ window.addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+   const meta=e.metaKey||e.ctrlKey, k=e.key.toLowerCase();
+   if(meta&&k==='z'){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+   if(meta&&k==='y'){ e.preventDefault(); redo(); return; }
+   if(k==='1')setBrush('#'); else if(k==='2')setBrush('.'); else if(k==='3')setBrush('C'); else if(k==='4')setBrush('S');
+   else if(k==='b')setTool('brush'); else if(k==='l')setTool('line'); else if(k==='r')setTool('rect'); });
+
+ // ---- init ------------------------------------------------------------------
+ sizeCanvas(); tplCorridor(); draw(); refresh();
+})();
+</script>
+<script src="nav.js"></script>
+</body>
+</html>
