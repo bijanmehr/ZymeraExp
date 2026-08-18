@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ctde_v1 — Actor-Critic / CTDE Map</title>
+<style>
+  :root{
+    --paper:#FAFAF7; --panel:#FFFFFF; --ink:#1C2530; --mut:#5A6572; --line:#D5D9D2; --grid:#ECEEE8;
+    --acc:#1f6feb; --accd:#0b4fb8; --train:#6E4E8E; --task:#9A6A1F; --bad:#A33A2C;
+    --agent-bg:#F0F1F2; --acc-bg:#EAF1FB; --train-bg:#F1EDF6; --task-bg:#F7F1E4; --bad-bg:#FDECEA;
+    --wire:#3A4550; --api:#2F6DB5;
+  }
+  html{background:var(--paper)}
+  body{background:var(--paper); color:var(--ink); margin:0; font:15px/1.6 system-ui,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:1240px; margin:0 auto; padding:28px 20px 70px;}
+  h1{font-family:Charter,Georgia,Cambria,serif; font-size:24px; font-weight:600; margin:0 0 4px;}
+  .meta{color:var(--mut); font-size:13px; margin:0 0 16px; max-width:110ch;}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.93em;}
+  .fig{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; overflow-x:auto;}
+  .cap{color:var(--mut); font-size:13px; margin:10px 4px 26px; max-width:110ch;}
+  .cap b{color:var(--ink);}
+  h2{font-family:Charter,Georgia,serif; font-size:17px; margin:8px 0 10px;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{background:var(--bad-bg); border:1px solid #f5b7b1; border-radius:8px; padding:7px 12px;
+        font:600 12px/1.45 ui-monospace,Menlo,monospace; color:var(--bad);}
+  .chip b{color:var(--ink); font-weight:700;}
+  .tests{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .test{background:#EAF4EC; border:1px solid #A6E0BB; border-radius:8px; padding:7px 12px;
+        font:600 12px/1.45 ui-monospace,Menlo,monospace; color:#1F6B3A;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ctde_v1 — the refactored actor-critic / CTDE stack</h1>
+  <p class="meta">Built against <span class="mono">zymera2</span> (runs inside its normative tick).
+  Top band: what one agent does each tick — decentralized, cone-clean. Bottom band: how training works —
+  centralized and <b>privileged by design</b> (the critic sees the map; trained weights are a channel — the
+  leakage taxonomy's training row, never certified leak-free). The orange block is the point of the refactor:
+  <b>one</b> <span class="mono">Actor.logits</span> path serves both bands.</p>
+
+  <div class="fig">
+  <svg viewBox="0 0 1150 762" role="img" aria-label="ctde_v1 execution and training block diagram" style="min-width:900px;">
+    <defs>
+      <marker id="a" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="9" markerHeight="8" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="context-stroke"/></marker>
+    </defs>
+    <style>
+      .bt{font:700 14px ui-monospace,Menlo,monospace; fill:var(--ink);}
+      .bs{font:10.5px ui-monospace,Menlo,monospace; fill:var(--mut);}
+      .api{font:600 10.5px ui-monospace,Menlo,monospace; fill:var(--api);}
+      .band{font:700 11px ui-monospace,Menlo,monospace; fill:var(--mut); letter-spacing:.12em;}
+      .ml{font:600 10px ui-monospace,Menlo,monospace; fill:var(--ink); paint-order:stroke; stroke:var(--panel); stroke-width:4px; stroke-linejoin:round;}
+      .w{stroke:var(--wire); stroke-width:1.8; fill:none;}
+      .wd{stroke:var(--wire); stroke-width:1.6; fill:none; stroke-dasharray:5 4;}
+      .box{fill:var(--agent-bg); stroke:#7a8794; stroke-width:1.5;}
+      .boxa{fill:var(--acc-bg); stroke:var(--acc); stroke-width:2.4;}
+      .boxt{fill:var(--train-bg); stroke:var(--train); stroke-width:1.6;}
+      .boxk{fill:var(--task-bg); stroke:var(--task); stroke-width:1.5;}
+      .inner{fill:#FFFFFF; stroke:#B9C6DC; stroke-width:1.2;}
+    </style>
+
+    <text x="40" y="30" class="band">EXECUTION — ONE AGENT, ONE TICK · DECENTRALIZED · CONE-CLEAN</text>
+
+    <!-- obs -->
+    <rect x="40" y="46" width="170" height="160" rx="9" class="box"/>
+    <text x="54" y="70" class="bt">obs_i</text>
+    <text x="54" y="86" class="bs">(zymera2 assembly)</text>
+    <text x="54" y="106" class="api">pose · statics</text>
+    <text x="54" y="122" class="api">patch · patch_valid 3×3</text>
+    <text x="54" y="138" class="api">entities 3×3</text>
+    <text x="54" y="154" class="api">mail [N,75]</text>
+    <text x="54" y="170" class="api">adj_row [N] (delivered)</text>
+    <text x="54" y="192" class="bs">the ONLY input — G8</text>
+
+    <!-- KB fold -->
+    <rect x="250" y="46" width="205" height="104" rx="9" class="box"/>
+    <text x="264" y="70" class="bt">KB FOLD — kb.py</text>
+    <text x="264" y="88" class="api">fold(kb, obs) → kb′</text>
+    <text x="264" y="106" class="bs">own patch + DELIVERED sender</text>
+    <text x="264" y="120" class="bs">patches · runtime-bounds masked</text>
+    <text x="264" y="138" class="bs">(cone-tested: forged mail inert)</text>
+
+    <!-- KB state -->
+    <rect x="250" y="186" width="205" height="72" rx="9" class="box"/>
+    <text x="264" y="210" class="bt">KB — AgentState</text>
+    <text x="264" y="228" class="api">known · wall  bool[H,W]</text>
+    <text x="264" y="246" class="bs">agent-side (env-side in v0)</text>
+    <path class="wd" d="M455 240 L478 240" marker-end="url(#a)"/>
+    <text x="482" y="244" class="ml">carry</text>
+
+    <!-- crop -->
+    <rect x="495" y="66" width="130" height="64" rx="9" class="box"/>
+    <text x="509" y="90" class="bt">EGO CROP</text>
+    <text x="509" y="108" class="api">[2, 11, 11] @ pose</text>
+
+    <!-- ACTOR -->
+    <rect x="665" y="46" width="265" height="284" rx="10" class="boxa"/>
+    <text x="680" y="70" class="bt">ACTOR — nets.py</text>
+    <text x="680" y="87" class="api">THE single path: Actor.logits</text>
+    <rect x="680" y="102" width="235" height="52" rx="7" class="inner"/>
+    <text x="692" y="123" class="bs" style="fill:var(--ink)">CNN 2→16→32 · GAP</text>
+    <text x="692" y="140" class="api">→ e [64]</text>
+    <rect x="680" y="168" width="235" height="62" rx="7" class="inner"/>
+    <text x="692" y="189" class="bs" style="fill:var(--ink)">MAIL FOLD — max over delivered</text>
+    <text x="692" y="204" class="bs" style="fill:var(--ink)">sender embeddings (delayed)</text>
+    <text x="692" y="221" class="api">→ z [64]</text>
+    <rect x="680" y="244" width="235" height="52" rx="7" class="inner"/>
+    <text x="692" y="265" class="bs" style="fill:var(--ink)">MoveHead: Linear 64→5</text>
+    <text x="692" y="282" class="api">→ logits (the head = the G-axis seam)</text>
+    <text x="680" y="318" class="bs">no roles · no selector · no compass</text>
+
+    <!-- outputs -->
+    <rect x="970" y="56" width="140" height="58" rx="9" class="box"/>
+    <text x="984" y="80" class="bt">action ~ π</text>
+    <text x="984" y="98" class="api">→ world_step</text>
+    <rect x="970" y="146" width="140" height="76" rx="9" class="box"/>
+    <text x="984" y="170" class="bt">outbox [75]</text>
+    <text x="984" y="188" class="api">pose | patch | z</text>
+    <text x="984" y="206" class="bs">→ bridge (opaque)</text>
+
+    <!-- execution wires -->
+    <path class="w" d="M210 100 L250 100" marker-end="url(#a)"/>
+    <path class="w" d="M352 150 L352 186" marker-end="url(#a)"/>
+    <text x="360" y="174" class="ml">kb′</text>
+    <path class="w" d="M455 210 L475 210 L475 98 L495 98" marker-end="url(#a)"/>
+    <text x="470" y="166" class="ml" transform="rotate(-90 470 166)" text-anchor="middle">known·wall</text>
+    <path class="w" d="M625 98 L652 98 L652 128 L680 128" marker-end="url(#a)"/>
+    <text x="630" y="90" class="ml">crop</text>
+    <path class="w" d="M125 206 L125 352 L650 352 L650 199 L680 199" marker-end="url(#a)"/>
+    <text x="300" y="345" class="ml">mail[·, 11:75] (sender embs) · adj_row</text>
+    <path class="w" d="M930 270 L950 270 L950 85 L970 85" marker-end="url(#a)"/>
+    <text x="944" y="122" class="ml" transform="rotate(-90 944 122)" text-anchor="middle">sample</text>
+    <path class="w" d="M930 199 L950 199 L950 184 L970 184" marker-end="url(#a)"/>
+    <text x="936" y="214" class="ml">z</text>
+
+    <text x="40" y="398" class="band">TRAINING — CTDE · PRIVILEGED · PPO (rollout.py / ppo.py)</text>
+
+    <!-- rollout -->
+    <rect x="40" y="414" width="270" height="170" rx="9" class="boxt"/>
+    <text x="54" y="438" class="bt">ROLLOUT — rollout.py</text>
+    <text x="54" y="456" class="api">collect(): B=16 episodes (never fewer)</text>
+    <text x="54" y="474" class="bs">= the normative tick, bit-exact (parity ✓)</text>
+    <text x="54" y="496" class="bs">records per tick:</text>
+    <text x="54" y="512" class="api">crop · mail_embs · adj · action · logp</text>
+    <text x="54" y="528" class="api">alive · central · value · reward · pos</text>
+    <text x="54" y="550" class="bs">world: one instance per run (campaigns</text>
+    <text x="54" y="564" class="bs">sample seed pools)</text>
+
+    <!-- task -->
+    <rect x="40" y="624" width="270" height="76" rx="9" class="boxk"/>
+    <text x="54" y="648" class="bt">TASK REWARD (observer-side)</text>
+    <text x="54" y="666" class="api">coverage FRACTION + soft delivered-degree</text>
+    <text x="54" y="684" class="bs">no mask · no dual — settled ⛔ not ported</text>
+    <path class="w" d="M175 624 L175 584" marker-end="url(#a)"/>
+
+    <!-- critic -->
+    <rect x="350" y="414" width="290" height="146" rx="9" class="boxt"/>
+    <text x="364" y="438" class="bt">CRITIC — SetPoolCritic</text>
+    <text x="364" y="456" class="api">central [3,H,W]: visited·wall·occupancy</text>
+    <text x="364" y="472" class="api">→ CNN+GAP ⊕ set-pool(agent embs) → V(s)</text>
+    <text x="364" y="494" class="bs">permutation-invariant · count-invariant</text>
+    <text x="364" y="516" class="bs" style="fill:var(--bad)">PRIVILEGED — training only,</text>
+    <text x="364" y="530" class="bs" style="fill:var(--bad)">never deployed</text>
+
+    <!-- gae -->
+    <rect x="350" y="600" width="290" height="100" rx="9" class="boxt"/>
+    <text x="364" y="624" class="bt">GAE</text>
+    <text x="364" y="642" class="api">γ=0.99 · λ=0.95</text>
+    <text x="364" y="660" class="bs">(reward, value, v_last) →</text>
+    <text x="364" y="676" class="api">adv (normalized) · returns</text>
+
+    <!-- ppo -->
+    <rect x="690" y="414" width="310" height="286" rx="9" class="boxt"/>
+    <text x="704" y="438" class="bt">PPO UPDATE — ppo.py</text>
+    <text x="704" y="460" class="api">4 epochs × 4 minibatches</text>
+    <text x="704" y="478" class="api">ratio clip 0.2 · alive-masked pg</text>
+    <text x="704" y="496" class="api">+ 0.5·value MSE + 0.01·entropy</text>
+    <text x="704" y="514" class="api">adam 3e-4 · global-norm clip 0.5</text>
+    <text x="704" y="540" class="bs">recomputes logp through the SAME</text>
+    <text x="704" y="554" class="bs">Actor.logits — no second forward</text>
+    <text x="704" y="576" class="bs">padding agents (n &lt; n_max): zero grad</text>
+    <text x="704" y="604" class="bs">smoke: cov 58.6 → 66.5 @ 12²/4,</text>
+    <text x="704" y="618" class="bs">40 iters, CPU</text>
+
+    <!-- training wires -->
+    <path class="w" d="M310 452 L350 452" marker-end="url(#a)"/>
+    <text x="332" y="478" class="ml" transform="rotate(-90 332 478)" text-anchor="middle">embs · central</text>
+    <path class="w" d="M350 520 L310 520" marker-end="url(#a)"/>
+    <text x="316" y="512" class="ml">V(s_t)</text>
+    <path class="w" d="M310 545 L330 545 L330 650 L350 650" marker-end="url(#a)"/>
+    <text x="334" y="596" class="ml" transform="rotate(-90 334 596)" text-anchor="middle">reward · value</text>
+    <path class="w" d="M640 650 L690 650" marker-end="url(#a)"/>
+    <text x="646" y="642" class="ml">adv · ret</text>
+    <path class="w" d="M200 414 L200 406 L860 406 L860 414" marker-end="url(#a)"/>
+    <text x="560" y="401" class="ml">traj minibatches (episode-sliced)</text>
+    <path class="w" d="M845 414 L845 330" marker-end="url(#a)"/>
+    <text x="856" y="376" class="ml">recompute logp — SAME Actor.logits (== stored ✓)</text>
+    <path class="w" d="M690 560 L664 560 L664 487 L640 487" marker-end="url(#a)"/>
+    <text x="672" y="530" class="ml" transform="rotate(-90 672 530)" text-anchor="middle">value loss</text>
+    <path class="wd" d="M690 680 L672 680 L672 730 L26 730 L26 500 L40 500" marker-end="url(#a)"/>
+    <text x="340" y="723" class="ml">θ′ — next iteration</text>
+  </svg>
+  </div>
+  <p class="cap"><b>Reading the boundary:</b> everything above the training band runs deployed and touches
+  only <span class="mono">obs_i</span> + the carried KB; everything below exists only at training time.
+  The two meet at exactly one place — the orange actor — and that identity is enforced by a test, not a
+  convention. The mail embeddings the actor folds are the ones the channel actually DELIVERED, one tick
+  late; there is no same-tick neighbor access anywhere (v0's 2-round same-tick message passing was a
+  deploy-graph violation).</p>
+
+  <h2>Retired from v0 <span class="mono" style="color:var(--mut);font-size:11px">(audited 2026-08-11 · v0 stays frozen as the pre-v1 reproduction anchor)</span></h2>
+  <div class="chips">
+    <span class="chip"><b>9</b> always-built actor heads → <b>1</b> head + a seam</span>
+    <span class="chip"><b>3</b> critics → <b>1</b></span>
+    <span class="chip"><b>4</b> actor forward paths → <b>1</b></span>
+    <span class="chip">env-side belief → <b>agent-side KB</b></span>
+    <span class="chip">hard mask · dual λ · roles · selector · compass · frontier-attn → <b>not ported</b> (⛔ settled)</span>
+    <span class="chip"><b>106</b> config knobs → <b>19</b></span>
+  </div>
+
+  <h2 style="margin-top:22px;">What holds it together</h2>
+  <div class="tests">
+    <span class="test">harness-parity: rollout ≡ zymera2 tick, bit-exact</span>
+    <span class="test">single-path: recomputed logp == stored (1e-6)</span>
+    <span class="test">KB cone: undelivered mail is inert</span>
+    <span class="test">KB bounds: no out-of-arena belief</span>
+    <span class="test">alive-mask: padding agents carry no gradient</span>
+    <span class="test">critic permutation-invariance</span>
+    <span class="test">GAE hand-check</span>
+    <span class="test">PPO smoke: 58.6 → 66.5 cov</span>
+    <span class="test">13/13 green · 428 across all suites</span>
+  </div>
+</div>
+</body>
+</html>

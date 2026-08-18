@@ -1,0 +1,86 @@
+[
+ {
+  "label": "open-flat-s0 @ native 24\u00b2/6 open",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/open/seed0/flat",
+  "cat": "in-dist",
+  "desc": "anchor: the training distribution (grid 24, 6 agents, open)"
+ },
+ {
+  "label": "open-flat-s0 @ 32\u00b2/10 open",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/open/seed0/flat",
+  "cat": "zs-size",
+  "desc": "zero-shot size: unseen grid 32 + 10 agents",
+  "world": {
+   "grid": 32,
+   "n_agents": 10
+  }
+ },
+ {
+  "label": "open-flat-s1 @ 32\u00b2/10 open",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/open/seed1/flat",
+  "cat": "zs-size",
+  "desc": "same, second training seed",
+  "world": {
+   "grid": 32,
+   "n_agents": 10
+  }
+ },
+ {
+  "label": "open-flat-s0 @ 32\u00b2/10 rooms",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/open/seed0/flat",
+  "cat": "zs-terrain",
+  "desc": "zero-shot size+terrain: rooms layout never seen in training",
+  "world": {
+   "grid": 32,
+   "n_agents": 10,
+   "terrain": "rooms",
+   "rooms": 3
+  }
+ },
+ {
+  "label": "open-flat-s0 @ 32\u00b2/10 mixed",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/open/seed0/flat",
+  "cat": "zs-terrain",
+  "desc": "zero-shot size+terrain: mixed clutter (40 obstacles)",
+  "world": {
+   "grid": 32,
+   "n_agents": 10,
+   "terrain": "mixed",
+   "n_obstacles": 40
+  }
+ },
+ {
+  "label": "rooms-flat-s0 @ 32\u00b2/10 rooms",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/rooms/seed0/flat",
+  "cat": "zs-size",
+  "desc": "terrain-native control: rooms-trained ckpt, size zero-shot only",
+  "world": {
+   "grid": 32,
+   "n_agents": 10,
+   "terrain": "rooms",
+   "rooms": 3
+  }
+ },
+ {
+  "label": "open-role-s0 @ 32\u00b2/10 open",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/open/seed0/role",
+  "cat": "arm",
+  "desc": "role-head arm under size zero-shot (T2: flat \u2265 role)",
+  "world": {
+   "grid": 32,
+   "n_agents": 10
+  }
+ },
+ {
+  "label": "rooms-role-s0 @ 32\u00b2/10 rooms",
+  "dir": "/Users/bijanmehr/Project.Zymera/zymera_experiments/TeamBlue/SharedExploration/zeroshot_ckpts/rooms/seed0/role",
+  "cat": "arm",
+  "desc": "role-head arm, rooms-native, size zero-shot",
+  "world": {
+   "grid": 32,
+   "n_agents": 10,
+   "terrain": "rooms",
+   "rooms": 3
+  }
+ }
+]

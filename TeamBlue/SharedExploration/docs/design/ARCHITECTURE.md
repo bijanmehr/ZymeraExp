@@ -136,6 +136,7 @@ every prior version:
 
 | Artifact | Path |
 |---|---|
+| **System card** — full-stack annotated snapshot: status of every module, discrepancy register (D1–D4), open decision points, provenance | `t5_system_card.html` (this folder, 2026-08-09) |
 | Actor / critic two-panel block diagram + model data-sheet | `../../report/architecture/architecture_panels.html`, `architecture_depiction.html` |
 | Three-stack architecture diagram (animated) | `site/assets/figures/three-stack.gif` |
 | Network-architecture figure | `presentations/dl-talk/network_architecture.png` |

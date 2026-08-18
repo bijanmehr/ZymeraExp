@@ -46,8 +46,23 @@ The actual research question, barely started. Coverage was the substrate; **this
   TV triangle) — how deviation spreads; generalizes linear-consensus error propagation.
 - 🟢 **Local anomaly detection (RQ4).** The defender's side. The **KB audit** (linear-probe of the shared
   belief) and **ensemble-disagreement** as a covert-anomaly detector; contribution-as-detector.
+  *(`lit-potential-ebm-hetcredit-verdict`.)*
+- ❌ **Energy-score detector (EBM) — revisit-if, red phase only (demoted 2026-08-10).** A one-class
+  "surprise meter": train on nominal traffic only, flag per-edge departures; detection power ties to the
+  ε_s KL budget (Neyman–Pearson); the lit corner is unclaimed (nearest = Gaussian/GP/trust statistics).
+  **Bijan's objection stands:** the baseline is conditional and shifts on unseen maps, and the stealth
+  bound caps ANY distributional detector by construction — honest role = measuring the detectability–damage
+  frontier, not catching red. Red-free phase can only build/calibrate/freeze it (pre-registration hygiene)
+  and measure the false-alarm side. Revisit when red exists and the frontier needs quantifying.
 - 🟢 **Stealth–damage Pareto frontier + break budget.** The stealth constraint (per-edge KL) forces a
   frontier; the break budget = min-cost `D` that forces failure w.p. ≥ 1−δ.
+- 🟢 **Potential-game null model (formalism import, 2026-08-09).** The nominal difference-reward team IS an
+  exact potential game with Φ = team welfare (Marden school — *not* in Wolpert–Tumer), so log-linear-style
+  play has Gibbs stationary `p ∝ exp(Φ/τ)` and Vetta's ½-PoA floors the nominal equilibria. Covert deviation
+  becomes a *measurable stationary-distribution shift* under the ε_s KL budget — that insider corner is OPEN
+  (the Marden-school adversary cluster is overt/external). Caveat: the guarantees assume discrete repeated
+  play + revision protocols; the bridge to PPO-trained policies is itself a gap, not a free import.
+  *(`lit-potential-ebm-hetcredit-verdict`.)*
 - 🟢 **Position/role amplification (H1).** Comms amplify a small compromise at influential graph positions
   (cut-vertices, relays); adaptive ≫ random attacks at equal budget (H2).
 - 🟢 **Resilience metrics.** Robustness `R_rob`, brittleness frontier + index, elasticity, recovery ratio/time
@@ -76,7 +91,25 @@ Each coupling is a distinct attack surface; the roadmap pushes outward along the
 
 - 🟢 **L3 goal head — the real coverage lever, barely tuned.** T5's L2 planner is *solved and proven*; the
   remaining walled-map headroom is **L3 relay coordination**, not planning (the connectivity tax). This is
-  the highest-value open build.
+  the highest-value open build. **Lit verdict (2026-08-09, 4 scouts): direction CONFIRMED, three components
+  indicted** — the 9-stencil is SAM's losing "steering commands" arm; per-step goal resampling is supported
+  nowhere (commit K≈10–25 + event interrupt); no-coordination is refuted (claim-round ranked #1: ½-bound +
+  deterministic symmetry-breaker + Grimsman comm-graph degradation = adversary handle; spatial intention
+  channel #2 = the covert attack surface). Mission-general form = pluggable candidate PROPOSER (as data) +
+  shared scorer; backbone/L2/L1 stay mission-blind. Connectivity-aware goal selection remains unclaimed in
+  every family. **→ the G×C×X ablation** (goal repr {stencil · ego spatial-softmax · top-K proposer+scorer}
+  × cadence {per-step · commit-K} × coordination {none · claim-round · intention channel}) — the head-to-head
+  the literature lacks. *(`lit-l3-goal-representation-verdict`.)*
+  **Criteria for the L3 brainstorming session (fixed 2026-08-10):** (1) **SLM-portable contract** — L3 =
+  "K proposed candidates + teammates' claims → choose & commit", so a future language-model head is a swap
+  (claim-round = turn-taking protocol; intention channel = message); numeric L2/L1 stay numeric. (2)
+  **Emergent roles + label-free credit** — no role head; delivered-flow marginal credit pays by function,
+  and the per-agent credit distribution doubles as the role-emergence order parameter AND the load-bearing
+  map for later red placement (H1). (3) **Mission-generality demos = SharedExploration · TetherRelay ·
+  Cornering** — reclassified 2026-08-10: cornering is **Act-dominant** (deliverable = intervention on
+  external agents via divided work under shared constraints, on an Organize substrate), so the three demos
+  **span all three taxonomy families** (Sense · Organize · Act); mission = {proposer, candidate features,
+  reward terms} as data. (4) Evidence base = the G×C×X matrix above.
 - 🟢 **Distillation recipe upgrade.** Deployed K32/γ0.9/rects is suboptimal; **mixed-maps + K128 + γ0.99** wins
   (maze 10→29, rooms 70→100). End-to-end retrain with the better recipe. *(`mvprop-distillation-ablation`.)*
 - 🟢 **Connectivity-weight sweep / Pareto trace.** ~6-point cov↔conn frontier (soft, no mask), each point
@@ -85,6 +118,23 @@ Each coupling is a distinct attack surface; the roadmap pushes outward along the
   occlusion is OFF (through-wall comms), which overstates connectivity. *(Task #15; `wall-rf-occlusion-comms`.)*
 - 🟢 **Connectivity signal: critic-only vs a distilled λ₂ estimator.** Does the actor need an explicit λ̂₂, or
   does the CTDE critic + loss suffice? *(Task #5.)*
+- 🟢 **Heterogeneous-agent updates (HAPPO/HARL) — first axis of the MAPPO session (task #7).** Sequential-
+  update decomposition (Kuba arXiv:2109.11251, Lemma 1) is the proof-backed fix for "symmetric credit cannot
+  INITIATE division" — per-agent baselines differ by construction, and Prop. 1 shows shared policies are
+  *exponentially* suboptimal at division-of-labor. Tension: it abandons parameter sharing (vs our
+  count-invariance + T2/T4) → shared-yet-diverse middle ground: HyperMARL 2412.04233, Kaleidoscope
+  2410.08540. Note: Shapley does NOT fix initiation (symmetry axiom ⇒ identical shares from symmetric states).
+- 🟢 **Per-agent introspection — distributions + per-agent traces as tracked figures (Bijan, 2026-08-10).**
+  See inside the team, not just team-mean curves: log per agent per step {position, goal choice k, commit
+  age, contribution/credit dᵢ, delivered-flow share, soft-degree, component id}; per run emit distribution
+  figures (credit bimodality = the role-emergence order parameter), per-agent traces, and claim/conflict
+  stats into the run dir + `make_report` panels. Prerequisite instrumentation for P1/P2 and the G×C×X
+  ablation — build FIRST so every subsequent run is introspectable.
+- 🟢 **Delivered-flow credit for relays (2026-08-09).** Relay under-credit is objective MIS-SPECIFICATION,
+  not allocation — Shapley on raw coverage still zeros relays. Credit by *delivered* flow (COIN
+  packet-routing precedent; DSAC dual-price-as-learned-reward; danmox SOCP duals) — unclaimed in learned
+  connectivity-constrained swarms. Lands on TetherRelay / PersistantNetwork.
+  *(`lit-potential-ebm-hetcredit-verdict`.)*
 - 🟢 **L3 intention-sharing / rich collaboration** — deferred until an *obligate* mission makes it pay
   (it's inert when agents can solo). *(Task #13.)*
 - 🟢 **Reproducibility & transfer prong** — the 2nd contribution (Prong 2): measured reproducibility +

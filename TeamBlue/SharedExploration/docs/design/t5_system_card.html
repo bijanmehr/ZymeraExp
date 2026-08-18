@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>T5 Architecture — Block Diagram &amp; System Card (2026-08-09)</title>
+<style>
+  :root{
+    --bg:#F8F8F6; --panel:#FFFFFF; --ink:#22262A; --mut:#5D646B; --line:#D8DBD6;
+    --live:#2B5FC7; --frozen:#177878; --script:#6E7278; --dorm:#A05E17; --dead:#8F3E3C;
+    --live-bg:#EFF3FC; --frozen-bg:#EAF4F3; --script-bg:#F3F4F5; --dorm-bg:#F9F2E7; --dead-bg:#F6ECEB;
+    --chipink:#FFFFFF; --wire:#3A4046;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --bg:#15181C; --panel:#1D2126; --ink:#E5E7E3; --mut:#9AA1A8; --line:#30363C;
+    --live:#6E97E8; --frozen:#4AAFAA; --script:#9AA0A6; --dorm:#CE9147; --dead:#C0706C;
+    --live-bg:#1D2A42; --frozen-bg:#173230; --script-bg:#262C32; --dorm-bg:#33281A; --dead-bg:#322120;
+    --chipink:#111417; --wire:#B9C0C7;
+  }}
+  html{background:var(--bg)}
+  body{background:var(--bg); color:var(--ink); margin:0; font:15px/1.6 system-ui,"Segoe UI",Roboto,sans-serif;}
+  .wrap{max-width:1150px; margin:0 auto; padding:36px 20px 90px;}
+  h1{font-family:Charter,Georgia,Cambria,serif; font-size:26px; font-weight:600; margin:0 0 6px;}
+  .meta{color:var(--mut); font-size:13px; margin:0 0 18px;}
+  code,.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.93em;}
+  h2{font-family:Charter,Georgia,Cambria,serif; font-size:16.5px; font-weight:600; margin:34px 0 10px;
+     display:flex; align-items:baseline; gap:10px;}
+  h2 .sec{color:var(--mut); font-size:13px; font-family:ui-monospace,Menlo,monospace;}
+  h2::after{content:""; flex:1; height:1px; background:var(--line); align-self:center;}
+  .legend{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; font-size:12.5px; color:var(--mut);
+          background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:9px 12px; margin-bottom:12px;}
+  .chip{font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:var(--chipink);
+        background:var(--c); border-radius:3px; padding:1px 6px; white-space:nowrap;}
+  .sw{display:inline-block; width:22px; height:0; border-top:2px solid var(--wire); transform:translateY(-3px);}
+  .sw.d{border-top-style:dashed;} .sw.b{border-top-color:var(--live); border-top-style:dashed;}
+  .sw.t{border-top-color:var(--frozen);} .sw.a{border-top-color:var(--dorm); border-top-style:dashed;}
+  .sw.r{border-top-color:var(--dead); border-top-style:dashed;}
+  .fig{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px; overflow-x:auto;}
+  .fig svg{display:block; min-width:900px; width:100%; height:auto;}
+  .cap{color:var(--mut); font-size:12.5px; margin:10px 2px 0; max-width:100ch;}
+  svg text{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; fill:var(--ink);}
+  svg .t1{font-size:12.5px; font-weight:600;}
+  svg .t2{font-size:10.5px; fill:var(--mut);}
+  svg .lbl{font-size:10px; fill:var(--mut); paint-order:stroke; stroke:var(--panel); stroke-width:3.5px; stroke-linejoin:round;}
+  svg .plane{font-size:11px; font-weight:700; fill:var(--mut); letter-spacing:.08em;}
+  svg .wire{stroke:var(--wire); stroke-width:1.6; fill:none;}
+  svg .wired{stroke:var(--wire); stroke-width:1.4; fill:none; stroke-dasharray:5 4;}
+  svg .wireb{stroke:var(--live); stroke-width:1.6; fill:none; stroke-dasharray:6 4;}
+  svg .wiret{stroke:var(--frozen); stroke-width:1.8; fill:none;}
+  svg .wirea{stroke:var(--dorm); stroke-width:1.3; fill:none; stroke-dasharray:4 4;}
+  svg .wirer{stroke:var(--dead); stroke-width:1.4; fill:none; stroke-dasharray:5 4;}
+  svg .blive{fill:var(--live-bg); stroke:var(--live); stroke-width:1.6;}
+  svg .bfro{fill:var(--frozen-bg); stroke:var(--frozen); stroke-width:1.6;}
+  svg .bscr{fill:var(--script-bg); stroke:var(--script); stroke-width:1.4;}
+  svg .bdor{fill:var(--dorm-bg); stroke:var(--dorm); stroke-width:1.4; stroke-dasharray:5 4;}
+  svg .bded{fill:var(--dead-bg); stroke:var(--dead); stroke-width:1.4;}
+  svg .cont{fill:none; stroke:var(--mut); stroke-width:1.2; stroke-dasharray:7 5;}
+  table{border-collapse:collapse; width:100%; font-size:12.5px;}
+  th,td{border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top;}
+  th{background:var(--script-bg); font-weight:600; font-size:11.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--mut);}
+  .tbl{overflow-x:auto; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px;}
+  .stripe{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12.5px; color:var(--mut);
+          font-family:ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums;
+          background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:9px 12px;}
+  .stripe b{color:var(--ink); font-weight:600;}
+  .foot{color:var(--mut); font-size:12px; margin-top:14px; max-width:88ch;}
+  @media print{ body{background:#fff;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>T5 Architecture — Block Diagram &amp; System Card</h1>
+  <p class="meta">Zymera · TeamBlue / SharedExploration · snapshot <b>2026-08-09</b> · code
+     <span class="mono">zymera_lab @ 2430a70</span> · companion to <span class="mono">ARCHITECTURE.md</span> /
+     <span class="mono">T5_DESIGN.md</span>. Bands: <b>A</b> = deploy-time tick (bridge + micro),
+     <b>B</b> = training iteration (macro objective).</p>
+
+  <div class="legend">
+    <span><span class="chip" style="--c:var(--live)">trained</span> PPO-updated</span>
+    <span><span class="chip" style="--c:var(--frozen)">distilled</span> frozen under RL</span>
+    <span><span class="chip" style="--c:var(--script)">deterministic</span> no params</span>
+    <span><span class="chip" style="--c:var(--dorm)">instantiated·disabled</span></span>
+    <span><span class="sw"></span> per-tick signal</span>
+    <span><span class="sw d"></span> gated / alternative / train-time</span>
+    <span><span class="sw b"></span> gradient</span>
+    <span><span class="sw t"></span> offline distillation</span>
+    <span><span class="sw a"></span> disabled path</span>
+    <span><span class="sw r"></span> adversarial seam</span>
+  </div>
+
+  <div class="fig">
+  <svg viewBox="0 0 1200 1660" role="img" aria-label="T5 block diagram">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="var(--wire)"/></marker>
+      <marker id="ahb" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="var(--live)"/></marker>
+      <marker id="aht" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="var(--frozen)"/></marker>
+      <marker id="aha" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="var(--dorm)"/></marker>
+      <marker id="ahr" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M0 0 L10 4 L0 8 z" fill="var(--dead)"/></marker>
+    </defs>
+
+    <text x="60" y="52" class="plane">A · DEPLOY-TIME TICK — every env step t (one shared net, vmapped over N)</text>
+
+    <!-- env tick return loop -->
+    <path class="wire" d="M610 905 L345 905 L345 80 L185 80 L185 90" marker-end="url(#ah)"/>
+    <text x="360" y="74" class="lbl">env advances s_t → s_{t+1} · a_t (N,) ∈ {stay,N,E,S,W}</text>
+
+    <!-- ENVIRONMENT -->
+    <rect x="60" y="90" width="250" height="210" rx="6" class="bscr"/>
+    <text x="75" y="115" class="t1">ENVIRONMENT (zymera)</text>
+    <text x="75" y="134" class="t2">World: positions · walls · explored ·</text>
+    <text x="75" y="149" class="t2">seen_by · comm_graph · step_count</text>
+    <text x="75" y="171" class="t2">step order (frozen, parity-gated):</text>
+    <text x="75" y="186" class="t2">dynamics → explored → knowledge →</text>
+    <text x="75" y="201" class="t2">deliver → metrics → mission → obs</text>
+    <text x="75" y="226" class="t2">r_t = 1·new_coverage</text>
+    <text x="87" y="241" class="t2">+ 2·reach_fraction (multi-hop)</text>
+    <text x="87" y="256" class="t2">− 4·collision_count</text>
+    <text x="75" y="278" class="t2">true λ₂(s_t) · metrics (potential)</text>
+
+    <path class="wire" d="M60 200 L38 200 L38 1240 L80 1240" marker-end="url(#ah)"/>
+    <text x="44" y="700" class="lbl" transform="rotate(90 44 700)">r_t (N,) · λ₂ metrics</text>
+
+    <!-- COMMS -->
+    <path class="wire" d="M185 300 L185 340" marker-end="url(#ah)"/>
+    <text x="196" y="322" class="lbl">positions · sensed walls</text>
+    <rect x="60" y="340" width="250" height="90" rx="6" class="bscr"/>
+    <text x="75" y="363" class="t1">COMMS — bridge</text>
+    <text x="75" y="381" class="t2">DiskTopology(r=5) potential → Gossip</text>
+    <text x="75" y="396" class="t2">deliver → adj; belief merge (SLAM fold)</text>
+    <text x="75" y="414" class="t2">△D1 occlusion d_eff=d+c·k OFF</text>
+
+    <!-- OBS -->
+    <path class="wire" d="M185 430 L185 470" marker-end="url(#ah)"/>
+    <text x="196" y="452" class="lbl">fused belief</text>
+    <rect x="60" y="470" width="250" height="90" rx="6" class="bscr"/>
+    <text x="75" y="493" class="t1">OBS BUILDER (GridObs)</text>
+    <text x="75" y="511" class="t2">known · own_pos · known_walls ·</text>
+    <text x="75" y="526" class="t2">neighbors · occ_frontier · team_explored</text>
+    <text x="75" y="544" class="t2">+ central view (critic only)</text>
+
+    <!-- left-to-stack wires -->
+    <path class="wire" d="M310 515 L355 515 L355 145 L450 145" marker-end="url(#ah)"/>
+    <text x="362" y="140" class="lbl">obs (N,C,H,W)</text>
+    <path class="wire" d="M310 385 L380 385 L380 255 L450 255" marker-end="url(#ah)"/>
+    <text x="316" y="377" class="lbl">adj (N,N)</text>
+    <path class="wire" d="M185 560 L185 705 L450 705" marker-end="url(#ah)"/>
+    <text x="196" y="697" class="lbl">known_walls (N,H,W)</text>
+    <path class="wire" d="M310 240 L425 240 L425 825 L450 825" marker-end="url(#ah)"/>
+    <text x="316" y="252" class="lbl">targets · mask (N,5)</text>
+
+    <!-- CNN -->
+    <rect x="450" y="110" width="320" height="70" rx="6" class="blive"/>
+    <text x="465" y="135" class="t1">CNN ENCODER</text>
+    <text x="465" y="153" class="t2">depth 2 · per-agent (C,H,W) → feat (N,64)</text>
+    <path class="wire" d="M610 180 L610 220" marker-end="url(#ah)"/>
+    <text x="620" y="205" class="lbl">feat (N,64)</text>
+
+    <!-- MP -->
+    <rect x="450" y="220" width="320" height="80" rx="6" class="blive"/>
+    <text x="465" y="245" class="t1">MESSAGE PASSING (GNN)</text>
+    <text x="465" y="263" class="t2">2 rounds · agg=max · perm-equivariant</text>
+    <text x="465" y="278" class="t2">count-invariant (1-WL bound)</text>
+    <path class="wire" d="M770 240 C 798 240 798 285 770 285" marker-end="url(#ah)"/>
+    <text x="804" y="266" class="lbl">×2</text>
+    <path class="wire" d="M610 300 L610 370" marker-end="url(#ah)"/>
+    <text x="622" y="316" class="lbl">belief z (N,64)</text>
+
+    <!-- dormant rail -->
+    <rect x="820" y="90" width="350" height="240" rx="6" class="cont"/>
+    <text x="832" y="112" class="plane">INSTANTIATED · DISABLED (every checkpoint)</text>
+    <rect x="832" y="124" width="158" height="56" rx="5" class="bdor"/>
+    <text x="842" y="146" class="t2">Compass (dir term)</text><text x="842" y="161" class="t2">→ z</text>
+    <rect x="1002" y="124" width="158" height="56" rx="5" class="bdor"/>
+    <text x="1012" y="146" class="t2">GRU · GCRN hidden</text><text x="1012" y="161" class="t2">h self-loop on z</text>
+    <rect x="832" y="196" width="158" height="70" rx="5" class="bdor"/>
+    <text x="842" y="218" class="t2">FrontierAttn (+logits)</text><text x="842" y="233" class="t2">GoalResidual (+logits)</text>
+    <rect x="1002" y="196" width="158" height="70" rx="5" class="bdor"/>
+    <text x="1012" y="218" class="t2">role head {expl,relay}</text><text x="1012" y="233" class="t2">selector + flock</text>
+    <text x="1012" y="248" class="t2">(3-skill library)</text>
+    <path class="wirea" d="M895 330 L895 356 L622 356" marker-end="url(#aha)"/>
+    <text x="700" y="348" class="lbl">(disabled adds to z / logits)</text>
+
+    <!-- GOAL HEAD -->
+    <rect x="450" y="370" width="320" height="70" rx="6" class="blive"/>
+    <text x="465" y="395" class="t1">L3 · GOAL HEAD — Linear 64→9</text>
+    <text x="465" y="413" class="t2">the open lever · △D2 resampled every step</text>
+    <path class="wire" d="M610 440 L610 470" marker-end="url(#ah)"/>
+    <text x="622" y="461" class="lbl">logits (N,9)</text>
+
+    <!-- SAMPLE -->
+    <rect x="480" y="470" width="260" height="60" rx="6" class="blive"/>
+    <text x="495" y="493" class="t1">SAMPLE k ~ Cat(9)</text>
+    <text x="495" y="511" class="t2">the PPO action · log π stored</text>
+    <path class="wire" d="M610 530 L610 560" marker-end="url(#ah)"/>
+    <text x="622" y="551" class="lbl">k (N,)</text>
+
+    <!-- SAFETY -->
+    <rect x="820" y="370" width="350" height="130" rx="6" class="bscr"/>
+    <text x="835" y="393" class="t1">MISSION-SAFETY (per-agent clamp)</text>
+    <text x="835" y="411" class="t2">safe_goal_mask: forbid k if own first step</text>
+    <text x="835" y="426" class="t2">drops true λ₂ &lt; floor; stay-goal admissible</text>
+    <text x="835" y="444" class="t2">mechanism: action_mask | soft | lagrangian | PID</text>
+    <text x="835" y="462" class="t2">signal: global λ₂ | local edge-margin</text>
+    <text x="835" y="482" class="t2">△D3 default=action_mask vs no-hard-mask doctrine</text>
+    <path class="wired" d="M820 485 L740 485" marker-end="url(#ah)"/>
+    <text x="816" y="477" class="lbl" text-anchor="end">mask (N,9)</text>
+    <path class="wired" d="M1080 500 L1080 516 L1186 516 L1186 946 L668 946" marker-end="url(#ah)"/>
+    <text x="700" y="938" class="lbl">or λ·penalty shapes r̃_t [soft / adaptive]</text>
+
+    <!-- STENCIL -->
+    <rect x="450" y="560" width="320" height="65" rx="6" class="bscr"/>
+    <text x="465" y="583" class="t1">STENCIL — goal cell</text>
+    <text x="465" y="601" class="t2">g_i = pos_i + S[k_i]</text>
+    <text x="465" y="616" class="t2">S = {here} ∪ 8 compass · stride 3</text>
+    <path class="wire" d="M610 625 L610 655" marker-end="url(#ah)"/>
+    <text x="622" y="647" class="lbl">g (N,2)</text>
+
+    <!-- L2 -->
+    <rect x="450" y="655" width="320" height="100" rx="6" class="bfro"/>
+    <text x="465" y="678" class="t1">L2 · PLANNER — MVProp (deployed)</text>
+    <text x="465" y="696" class="t2">w = σ(conv[walls, goal] + 2.0 bias)</text>
+    <text x="465" y="711" class="t2">V ← max(r, γ·w·max₄V) · K=32 · γ=0.9</text>
+    <text x="465" y="726" class="t2">r = goal one-hot · frozen under RL</text>
+    <text x="465" y="741" class="t2">alternates: navfield · greedy · △D4 t5lab</text>
+    <path class="wire" d="M610 755 L610 790" marker-end="url(#ah)"/>
+    <text x="622" y="779" class="lbl">V field (N,H,W) → 5-neighbour values</text>
+
+    <!-- L1 -->
+    <rect x="450" y="790" width="320" height="70" rx="6" class="bscr"/>
+    <text x="465" y="813" class="t1">L1 · TRACKER</text>
+    <text x="465" y="831" class="t2">argmax V among env-valid · collision veto +</text>
+    <text x="465" y="846" class="t2">index-priority resolution · STAY fallback</text>
+    <path class="wire" d="M610 860 L610 905"/>
+
+    <!-- adversarial seam -->
+    <rect x="820" y="540" width="350" height="110" rx="6" class="bded"/>
+    <text x="835" y="563" class="t1">ADVERSARIAL SEAM (red/blue)</text>
+    <text x="835" y="581" class="t2">GroupedActor · RandomKofN(k) at reset →</text>
+    <text x="835" y="596" class="t2">compromised π̂ᵢ replaces one sub-policy;</text>
+    <text x="835" y="611" class="t2">D=(C,α,ε,Δ) · per-edge KL stealth ε_s</text>
+    <text x="835" y="629" class="t2">detectors (open): contribution · KB probe · energy</text>
+    <path class="wirer" d="M820 590 L778 590" marker-end="url(#ahr)"/>
+
+    <!-- tau branch to training -->
+    <path class="wire" d="M610 905 L660 905 L660 1190 L230 1190 L230 1210" marker-end="url(#ah)"/>
+    <text x="330" y="1183" class="lbl">τ: (obs, adj, k, log π, r, λ₂ metrics) per step</text>
+
+    <!-- PLANE B -->
+    <rect x="40" y="1140" width="1120" height="480" rx="8" class="cont"/>
+    <text x="60" y="1166" class="plane">B · TRAINING ITERATION — absent at deploy ⟳ per iteration</text>
+
+    <rect x="80" y="1210" width="240" height="90" rx="6" class="bscr"/>
+    <text x="95" y="1233" class="t1">TRAJECTORY BUFFER</text>
+    <text x="95" y="1251" class="t2">8 rollouts/iter default</text>
+    <text x="95" y="1266" class="t2">(16 = campaign floor) ·</text>
+    <text x="95" y="1281" class="t2">fixed-length scan episodes</text>
+
+    <rect x="370" y="1210" width="240" height="90" rx="6" class="blive"/>
+    <text x="385" y="1233" class="t1">CTDE CRITIC — DeepSets</text>
+    <text x="385" y="1249" class="t2">in: central obs + team scalars</text>
+    <text x="385" y="1264" class="t2">count-invariant setpool → V̂, λ̂₂</text>
+    <text x="385" y="1279" class="t2">discarded at deploy ·</text>
+    <text x="385" y="1294" class="t2">(AttnCritic+COMA = diagnostic)</text>
+
+    <rect x="660" y="1210" width="260" height="120" rx="6" class="blive"/>
+    <text x="675" y="1233" class="t1">PPO UPDATE</text>
+    <text x="675" y="1251" class="t2">clip 0.2 · 4 epochs × 4 minibatches</text>
+    <text x="675" y="1266" class="t2">policy + value + λ̂₂ aux (Huber) +</text>
+    <text x="675" y="1281" class="t2">entropy 0.01 + degree-var reg ·</text>
+    <text x="675" y="1296" class="t2">per-agent adv path available</text>
+    <text x="675" y="1314" class="t2">BPTT over episodes if recurrent</text>
+
+    <path class="wire" d="M200 1300 L200 1350" marker-end="url(#ah)"/>
+    <rect x="80" y="1350" width="240" height="80" rx="6" class="bscr"/>
+    <text x="95" y="1373" class="t1">GAE</text>
+    <text x="95" y="1391" class="t2">γ=0.99 · λ=0.95 · team return</text>
+    <text x="95" y="1406" class="t2">(or per-agent difference reward)</text>
+    <path class="wire" d="M490 1300 L490 1322 L340 1322 L340 1390 L320 1390" marker-end="url(#ah)"/>
+    <text x="352" y="1314" class="lbl">V̂ (bootstrap)</text>
+    <path class="wire" d="M200 1430 L200 1480 L700 1480 L700 1330" marker-end="url(#ah)"/>
+    <text x="380" y="1472" class="lbl">advantages Â · returns</text>
+
+    <path class="wire" d="M300 1300 L300 1334 L430 1334 L430 1350" marker-end="url(#ah)"/>
+    <text x="440" y="1344" class="lbl">violation v = relu(τ_c − λ₂)</text>
+    <rect x="370" y="1350" width="240" height="90" rx="6" class="bscr"/>
+    <text x="385" y="1373" class="t1">DUAL VARIABLE λ</text>
+    <text x="385" y="1391" class="t2">λ ← λ + η_λ·v (or PID) ·</text>
+    <text x="385" y="1406" class="t2">carried in train state ·</text>
+    <text x="385" y="1421" class="t2">active mechanisms only</text>
+    <path class="wired" d="M610 1400 L640 1400 L640 1145" marker-end="url(#ah)"/>
+    <text x="652" y="1160" class="lbl">λ·penalty → r̃_t at collection (adaptive)</text>
+
+    <path class="wireb" d="M660 1260 L610 1260" marker-end="url(#ahb)"/>
+    <text x="618" y="1252" class="lbl">∇φ</text>
+    <path class="wireb" d="M700 1210 L700 1100 L408 1100 L408 262 L450 262" marker-end="url(#ahb)"/>
+    <text x="398" y="690" class="lbl" transform="rotate(-90 398 690)">∇θ — backbone · goal &amp; aux/value heads (never L2 · L1 · env)</text>
+
+    <rect x="960" y="1360" width="190" height="200" rx="6" class="bfro"/>
+    <text x="975" y="1383" class="t1">DISTILLATION</text>
+    <text x="975" y="1401" class="t2">offline · once</text>
+    <text x="975" y="1421" class="t2">teacher: exact 4-conn</text>
+    <text x="975" y="1436" class="t2">wavefront γ^d</text>
+    <text x="975" y="1456" class="t2">MSE on V → w*</text>
+    <text x="975" y="1476" class="t2">MSE ≈ 6·10⁻⁵ ·</text>
+    <text x="975" y="1491" class="t2">w-recovery 98–99.6%</text>
+    <text x="975" y="1511" class="t2">upgrade pending:</text>
+    <text x="975" y="1526" class="t2">mixed · K128 · γ0.99</text>
+    <path class="wiret" d="M1150 1400 L1172 1400 L1172 700 L770 700" marker-end="url(#aht)"/>
+    <text x="1160" y="692" class="lbl" text-anchor="end">frozen weights w* → L2 (offline, once)</text>
+  </svg>
+  </div>
+  <p class="cap"><b>Figure 1.</b> T5 dataflow. Solid wires = per-tick signals with shapes; the left return
+  wire is the environment tick loop; the bottom plane is the training iteration loop (absent at deploy).
+  Dashed gray = gated or alternative paths; dashed blue = gradient flow (reaches backbone and heads only);
+  teal = one-time offline distillation into the frozen planner; dashed amber = disabled contributions
+  (modules present in every checkpoint); dashed red = the covert-insider insertion point. △D1–D4 mark the
+  discrepancy register below. Wire crossings carry no connection semantics.</p>
+
+  <h2><span class="sec">§2</span> Operating constants</h2>
+  <div class="stripe">
+    <span>W=<b>64</b></span><span>K=<b>9</b></span><span>stride <b>3</b></span><span>MP rounds <b>2</b></span>
+    <span>comm_r <b>5</b></span><span>sense_r <b>1</b></span><span>horizon <b>100</b></span>
+    <span>params <b>160,869</b> ¹</span><span>MVProp <b>K=32 · γ=0.9</b></span>
+    <span>PPO <b>4×4</b> · clip 0.2 · γ 0.99 · GAE λ 0.95 · lr 3e-4 · entropy 0.01</span>
+    <span>rollouts <b>8</b> default / <b>16</b> campaign ²</span>
+  </div>
+
+  <h2><span class="sec">§3</span> Discrepancy register</h2>
+  <div class="tbl">
+    <table>
+      <tr><th>id</th><th>statement</th><th>evidence</th><th>risk</th><th>remedy</th></tr>
+      <tr><td><b>D1</b></td><td>Occlusion implemented, disabled in all reported runs</td>
+          <td><span class="mono">config.World.occlusion=False</span></td>
+          <td>Connectivity overstated; cornering's coupling precondition unmet</td>
+          <td>Enable next campaign (task #15)</td></tr>
+      <tr><td><b>D2</b></td><td>L3 slow clock designed, not implemented (per-step resampling)</td>
+          <td>no cadence field in <span class="mono">ActionHead</span>; dial 7″ = "build"</td>
+          <td>Doc overstates implementation; temporal commitment untested</td>
+          <td>Commit-K dial in the rollout scan</td></tr>
+      <tr><td><b>D3</b></td><td>Default <span class="mono">mechanism="action_mask"</span> contradicts no-hard-mask doctrine</td>
+          <td><span class="mono">config.MissionSafety</span> · <span class="mono">ppo._goal_mask</span></td>
+          <td>Default runs silently violate the standing rule</td>
+          <td>Change default / fail on unset; audit configs</td></tr>
+      <tr><td><b>D4</b></td><td>Two actor implementations, different planner-gradient semantics</td>
+          <td><span class="mono">ctde_v0.nets.Actor</span> vs <span class="mono">t5lab.T5Actor</span></td>
+          <td>Result provenance depends on the path used</td>
+          <td>Unify after the L3 probes select a design</td></tr>
+    </table>
+  </div>
+
+  <h2><span class="sec">§4</span> Open decision points (2026-08-09)</h2>
+  <div class="tbl">
+    <table>
+      <tr><th>id</th><th>action</th><th>establishes</th><th>cost / dependency</th></tr>
+      <tr><td><b>P1</b></td><td>Deploy-then-release probe on frozen checkpoints (clustered baseline · Voronoi deploy→release · deploy+leash · god-view re-partition ceiling)</td>
+          <td>Fraction of the L3 shortfall that is pure spatial allocation</td><td>CPU · inference-only</td></tr>
+      <tr><td><b>P2</b></td><td>Decode-time claim-round: sequential-greedy arbitration over frozen goal logits</td>
+          <td>Whether coupling the existing head closes the gap without retraining</td><td>CPU · inference-only</td></tr>
+      <tr><td><b>H</b></td><td>Targeted hygiene: D3 default, D2 commit-K dial, deprecate closed dials in docstrings (no pruning)</td>
+          <td>Removes standing footguns at negligible cost</td><td>small · alongside P1/P2</td></tr>
+      <tr><td><b>B</b></td><td>L3 ablation (lit-backed 2026-08-10): goal repr {9-stencil · ego spatial-softmax grid · top-K proposer+scorer} × cadence {per-step · commit-K≈10–25 + event interrupt} × coordination {none · claim-round · intention channel}; HAPPO axis in the MAPPO session (task #7)</td>
+          <td>The L3 revision — and the head-to-head the literature lacks</td><td>GPU-gated · see <span class="mono">lit-l3-goal-representation-verdict</span></td></tr>
+    </table>
+  </div>
+
+  <h2><span class="sec">§5</span> Provenance</h2>
+  <p class="foot">
+  <b>Code</b> (read 2026-08-09, <span class="mono">zymera_lab @ 2430a70</span>):
+  <span class="mono">ctde_v0/{nets,controller,config,ppo}.py</span> ·
+  <span class="mono">t5lab/{actor,mvprop,planner,plug_ctde}.py</span> ·
+  <span class="mono">zymera/{obs,comms,missions_terms}.py</span>.
+  <b>Documents:</b> <span class="mono">ARCHITECTURE.md</span> (three-clock; w-recovery),
+  <span class="mono">T5_DESIGN.md</span>, <span class="mono">EXPERIMENTS.md</span> (settled ledger).
+  <b>Measurements:</b> ¹ parameter count, 24²/6 checkpoint (symmetry-breaking review, 2026-07-23);
+  ² <span class="mono">Training.rollouts_per_iter=8</span> default, 16 = campaign floor (standing rule);
+  Stage-0 78.9% vs 25% zero-shot and the BFS-corrected oracle (<span class="mono">report/planner-study/</span>);
+  distillation MSE 6·10⁻⁵, w-recovery 98–99.6% (<span class="mono">report/mvprop_method.html</span>,
+  <span class="mono">ARCHITECTURE.md</span> §2); per-step connectivity mechanisms closed 2026-06-27
+  (<span class="mono">EXPERIMENTS.md</span> §0).
+  </p>
+</div>
+</body>
+</html>

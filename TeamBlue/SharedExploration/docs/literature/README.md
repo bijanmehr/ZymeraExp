@@ -13,6 +13,7 @@ canonical yet — the distilled verdicts live in the **memory `lit-*` corpus** (
 | **`asymmetry_litreview.html`** | Jul 23 | *Symmetry-Breaking in Parameter-Shared Multi-Agent Coverage* — how identical shared-policy agents can differentiate; ties to the flood / no-emergence finding and the deploy-then-release wrapper. | Reconcile against `lit-symmetry-break-inference-verdict` memory (flood = 1-WL + Angluin); fold any delta, then archive. |
 | **`positioning_portfolio.html`** | Aug 4 | *Zymera — Positioning & Paper Portfolio* — where the work sits vs prior art + the multi-paper split. Fairly current. | Feed into paper planning; reconcile with `project-multipaper-portfolio-strategy` + `lit-architecture-positioning-verdict`. |
 | **`slm_marl_survey_brief.html`** | Aug 5 | *A language model for Zymera — what the evidence supports* — whether an SLM/LLM fits the program. | Decide if the LLM angle is in scope (see `lit-llm-gametheory-posg-gap`); if not, archive. |
+| **`INSPIRATION_PAPERS.md`** | Aug 9 | **The design-influence bibliography** — every paper that shaped a design/architecture decision, by component, with "what we took" per entry. Living doc, not staged-for-processing. | Keep current (add a paper when it changes a decision); feeds `site/related-work` + the paper's citations. |
 
 ## Already consolidated — the published research hub (leave in place)
 The polished, *output* form of all this lives on the live GitHub Pages site (`Project.Zymera/site/`), not here:

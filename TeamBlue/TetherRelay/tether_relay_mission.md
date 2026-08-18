@@ -7,7 +7,10 @@
 A decentralized relay team keeps a **moving lead** connected back to **base** through a
 **comms-denied looped maze**. The science is maintaining **`k`-redundant connectivity** (`k`
 node-disjoint base→lead paths) under a **covert cut-vertex adversary**. Realistic anchor: DARPA
-**SubT** / NASA **CADRE** forward-comms tether (the ACHORD "SNR-lie" red is a documented instance).
+**SubT** / NASA **CADRE** forward-comms tether. ⚠️ Corrected 2026-08-14: no documented SNR-misreport
+instance exists in the SubT/ACHORD literature (full-text verified) — the honest anchor is ACHORD's
+**trust-by-default surface** (radios' self-reported SNR/link metrics propagate unaudited into planning);
+"SNR-lie" names OUR threat model on that surface, not a recorded event.
 
 ## Why this mission (realistic, and it *demands* the complexity)
 Not invented — it is the forward-comms problem in comms-denied deployments (underground, planetary,
@@ -87,4 +90,4 @@ disaster interiors). Every complication is **forced**, not chosen:
 - **Not coverage** (no ground to sweep — the sole objective is holding a chain to a mover).
 - **Not cornering** (protect a *friendly* mover's link vs contain a *hostile* mover) — but shares the
   mobile-target substrate; the two make a natural **B-coupling pair** (tether = keep-linked-to-mover,
-  cornering = contain-mover). See `../missions/` for cornering when written.
+  cornering = contain-mover). Cornering's workspace/notes: `../Cornering/`.
