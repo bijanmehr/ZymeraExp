@@ -1,0 +1,28 @@
+<!doctype html><meta charset=utf-8><title>Balance frontier — swarm GIFs (2026-08-18)</title>
+<style>body{font:14px/1.5 system-ui;margin:20px;background:#fff;color:#1a1f29}
+h1{font-size:18px}.row{display:flex;gap:18px;flex-wrap:wrap}
+.c{width:300px}.c img{width:300px;border:1px solid #d7dce3}
+.c b{display:block;margin-top:6px}.c span{color:#5a6472;font-size:12.5px}
+.note{max-width:820px;color:#5a6472}
+.warn{background:#f7f8fa;border-left:3px solid #9aa4b2;padding:8px 12px;margin:10px 0;max-width:820px;font-size:13px}</style>
+<h1>Difference credit — the reach-weight frontier</h1>
+<p class=note>Left→right = rising connectivity pressure. Green = <b>covered (1×1 stood-on — the cell each
+agent operates on)</b>; the faint square is the 3×3 <b>sensing</b> range (navigation only, not coverage).
+Dark = wall · dots = agents (by id) · rings = comm range · teal = delivered link.</p>
+<div class=warn><b>Coverage = 1×1 stood-on</b> (the mission deliverable), not the 3×3 sensor footprint.
+<b>Connectivity numbers are one-piece</b>, and each GIF is <b>one held-out map (ep 0)</b> — so per card,
+<b>ep0</b> = this map's one-piece (what you see) and <b>avg</b> = the 16-map figure with its spread. reach 2
+looks perfectly connected here (ep0 98%) yet averages 75% <b>± 25</b>; reach 3 is the reliable one at 92%
+<b>± 6.6</b> on every map.</div>
+<div class=row>
+<div class=c><img src="gifs/0_shared_huddle_baseline.gif"><b>shared (huddle baseline)</b>
+<span>cov <b>20.9%</b> stood-on · one-piece ep0 97% / avg 99% — clumped, can't leave the corner</span></div>
+<div class=c><img src="gifs/1_reach_1_0_max_coverage_graph_shr.gif"><b>reach 1.0 — max coverage</b>
+<span>cov <b>48.9%</b> stood-on · one-piece ep0 15% / avg 44% ± 16 — graph shredded for coverage</span></div>
+<div class=c><img src="gifs/2_reach_2_0.gif"><b>reach 2.0 — high-variance</b>
+<span>cov <b>42.5%</b> stood-on · one-piece ep0 98% (this map) / avg 75% <b>± 25</b> — connected here, fragile elsewhere</span></div>
+<div class=c><img src="gifs/3_reach_3_0_the_knee.gif"><b>reach 3.0 — the knee (reliable)</b>
+<span>cov <b>38.5%</b> stood-on · one-piece ep0 95% / avg 92% <b>± 6.6</b> — connected on every map</span></div>
+<div class=c><img src="gifs/4_reach_6_0_over_tight.gif"><b>reach 6.0 — over-tight</b>
+<span>cov <b>30.5%</b> stood-on · one-piece ep0 91% / avg 92% ± 17 — coverage given back for no conn gain</span></div>
+</div>

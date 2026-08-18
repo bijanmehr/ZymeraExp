@@ -19,25 +19,26 @@
 <div class="wrap">
 <h1>Credit assignment &amp; the division-of-labor fix</h1>
 <div class="card">
-<b>The finding.</b> The v1 default (<b>shared</b> credit) pays every agent the team-total new-cell count,
-so no agent is rewarded for reaching ground the others missed — the team floods one region and sensed
-coverage stalls at <b>27%</b>. Restoring <b>exact difference credit</b> (each agent paid only for a cell it
-covered <i>alone</i>) makes agents fan out: sensed coverage <b>27&nbsp;→&nbsp;66%</b>. But the price is
-connectivity — the team stops holding one component (<b>one-piece 99&nbsp;→&nbsp;78%</b>). Gating coverage
-on connectivity buys a little more coverage (70%) at the cost of collapse (one-piece 45%).
+<b>The finding.</b> Coverage here is <b>1×1 stood-on</b> — the cell each agent operates on (the 3×3 sensor
+footprint is navigation range, shown greyed as reference). The v1 default (<b>shared</b> credit) pays every
+agent the team-total new-cell count, so no agent is rewarded for reaching ground the others missed — the team
+floods one region and coverage stalls at <b>21%</b>. Restoring <b>exact difference credit</b> (each agent paid
+only for a cell it covered <i>alone</i>) makes agents fan out: coverage <b>21&nbsp;→&nbsp;44%</b>. But the
+price is connectivity — the team stops holding one component (<b>one-piece 99&nbsp;→&nbsp;78%</b>). Gating
+coverage on connectivity holds coverage (44%) but connectivity collapses (one-piece 45%).
 <table class="res">
-<tr><th>credit arm</th><th>stood-on</th><th>sensed</th><th>one-piece</th><th>giant</th></tr>
-<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#6b7280;margin-right:6px"></span><b>shared</b><span style="opacity:.55"> · flat credit (v1 default)</span></td><td style="text-align:center">20.9%</td><td style="text-align:center;">27.2%</td><td style="text-align:center;font-weight:700;color:#1f7a44">99.0%</td><td style="text-align:center">99.9%</td></tr>
-<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#0072B2;margin-right:6px"></span><b>difference</b><span style="opacity:.55"> · exact D_i — division of labor</span></td><td style="text-align:center">43.6%</td><td style="text-align:center;font-weight:700">65.6%</td><td style="text-align:center;color:#b0562a">77.7%</td><td style="text-align:center">95.3%</td></tr>
-<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#009E73;margin-right:6px"></span><b>structural</b><span style="opacity:.55"> · D_i + connectivity credit</span></td><td style="text-align:center">23.1%</td><td style="text-align:center;">38.2%</td><td style="text-align:center;color:#b0562a">76.1%</td><td style="text-align:center">95.6%</td></tr>
-<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#D55E00;margin-right:6px"></span><b>gated</b><span style="opacity:.55"> · coverage × giant²</span></td><td style="text-align:center">44.4%</td><td style="text-align:center;font-weight:700">70.2%</td><td style="text-align:center;color:#b0562a">45.2%</td><td style="text-align:center">83.8%</td></tr>
+<tr><th>credit arm</th><th>coverage 1×1</th><th style="opacity:.5;font-weight:400">sensed 3×3</th><th>one-piece</th><th>giant</th></tr>
+<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#6b7280;margin-right:6px"></span><b>shared</b><span style="opacity:.55"> · flat credit (v1 default)</span></td><td style="text-align:center;">20.9%</td><td style="text-align:center;opacity:.45">27.2%</td><td style="text-align:center;font-weight:700;color:#1f7a44">99.0%</td><td style="text-align:center">99.9%</td></tr>
+<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#0072B2;margin-right:6px"></span><b>difference</b><span style="opacity:.55"> · exact D_i — division of labor</span></td><td style="text-align:center;font-weight:700">43.6%</td><td style="text-align:center;opacity:.45">65.6%</td><td style="text-align:center;color:#b0562a">77.7%</td><td style="text-align:center">95.3%</td></tr>
+<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#009E73;margin-right:6px"></span><b>structural</b><span style="opacity:.55"> · D_i + connectivity credit</span></td><td style="text-align:center;">23.1%</td><td style="text-align:center;opacity:.45">38.2%</td><td style="text-align:center;color:#b0562a">76.1%</td><td style="text-align:center">95.6%</td></tr>
+<tr><td style="padding:4px 8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#D55E00;margin-right:6px"></span><b>gated</b><span style="opacity:.55"> · coverage × giant²</span></td><td style="text-align:center;font-weight:700">44.4%</td><td style="text-align:center;opacity:.45">70.2%</td><td style="text-align:center;color:#b0562a">45.2%</td><td style="text-align:center">83.8%</td></tr>
 </table>
 <div class="req"><b>Requirement (Bijan):</b> the team must stay one connected component — worst case a single
 chain. <b>shared</b> meets it (99%); <b>difference</b> / <b>gated</b> do <b>not</b> yet. The overnight
 <b>balance sweep</b> (difference × reach&nbsp;∈&nbsp;{1,2,3,4,6}) now running searches the reach weight
 that restores ~99% one-piece without surrendering the coverage.</div>
 <span style="font-size:11.5px;color:#8a94a2">Seed 0, 16 held-out 32²/10 mixed-terrain maps, 10k iters, comm_r 5, horizon 100.
-3-seed aggregate + balance-sweep knee pending. Bar = sensed ≥90% AND one-piece ≥99%.</span>
+Coverage = 1×1 stood-on (the operated cell); sensed 3×3 = sensor footprint, reference only.</span>
 </div>
 <div class="card">
 <b>Training dynamics.</b> Difference and gated climb in coverage during training while shared/structural

@@ -1,0 +1,99 @@
+<!doctype html><meta charset=utf-8>
+<title>Blue team — coverage &amp; connectivity, consolidated (2026-08-18)</title>
+<style>
+ body{font:14.5px/1.62 system-ui;margin:0;background:#fff;color:#1a1f29}
+ .wrap{max-width:940px;margin:22px auto;padding:0 18px}
+ h1{font-size:21px;margin:0 0 2px} h2{font-size:16px;margin:26px 0 8px;border-bottom:1px solid #e6e8ec;padding-bottom:4px}
+ .sub{color:#7a8492;font-size:13px;margin-bottom:14px}
+ table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+ th{background:#f3f4f6;text-align:center;padding:5px 8px;font-weight:600} th:first-child{text-align:left}
+ td{border-top:1px solid #eef0f3;padding:4px 8px;text-align:center} td:first-child{text-align:left}
+ .callout{background:#f7f8fa;border-left:3px solid #9aa4b2;padding:10px 14px;margin:12px 0;font-size:13.5px}
+ .good{color:#1f7a44;font-weight:700} .bad{color:#b0562a} .mut{opacity:.5}
+ a{color:#1b6ec2;text-decoration:none} a:hover{text-decoration:underline}
+ code{background:#f3f4f6;padding:1px 5px;border-radius:3px;font-size:12.5px}
+ .run{font-size:12px;color:#8a94a2}
+</style>
+<div class=wrap>
+<h1>Blue team — coverage &amp; connectivity, consolidated</h1>
+<div class=sub>2026-08-18 · 32²/10 mixed terrain · comm_r 5 · horizon 100 · 16 held-out maps · seed 0 unless noted</div>
+
+<div class=callout><b>Read this first — the metric.</b> <b>Coverage = 1×1 stood-on</b> (the cell each agent
+operates on). The agent <i>senses</i> a 3×3 window, but that's navigation range, not the deliverable. Earlier
+numbers I quoted as "56–66% coverage" were the inflated 3×3 <b>SENSED</b> figure — the true numbers below are
+~1.5× lower. <b>Connectivity = one-piece</b> (fraction of ticks the team is a single connected component);
+<b>giant</b> = mean share of agents in the largest component.</div>
+
+<p><b>The story in three lines.</b> (1) A connected 10-agent chain physically caps coverage — the
+<b>connectivity tax</b>. (2) <b>Difference credit</b> is the division-of-labor fix — it roughly doubles coverage
+(21→44% stood-on) but trades connectivity (99→78%). (3) Tuning the <b>reach weight</b> trades along that
+frontier; <b>reach 3</b> is the reliable knee (~38.5% / 92%). Neither reach-weighting nor the full guardrail
+stack has cracked strict 99% one-piece — ~92% (giant 98–99%) looks like a real ceiling for this team.</p>
+
+<h2>Campaign map — what each run was, and the verdict</h2>
+<table>
+<tr><th>campaign</th><th>what it tested</th><th>headline (1×1 / one-piece)</th><th>verdict</th></tr>
+<tr><td>Q6 probes <span class=run>(Aug 13)</span></td><td>can a connected chain hit high coverage?</td><td>21–29% / 93–99%</td><td>the <b>connectivity tax</b> — connected caps coverage</td></tr>
+<tr><td>Credit sweep</td><td>credit assignment: shared/difference/structural/gated</td><td>difference <b>44%</b> / 78%</td><td><b>division-of-labor fix</b> (difference doubles cov)</td></tr>
+<tr><td>Balance sweep</td><td>reach-weight 1→6 on difference (guardrails OFF)</td><td>reach3 <b>38.5%</b> / <span class=good>92%</span></td><td>the frontier; <b>reach 3 = reliable knee</b></td></tr>
+<tr><td>Guardrails · warm-start</td><td>PID+degree-floor+collision, fine-tuned onto the candidates</td><td>~38% / ~90%</td><td><b>null</b> — no lift; 2/8 seeds collapsed</td></tr>
+<tr><td>Guardrails · from-scratch</td><td>same stack, trained 10k from iter 0 (no warm-start bias)</td><td class=mut>running — ETA ~1:40 PM</td><td class=mut>pending</td></tr>
+</table>
+
+<h2>1 · Credit sweep — the division-of-labor fix</h2>
+<div class=sub>Which credit scheme makes agents split up? <a href="credit_2026-08-18/index.html">→ full report + training curves + swarm replay</a></div>
+<table>
+<tr><th>credit arm</th><th>coverage 1×1</th><th class=mut>sensed 3×3</th><th>one-piece</th><th>giant</th></tr>
+<tr><td>shared (v1 default — the flooder)</td><td>20.9%</td><td class=mut>27</td><td class=good>99.0%</td><td>99.9%</td></tr>
+<tr><td><b>difference</b> (exact D_i)</td><td><b>43.6%</b></td><td class=mut>66</td><td>77.7%</td><td>95.3%</td></tr>
+<tr><td>structural (D_i + conn-credit)</td><td>23.1%</td><td class=mut>38</td><td>76.1%</td><td>95.6%</td></tr>
+<tr><td>gated (cov × giant²)</td><td>44.4%</td><td class=mut>70</td><td class=bad>45.2%</td><td>83.8%</td></tr>
+</table>
+<div class=run>3-seed confirmed: difference reliably ~44% cov / ~79% conn; structural is a robust underperformer; gated always collapses connectivity.</div>
+
+<h2>2 · Balance sweep — the reach-weight frontier</h2>
+<div class=sub>Difference credit, reach weight 1→6, guardrails OFF. <a href="balance_2026-08-18/gallery.html">→ swarm GIFs (watch the frontier)</a></div>
+<table>
+<tr><th>reach</th><th>coverage 1×1</th><th>one-piece</th><th>giant</th><th>read</th></tr>
+<tr><td>1.0</td><td><b>48.9%</b></td><td class=bad>43.8%</td><td>87%</td><td>max coverage, graph shredded</td></tr>
+<tr><td>2.0</td><td>42.5%</td><td>75.1% ±25</td><td>94%</td><td>high-variance connectivity</td></tr>
+<tr><td><b>3.0</b></td><td><b>38.5%</b></td><td class=good>91.9% ±6.6</td><td>98%</td><td><b>the knee — reliable</b></td></tr>
+<tr><td>4.0</td><td>37.6%</td><td>87.6%</td><td>98%</td><td>dominated by reach 3</td></tr>
+<tr><td>6.0</td><td>30.5%</td><td>91.9%</td><td>99%</td><td>coverage given back for nothing</td></tr>
+</table>
+
+<h2>3 · Guardrails (warm-start) — the null</h2>
+<div class=sub>Full stack (PID-Lagrangian + degree-floor 2 + collision) fine-tuned onto reach-2/reach-3. The guardrail bound (λ moved 0→0.06) but converged back to the same frontier.</div>
+<table>
+<tr><th>config (guardrails ON)</th><th>seed 0 (cov / one-piece)</th><th>seed 1</th></tr>
+<tr><td>reach3 · guard</td><td>38.4% / 91%</td><td class=bad>19.2% / 96% ⚠ collapsed</td></tr>
+<tr><td>reach3 · guard+gate</td><td>36.0% / 95%</td><td class=bad>23.8% / 91% ⚠ collapsed</td></tr>
+<tr><td>reach2 · guard</td><td>38.6% / 81%</td><td>39.0% / 87%</td></tr>
+<tr><td><b>reach2 · guard+gate</b></td><td>38.1% / 91%</td><td class=good>38.1% / 89% ✓ stable</td></tr>
+</table>
+<div class=run>Takeaway: a <i>local</i> degree-floor can't fix a <i>global</i> one-piece problem (reproduces v0's "local doesn't rescue"). Only stable config: reach2+gate ~38/90. Coverage no better than guardrails-off.</div>
+
+<h2>4 · Guardrails (from-scratch) — running</h2>
+<div class=sub>reach-3 &amp; reach-2, guard stack on from iter 0, 10k, 2 seeds — testing whether guardrails-in-training beat the warm-start version. <b>Results land ~1:40 PM; this section will fill in.</b></div>
+
+<h2>Where we stand</h2>
+<div class=callout>
+<b>Operating-point candidate:</b> <b>reach 3 ≈ 38.5% stood-on / 92% one-piece / 98% giant</b> (guardrails-off);
+the guardrail-on equivalent is the same ~38/90, so guardrails aren't buying coverage.<br><br>
+<b>The ceiling:</b> two independent methods (reach-weighting &amp; the guardrail stack) both stall at
+<b>~92% one-piece</b> — but <b>giant is 98–99% everywhere</b>, so it's never a real split, just ≤1 agent briefly
+detaching. Strict 99%-of-ticks-one-component is the unmet bar; "essentially connected" is met robustly.<br><br>
+<b>The fork:</b> (1) accept ~38/92 (giant ≈99%) and move to the red study; (2) redefine to
+<b>delivered-coverage / intermittent connectivity</b> (allow brief disconnection, require periodic reconnect —
+the cleaner research story); (3) change physics (more agents / larger comm_r).
+</div>
+
+<h2>Red arsenal (built, parked)</h2>
+<p class=run>Covert-adversary machinery is built + tested (① map poison, ② coverage-hole action sabotage,
+③ embedding poison; RQ4 contribution detector; stealth–damage frontier sweep) — waiting only on locking the
+blue operating point above before it runs.</p>
+
+<div class=sub style="margin-top:22px">Detailed reports: <a href="credit_2026-08-18/index.html">credit sweep</a> ·
+<a href="balance_2026-08-18/gallery.html">balance GIFs</a> ·
+<a href="ctde_v1-2026-08-13/index.html">Q6 connectivity tax</a></div>
+</div>
